@@ -1,0 +1,52 @@
+# import test
+# command: .venv-rdagent/Scripts/python.exe -c "import rdagent; print(rdagent.__version__ if hasattr(rdagent,'__version__') else 'n/a')"
+# date: 2026-11-19T12:15:46+02:00
+
+n/a
+
+real	0m1.203s
+user	0m0.015s
+sys	0m0.046s
+IMPORT_EXIT_CODE=0
+
+# CLI test
+# command: .venv-rdagent/Scripts/rdagent.exe --help
+# date: 2026-11-19T12:15:59+02:00
+
+D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\fitz\__init__.py:17: FutureWarning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead.
+  warnings.warn(
+                                                                               
+ Usage: rdagent [OPTIONS] COMMAND [ARGS]...                                    
+                                                                               
++- Options -------------------------------------------------------------------+
+| --install-completion        <bool>  Install completion for the current      |
+|                                     shell.                                  |
+| --show-completion           <bool>  Show completion for the current shell,  |
+|                                     to copy it or customize the             |
+|                                     installation.                           |
+| --help                      <bool>  Show this message and exit.             |
++-----------------------------------------------------------------------------+
++- Commands ------------------------------------------------------------------+
+| fin_factor                                                                  |
+| fin_model                                                                   |
+| fin_quant                                                                   |
+| fin_factor_report                                                           |
+| general_model                                                               |
+| data_science                                                                |
+| llm_finetune                                                                |
+| grade_summary                                                               |
+| ui                 start web app to show the log traces.                    |
+| server_ui          start the Flask log server in real time                  |
+| health_check                                                                |
+| collect_info                                                                |
+| ds_user_interact   start web app to show the log traces in real time        |
++-----------------------------------------------------------------------------+
+
+
+real	1m31.851s
+user	0m0.015s
+sys	0m0.062s
+CLI_EXIT_CODE=0
+
+# version via package metadata
+rdagent (importlib.metadata) = 1.0.0

@@ -1,0 +1,102 @@
+# host docker availability probe
+# date: 2026-11-19T12:17:49+02:00
+# command: docker --version && docker info
+/usr/bin/bash: line 1: docker: command not found
+DOCKER_VERSION_EXIT=127
+
+/usr/bin/bash: line 1: docker: command not found
+DOCKER_INFO_EXIT=0
+
+# python docker SDK probe (as rdagent uses it)
+Traceback (most recent call last):
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\docker\api\client.py", line 223, in _retrieve_server_version
+    return self.version(api_version=False)["ApiVersion"]
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\docker\api\daemon.py", line 181, in version
+    return self._result(self._get(url), json=True)
+                        ~~~~~~~~~^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\docker\utils\decorators.py", line 44, in inner
+    return f(self, *args, **kwargs)
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\docker\api\client.py", line 246, in _get
+    return self.get(url, **self._set_request_timeout(kwargs))
+           ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\requests\sessions.py", line 671, in get
+    return self.request("GET", url, params=params, **kwargs)
+           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\requests\sessions.py", line 651, in request
+    resp = self.send(prep, **send_kwargs)
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\requests\sessions.py", line 784, in send
+    r = adapter.send(request, **kwargs)
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\requests\adapters.py", line 696, in send
+    resp = conn.urlopen(
+        method=request.method,
+    ...<9 lines>...
+        chunked=chunked,
+    )
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\urllib3\connectionpool.py", line 793, in urlopen
+    response = self._make_request(
+        conn,
+    ...<10 lines>...
+        **response_kw,
+    )
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\urllib3\connectionpool.py", line 499, in _make_request
+    conn.request(
+    ~~~~~~~~~~~~^
+        method,
+        ^^^^^^^
+    ...<6 lines>...
+        enforce_content_length=enforce_content_length,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\urllib3\connection.py", line 567, in request
+    self.endheaders()
+    ~~~~~~~~~~~~~~~^^
+  File "C:\Users\swx1536744\AppData\Local\Python\pythoncore-3.13-64\Lib\http\client.py", line 1381, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\swx1536744\AppData\Local\Python\pythoncore-3.13-64\Lib\http\client.py", line 1141, in _send_output
+    self.send(msg)
+    ~~~~~~~~~^^^^^
+  File "C:\Users\swx1536744\AppData\Local\Python\pythoncore-3.13-64\Lib\http\client.py", line 1085, in send
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\docker\transport\npipeconn.py", line 25, in connect
+    sock.connect(self.npipe_path)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\docker\transport\npipesocket.py", line 25, in wrapped
+    return f(self, *args, **kwargs)
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\docker\transport\npipesocket.py", line 76, in connect
+    raise e
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\docker\transport\npipesocket.py", line 54, in connect
+    handle = win32file.CreateFile(
+        address,
+    ...<7 lines>...
+        0
+    )
+pywintypes.error: (2, 'CreateFile', '系统找不到指定的文件。')
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import docker; c=docker.from_env(); print('docker server:', c.version()['Version'])
+                     ~~~~~~~~~~~~~~~^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\docker\client.py", line 110, in from_env
+    return cls(
+        timeout=timeout,
+    ...<3 lines>...
+        **params,
+    )
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\docker\client.py", line 48, in __init__
+    self.api = APIClient(*args, **kwargs)
+               ~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\docker\api\client.py", line 207, in __init__
+    self._version = self._retrieve_server_version()
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\docker\api\client.py", line 230, in _retrieve_server_version
+    raise DockerException(
+        f'Error while fetching server API version: {e}'
+    ) from e
+docker.errors.DockerException: Error while fetching server API version: (2, 'CreateFile', '系统找不到指定的文件。')
+SDK_PROBE_EXIT=1

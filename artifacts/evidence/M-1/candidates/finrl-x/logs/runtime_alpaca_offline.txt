@@ -1,0 +1,10 @@
+### Alpaca offline probe (DUMMY keys, paper endpoint, via proxy; no real account/keys created)
+Thu Nov 19 12:15:28     2026
+Failed to get market clock: Alpaca API error 401: {'message': '<html>\r\n<head><title>401 Authorization Required</title></head>\r\n<body>\r\n<center><h1>401 Authorization Required</h1></center>\r\n<hr><center>nginx</center>\r\n</body>\r\n</html>\r\n'}
+Failed to load assets list: Alpaca API error 401: {'message': 'unauthorized.'}
+project_root: D:\dev-projects\Shutu-AI-Trading-Lab\third_party\FinRL-Trading
+case 1: create_alpaca_account_from_env with NO credentials in env
+  ValueError: Alpaca API credentials not found in environment variables
+case 2: AlpacaManager.execute_portfolio_rebalance(dry_run=True) with dummy keys
+  RuntimeError: Alpaca API error 401: {'message': 'unauthorized.'}
+exit=0

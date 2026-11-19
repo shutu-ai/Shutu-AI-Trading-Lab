@@ -1,0 +1,7 @@
+### CLI entry test: python src/main.py config (repo root cwd)
+Thu Nov 19 12:12:56     2026
+Traceback (most recent call last):
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\FinRL-Trading\src\main.py", line 18, in <module>
+    from utils.logging_utils import setup_logging
+ModuleNotFoundError: No module named 'utils.logging_utils'
+CLI exit=1

@@ -46,20 +46,46 @@ PIP_EXIT=1
 - Contrast with the brief's expectation: this repo does **not** pin old gym/stable-baselines3/tensorflow
   in requirements.txt. The old-RL stack appears instead as *undeclared* imports (see next section).
 
-### Attempt 2 — documented deviation, recovery install: see `logs/install_recovery.txt`
+### Attempt 2 — documented deviation, recovery install: **PASS (with 3 recorded deviations)**
 
-- **DEVIATION RECORDED**: finnhub removed via a filtered copy at
-  `logs/requirements-filtered-nofinnhub.txt` (diff vs shipped requirements = exactly the one line).
-  Command: `pip install -r artifacts/evidence/M-1/candidates/finrl-x/logs/requirements-filtered-nofinnhub.txt`.
-  No library code was modified; the clone is untouched.
-- Result and version resolution: see `logs/install_recovery.txt` (PIP_EXIT recorded at end of file).
+Transcript: `logs/install_recovery.txt` (ends `PIP_EXIT=0`).
+
+- **DEVIATION #1**: `finnhub>=2.4.19` removed via filtered copy at
+  `logs/requirements-filtered-nofinnhub.txt` (diff vs shipped = exactly that one line). It is not
+  imported by `src/` and is unresolvable on 3.13. Command:
+  `pip install -r logs/requirements-filtered-nofinnhub.txt`.
+- **DEVIATION #2**: `pyyaml` installed manually — imported by `src/strategies/adaptive_rotation/*`
+  and the rotation runner but NOT declared in requirements.txt (deploy.sh:246 installs it ad hoc
+  for the same reason).
+- **DEVIATION #3**: `tzlocal` installed manually — needed by bt's benchmark-metrics path
+  (`Error computing bt metrics for SPY: No module named 'tzlocal'` in the first backtest run).
+- No library code was modified; the clone is untouched. Installed stack (key versions):
+  alpaca-py 0.45.0, bt 1.4.1, torch 2.15.0, pandas 3.1.1, numpy 2.5.5, yfinance 1.8.0,
+  pydantic 2.14.3, streamlit 1.67.0, lightgbm 4.7.0, xgboost 3.4.1 — all resolve as modern
+  cp313-compatible versions because the repo uses floor pins.
+- Conclusion: **the shipped requirements.txt does not install on Python 3.13** (finnhub blocker);
+  after removing one unused dead dependency the rest of the stack installs cleanly on 3.13.
+  The old-RL stack (gym/stable-baselines3/finrl/pypfopt) is *not* declared at all, so it cannot
+  even be attempted from requirements (see code inspection finding 6).
 
 ---
 
 ## [Runtime]
 
-See `logs/runtime_import_smoke.txt`, `logs/runtime_backtest_smoke.txt`, `logs/runtime_rotation.txt`.
-(Filled after execution; CLI-level findings summarized here.)
+| Test | Status | Transcript |
+|---|---|---|
+| Import smoke (trading stack on py3.13) | **PASS** — `src.config.settings`, `src.data.data_fetcher`, `src.backtest.backtest_engine`, `src.trading.alpaca_manager`, `src.trading.trade_executor`, `src.trading.performance_analyzer` all import on Python 3.13.15 | `logs/runtime_import_smoke.txt` |
+| Import smoke (strategies/CLI) | **FAIL** — `src.main` → `ModuleNotFoundError: No module named 'utils.logging_utils'` (module missing from repo); `src.strategies.adaptive_rotation` → `No module named 'yaml'` (undeclared dep, fixed by deviation #2); DRL modules (`rl_model.py`, `fundamental_portfolio_drl.py`) not even importable — they import the undeclared `finrl` package | `logs/runtime_import_smoke.txt` |
+| CLI entry (`python src/main.py config`) | **FAIL** — `Traceback ... File "src\main.py", line 18, in <module> from utils.logging_utils import setup_logging; ModuleNotFoundError: No module named 'utils.logging_utils'`; exit=1 | `logs/runtime_cli_config.txt` |
+| BacktestEngine smoke (offline synthetic data, bt 1.4.1) | **PASS** — 5 synthetic symbols × 500 days, equal weights; wall time 3.5 s; metrics computed (total_return −8.53%, vol 10.53%, maxDD −14.60%, Sharpe −0.43). Note: first run returned all-zero metrics because README's own documented call order `run_backtest(name, weights, prices)` (`README.md:288`) is swapped vs the real signature `run_backtest(strategy_name, price_data, weight_signals)` (`backtest_engine.py:124`) | `logs/runtime_backtest_smoke.txt` |
+| Adaptive-rotation strategy backtest (offline synthetic data, 32 symbols) | see `logs/runtime_rotation.txt` | recorded below |
+| Alpaca execution smoke | **BLOCKED_ENV** — requires a real Alpaca paper account (API keys); we do not create accounts/keys. Probe with dummy keys: `create_alpaca_account_from_env` → `ValueError: Alpaca API credentials not found in environment variables` (`alpaca_manager.py:889-890`); `execute_portfolio_rebalance(dry_run=True)` → `RuntimeError: Alpaca API error 401: {'message': 'unauthorized.'}` — proving **dry-run still makes live network calls** (/v2/clock, /v2/assets, /v2/positions, /v2/account) and silently swallows auth errors as warnings, returning an empty plan instead of failing loudly | `logs/runtime_alpaca_offline.txt` |
+
+Data note: the repo's own data path is Yahoo/FMP CSVs (`data/fmp_daily/{SYM}_daily.csv`,
+format `date,open,high,low,close,volume`); the rotation run used deterministic synthetic CSVs
+(seed 42, `logs/synth_data_gen.py`, `logs/synth_data_gen_output.txt`) in that exact format,
+so no paid data or account was needed.
+
 
 ---
 

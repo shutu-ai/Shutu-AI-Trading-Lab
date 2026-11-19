@@ -1,0 +1,19 @@
+On branch master
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   ../finrl-x/logs/install_recovery.txt
+	modified:   logs/install.txt
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	../finrl-x/logs/runtime_backtest_smoke.txt
+	../finrl-x/logs/runtime_cli_config.txt
+	../finrl-x/logs/runtime_import_smoke.txt
+	logs/piplist.txt
+	logs/runtime.txt
+	mlruns/
+	../../env/
+	../../../../../docs/licenses/
+
+no changes added to commit (use "git add" and/or "git commit -a")

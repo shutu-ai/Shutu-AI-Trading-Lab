@@ -1,0 +1,17 @@
+### RERUN with corrected arg order + tzlocal installed. python logs/synthetic_backtest.py .
+Thu Nov 19 12:14:12     2026
+No data for benchmark SPY, skipping
+No data for benchmark QQQ, skipping
+project_root: D:\dev-projects\Shutu-AI-Trading-Lab\third_party\FinRL-Trading
+project_root: D:\dev-projects\Shutu-AI-Trading-Lab\third_party\FinRL-Trading
+WALL_TIME_SECONDS=3.5
+METRIC total_return = -0.08527582120257038
+METRIC annual_return = -0.045634302037148244
+METRIC annual_volatility = 0.10531566906468212
+METRIC max_drawdown = -0.14599332514120067
+METRIC sharpe_ratio = -0.4333097101545341
+METRIC sortino_ratio = -0.7268987128967516
+METRIC skewness = 0.158937746079252
+METRIC kurtosis = 0.32179752779557286
+SMOKE_TEST_RESULT=PASS
+exit=0

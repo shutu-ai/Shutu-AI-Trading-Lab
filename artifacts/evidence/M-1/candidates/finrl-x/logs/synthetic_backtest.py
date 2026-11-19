@@ -30,7 +30,9 @@ w = pd.DataFrame(0.2, index=dates.strftime("%Y-%m-%d"), columns=symbols)
 
 t0 = time.time()
 engine = BacktestEngine(BacktestConfig(start_date="2023-01-02", end_date="2024-12-31"))
-result = engine.run_backtest("equal_weight_synth", w, price_long)
+# NOTE: actual signature is run_backtest(strategy_name, price_data, weight_signals)
+# (backtest_engine.py:124). README.md:288 documents it as (name, weights, prices) -- swapped.
+result = engine.run_backtest("equal_weight_synth", price_long, w)
 dt = time.time() - t0
 
 print(f"WALL_TIME_SECONDS={dt:.1f}")

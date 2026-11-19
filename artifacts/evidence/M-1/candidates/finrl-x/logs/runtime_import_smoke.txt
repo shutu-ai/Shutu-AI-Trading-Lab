@@ -1,0 +1,24 @@
+Thu Nov 19 12:12:17     2026
+### python logs/import_smoke.py . (repo root cwd)
+python=3.13.15 (tags/v3.13.15:4061bc4, Aug  5 2026, 13:05:39) [MSC v.1944 64 bit (AMD64)]
+OK   numpy  (0.4s)
+OK   pandas  (2.2s)
+OK   pydantic_settings  (0.6s)
+OK   alpaca-py (installed, is it used?)  (0.0s)
+OK   pandas_market_calendars  (1.1s)
+OK   bt  (9.4s)
+OK   yfinance  (0.9s)
+OK   src.config.settings  (0.1s)
+project_root: D:\dev-projects\Shutu-AI-Trading-Lab\third_party\FinRL-Trading
+OK   src.data.data_fetcher  (0.1s)
+project_root: D:\dev-projects\Shutu-AI-Trading-Lab\third_party\FinRL-Trading
+OK   src.backtest.backtest_engine  (0.0s)
+project_root: D:\dev-projects\Shutu-AI-Trading-Lab\third_party\FinRL-Trading
+OK   src.trading.alpaca_manager  (0.0s)
+project_root: D:\dev-projects\Shutu-AI-Trading-Lab\third_party\FinRL-Trading
+OK   src.trading.trade_executor  (0.0s)
+project_root: D:\dev-projects\Shutu-AI-Trading-Lab\third_party\FinRL-Trading
+OK   src.trading.performance_analyzer  (0.0s)
+FAIL src.strategies.adaptive_rotation: ModuleNotFoundError: No module named 'yaml'
+FAIL src.strategies.run_adaptive_rotation_strategy: ModuleNotFoundError: No module named 'yaml'
+FAIL src.main (CLI entry): ModuleNotFoundError: No module named 'utils.logging_utils'
