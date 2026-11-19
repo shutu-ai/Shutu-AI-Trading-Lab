@@ -1,0 +1,147 @@
+# M-1 review remediation checks — 2026-11-19T14:30:03+02:00
+
+## git state
+R  artifacts/poc/evidence/M-1/fake_broker/pytest_run_1.log -> artifacts/evidence/M-1/fake_broker/pytest_run_1.log
+ M docs/licenses/third-party.md
+ M docs/plans/Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md
+ M docs/plans/Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md
+?? Shutu_AI_Trading_Lab_M-1_Review_Remediation_Codex_Task.md
+?? artifacts/evidence/M-1/remediation/
+?? docs/reviews/M-1-independent-review.md
+582d9e063ab7b321a960caa813ae5a17a7453844
+origin	https://github.com/shutu-ai/Shutu-AI-Trading-Lab.git (fetch)
+origin	https://github.com/shutu-ai/Shutu-AI-Trading-Lab.git (push)
+
+## R1: canonical paths tracked
+artifacts/evidence/M-1/fake_broker/pytest_run_1.log
+artifacts/evidence/M-1/candidates/qlib/SHASUMS256.txt
+
+## log content markers
+1
+1
+effe6e455178122717898915d7936d0726177a1110c8d56baa733c3b4c09c2e9 *artifacts/evidence/M-1/fake_broker/pytest_run_1.log
+
+## residual bad-path / py311 references (expect 0 hits in docs/, artifacts/poc)
+docs/reviews/M-1-independent-review.md:37:- **发现**：工程报告引用规范路径 `artifacts/evidence/M-1/fake_broker/pytest_run_1.log`，但文件实际被跟踪在 `artifacts/poc/evidence/M-1/fake_broker/pytest_run_1.log`（生成日志时的相对路径少一级所致）。
+docs/reviews/M-1-independent-review.md:46:- **发现**：`docs/licenses/third-party.md` 引用被 Git 忽略的 `candidates/qlib/data/SHASUMS256.txt`（死链）；实际跟踪路径为 `artifacts/evidence/M-1/candidates/qlib/SHASUMS256.txt`。
+docs/reviews/M-1-independent-review.md:99:rg 'artifacts/poc/evidence|M-1/candidates/qlib/data/SHASUMS256' docs/ …   # 旧引用 0 命中
+EXIT_DOCS=0
+EXIT_PY311=1
+
+## M0/M2 clause alignment (both plans contain the R3/R4 clauses)
+docs/plans/Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md:1
+docs/plans/Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md:1
+docs/plans/Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md:1
+docs/plans/Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md:1
+docs/plans/Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md:4
+docs/plans/Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md:3
+checked 92 path refs in 8 docs
+dead refs: 47
+  docs\adr\ADR-001-core-selection.md: src/trading_lab/brokers/alpaca_adapter.py (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: configs/data_acceptance.yaml (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: configs/evaluation_protocol.yaml (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/reviews/{stage}-engineering.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/reviews/{stage}-strategy.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/reviews/{stage}-real-capital.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/adr/ADR-002-isolation.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: configs/data_acceptance.yaml (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: configs/data_acceptance.yaml (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/adr/ADR-003-data-contract.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: artifacts/evidence/M1/data-vendors.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: configs/policies/risk_policy.paper.example.yaml (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: configs/evaluation_protocol.yaml (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/adr/ADR-004-evaluation.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/adr/ADR-005-evolution-policy.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/releases/live-pilot-approval.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/reviews/M10-real-capital.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/adr/ADR-006-capital-policy.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/reviews/{stage}-engineering.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/reviews/{stage}-strategy.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/reviews/{stage}-real-capital.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/releases/live-pilot-approval.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/reviews/{stage}-*.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/reviews/{stage}-engineering.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/reviews/{stage}-strategy.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/reviews/{stage}-real-capital.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/adr/ADR-002-isolation.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: configs/data_acceptance.yaml (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: configs/data_acceptance.yaml (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/adr/ADR-003-data-contract.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: artifacts/evidence/M1/data-vendors.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: configs/policies/risk_policy.paper.example.yaml (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: configs/evaluation_protocol.yaml (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/adr/ADR-004-evaluation.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/adr/ADR-005-evolution-policy.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/releases/live-pilot-approval.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/reviews/M10-real-capital.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/adr/ADR-006-capital-policy.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/reviews/{stage}-engineering.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/reviews/{stage}-strategy.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/reviews/{stage}-real-capital.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/releases/live-pilot-approval.md (NOT tracked, NOT on disk)
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/reviews/{stage}-engineering.md (NOT tracked, NOT on disk)
+  docs\reviews\M-1-engineering.md: artifacts/evidence/M-1/candidates/{alpaca-py,finrl-x,qlib,rdagent,nautilus}/eval.md (NOT tracked, NOT on disk)
+  docs\reviews\M-1-engineering.md: configs/data_acceptance.yaml (NOT tracked, NOT on disk)
+  docs\reviews\M-1-independent-review.md: docs/reviews/M-1-{engineering,strategy,real-capital}.md (NOT tracked, NOT on disk)
+  docs\reviews\M-1-independent-review.md: artifacts/poc/evidence/M-1/fake_broker/pytest_run_1.log (NOT tracked, NOT on disk)
+LINKCHECK_EXIT=0
+checked 92 refs in 8 docs (template placeholders excluded)
+dead refs: 31
+  docs\adr\ADR-001-core-selection.md: src/trading_lab/brokers/alpaca_adapter.py
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: configs/data_acceptance.yaml
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: configs/evaluation_protocol.yaml
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/adr/ADR-002-isolation.md
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: configs/data_acceptance.yaml
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: configs/data_acceptance.yaml
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/adr/ADR-003-data-contract.md
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: artifacts/evidence/M1/data-vendors.md
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: configs/policies/risk_policy.paper.example.yaml
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: configs/evaluation_protocol.yaml
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/adr/ADR-004-evaluation.md
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/adr/ADR-005-evolution-policy.md
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/releases/live-pilot-approval.md
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/reviews/M10-real-capital.md
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/adr/ADR-006-capital-policy.md
+  docs\plans\Shutu_AI_Trading_Lab_Architecture_and_Codex_Plan_v2.1.md: docs/releases/live-pilot-approval.md
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/adr/ADR-002-isolation.md
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: configs/data_acceptance.yaml
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: configs/data_acceptance.yaml
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/adr/ADR-003-data-contract.md
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: artifacts/evidence/M1/data-vendors.md
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: configs/policies/risk_policy.paper.example.yaml
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: configs/evaluation_protocol.yaml
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/adr/ADR-004-evaluation.md
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/adr/ADR-005-evolution-policy.md
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/releases/live-pilot-approval.md
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/reviews/M10-real-capital.md
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/adr/ADR-006-capital-policy.md
+  docs\plans\Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md: docs/releases/live-pilot-approval.md
+  docs\reviews\M-1-engineering.md: configs/data_acceptance.yaml
+  docs\reviews\M-1-independent-review.md: artifacts/poc/evidence/M-1/fake_broker/pytest_run_1.log
+LINKCHECK_EXIT=0
+## git diff --stat (staged+unstaged vs HEAD)
+ ...rading_Lab_M-1_Review_Remediation_Codex_Task.md | 226 +++++++++++++++++++++
+ .../evidence/M-1/candidates/alpaca-py/eval.md      |  44 ++++
+ .../evidence/M-1/fake_broker/pytest_run_1.log      |   0
+ artifacts/evidence/M-1/remediation/checks.log      | 121 +++++++++++
+ .../M-1/remediation/pytest_run_remediation.log     |  18 ++
+ docs/licenses/third-party.md                       |   2 +-
+ ...Trading_Lab_Architecture_and_Codex_Plan_v2.1.md |   8 +-
+ ...utu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md |   6 +-
+ docs/reviews/M-1-independent-review.md             | 111 ++++++++++
+ 9 files changed, 532 insertions(+), 4 deletions(-)
+
+## git diff --check
+Shutu_AI_Trading_Lab_M-1_Review_Remediation_Codex_Task.md:3: trailing whitespace.
++> **Task ID:** M-1-REVIEW-REMEDIATION-001  
+Shutu_AI_Trading_Lab_M-1_Review_Remediation_Codex_Task.md:4: trailing whitespace.
++> **版本:** v1.0 · 2026-11-19  
+Shutu_AI_Trading_Lab_M-1_Review_Remediation_Codex_Task.md:5: trailing whitespace.
++> **执行者:** Codex CLI  
+Shutu_AI_Trading_Lab_M-1_Review_Remediation_Codex_Task.md:6: trailing whitespace.
++> **目标仓库:** `https://github.com/shutu-ai/Shutu-AI-Trading-Lab`  
+Shutu_AI_Trading_Lab_M-1_Review_Remediation_Codex_Task.md:7: trailing whitespace.
++> **基线:** `main`，审查时 HEAD `582d9e063ab7b321a960caa813ae5a17a7453844`（执行前务必重新核对）  
+Shutu_AI_Trading_Lab_M-1_Review_Remediation_Codex_Task.md:8: trailing whitespace.
++> **执行边界:** 仅 M-1 阶段后审查整改；**不启动 M0、M1、M2，不连接 Alpaca Paper/Live，不处理任何资金**  
+DIFF_CHECK_EXIT=2

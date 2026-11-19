@@ -40,7 +40,7 @@
 | Alpaca Algo Trader Plus | $99/月，全 SIP 实时 | 需要实时 SIP 时评估（架构 §4.1） |
 | Polygon.io（2026 年起品牌迁移为 Massive） | Basic $0（EOD、5 请求/分）；Starter $29/月；Developer $79/月（历史数据主力档）；Advanced $199/月（实时） | 候选（M1 实测） |
 | Sharadar (via Nasdaq Data Link) | 含退市公司（10,000+）与 S&P 500 历史成分（含生效日期）；订阅制（价格未核实，历史参考 $35–75/月，须以订购页为准） | 历史成分/退市研究的主力候选（M1 实测） |
-| qlib 公开样本数据 | Microsoft GitHub 发布（SunsetWolf/qlib_dataset v3）；MIT 仓库附带；数据集本身条款需单独核实；CN 样本为主、US 样本有限 | 仅 POC/测试 fixture。数据集 SHA256：CN `018a0ce1…cd05306a`、PIT demo `f1e0b5d6…bbc0873b`（完整值见 `artifacts/evidence/M-1/candidates/qlib/data/SHASUMS256.txt`） |
+| qlib 公开样本数据 | Microsoft GitHub 发布（SunsetWolf/qlib_dataset）；MIT 仓库附带；数据集本身条款需单独核实；CN 样本为主、US 样本有限 | 仅 POC/测试 fixture。数据集 SHA256 清单（可跟踪）：`artifacts/evidence/M-1/candidates/qlib/SHASUMS256.txt`。清单内容：`018a0ce1b7f7c8c429f19d1cdbe1429d0297c6c4a881c631dfaeb95ecd05306a  qlib_data_cn_1d_latest.zip`（来源 `https://github.com/SunsetWolf/qlib_dataset/releases/download/v3/qlib_data_cn_1d_latest.zip`，240,739,135 B）；`f1e0b5d60f848d9c7f8ff43a09e2a2c6095bfdfe77a369c57938e4cebbc0873b  qlib_data_pit_1d_latest.zip`（来源 v2 release，2,865 B）。两个 zip 及解压目录保留在本机 `candidates/qlib/data/` 且被 Git 忽略（不入库）。复现方法：下载原始文件后对**原始 zip 字节**计算 SHA-256 并对照清单；不得对解压目录计算。本清单为 M-1 下载时刻的记录，未声称已重新验证远端文件 |
 
 ## 4. 待办与义务
 

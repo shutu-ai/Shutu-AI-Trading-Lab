@@ -27,7 +27,9 @@
 
 ### M0：部署隔离、身份签批契约、工程事件与审计骨架（P0）
 
-**任务**：搭建 Python 3.11 项目/CI；Pydantic 契约、两套独立 runtime 启动配置（Live 仅 mock 干运行）；测试签名器/验签器；可信公钥部署机制、审批 nonce、过期、撤销、额度/版本 hash 检查；研究 sandbox 与 Paper/Live 策略低权限子进程均无券商写权限；AI 代码不得在 OMS/风控进程动态执行，策略只输出经可信 Schema Gate 检查的信号/组合；手动 Kill Switch 与密钥泄漏扫描。
+**任务**：搭建 Python 3.13 项目/CI（M0 候选运行基线 3.13；M-1 实际运行版本 3.13.15，从原 3.11 基线的偏差已经用户批准并记录于 `docs/reviews/M-1-independent-review.md` R5；研究侧隔离环境如 qlib/RD-Agent 的版本兼容性另行受控验证，不因本条视为已解决）；Pydantic 契约、两套独立 runtime 启动配置（Live 仅 mock 干运行）；测试签名器/验签器；可信公钥部署机制、审批 nonce、过期、撤销、额度/版本 hash 检查；研究 sandbox 与 Paper/Live 策略低权限子进程均无券商写权限；AI 代码不得在 OMS/风控进程动态执行，策略只输出经可信 Schema Gate 检查的信号/组合；手动 Kill Switch 与密钥泄漏扫描。
+
+**未知订单与单写者出口设计契约（M-1 审查增补 R3/R4：M0 只冻结设计，M2 才实施代码与故障注入）**：(a) `SUBMITTING/UNKNOWN` 且请求**可能已到达**券商时，除存在可信未发送证据（如连接在请求构建前被拒）或经真实 Alpaca Paper 验证的明确幂等保证外，**不得补发**；`get_order(client_order_id)` 暂时查无、429、5xx、超时或对账通道不可用**均不得视作"未发送"证明**，一律进入 `HALT_NEW_RISK` 并保留完整日志，自动重试只允许针对只读查询；(b) 发送前崩溃与"发送后收到 ACK 前崩溃"必须区分**可证明事实**与**未知状态**分别记录，不得合并处理；(c) 对存在不确定结果的旧意图，不得生成任何"替代意图"绕过暂停；解除暂停须操作人显式授权并附已完成的券商订单/持仓/现金对账证据；(d) 每个 `(environment, account_id)` 只能有**一个**获得券商写权限的可信执行者；本地 fencing token/租约不是券商侧远端保证，旧 epoch 必须在**唯一订单出口**被拒；任何可能直接访问券商写 API 的进程、SDK、Agent/MCP 工具、异常恢复与运维脚本都不得绕过该出口；起步阶段以最小可信出口（单宿主、单进程持有写凭证）实现，不引入未经证明必要的中间件组件。
 
 **E-Gate**：100% 已登记的跨域访问、AI 越权代码/非法 Schema 信号和假签批负例被拒；Paper 运行时不存在 Live 密钥/DB/OMS/endpoint；错账户、篡改 hash、超额度、过期、撤销/失联验签均 `FAIL_CLOSED`；无需或无法取得真实 Live 密钥。**S=N_A，evidence_state=NOT_EVALUATED，R=NOT_STARTED**。
 
@@ -46,6 +48,8 @@
 **任务**：实现持久化订单意图/outbox、风险快照、确定性订单 ID、模拟券商、部分成交和撤单；OMS/风控只接收通过可信 Schema Gate 的数据型信号，不能执行 AI 生成的代码；单账户写权限、单写者 Gateway 或单宿主不可并发验证、租约/fencing；失败后查单和真实账本对账；定义并严格校验全部 Live 风险强制字段（仅测试模板，不开 Live）。
 
 **E-Gate**：≥1,000 次重复/故障组合中 0 重复 mock-broker 单、0 双主写、0 无意图直接发单、0 非法 Schema/未授权策略代码执行；在“发出后收到 ACK 前崩溃”等六类场景中 `UNKNOWN` 先对账、未解决时 0 新增风险；风险必填项缺失/过期数据/账户不一致 100% 拒绝；恢复需经对账 + 操作人解锁。**S=N_A，evidence_state=NOT_EVALUATED，R=NOT_STARTED**。
+
+**UNKNOWN 盲重发与 fencing 出口负例（M-1 审查增补 R3/R4，可与上述验收合并断言）**：故障注入必须覆盖——请求已送达但响应丢失、响应延迟/乱序可见性、网络分区与进程重启、双实例争写、查单接口不可靠（429、5xx、超时、**暂时查无记录**）；全部未证实分支断言 **0 新增风险、0 盲重发、0 替代意图**；stale executor 休眠后恢复、租约过期、两实例同时启动、旧 token 写入、唯一订单出口不可用均必须 fail-closed；fake broker 的 `valid_fences` 网关行为属 **mock-only 证据**，真实 Alpaca 的幂等窗口/权限/网络行为仍为 `BROKER_BEHAVIOR_UNVERIFIED`，在 Alpaca Paper 实测通过前不得以本地 fencing 冒充券商侧保证（M0 任务中 "(a)–(d)" 契约在本阶段全部转化为自动测试断言）。
 
 **工件**：`src/trading_lab/risk/`、`src/trading_lab/oms/`、`src/trading_lab/brokers/`、`configs/policies/risk_policy.paper.example.yaml`、`tests/fault_injection/`、`artifacts/evidence/M2/`、三轨报告。
 
