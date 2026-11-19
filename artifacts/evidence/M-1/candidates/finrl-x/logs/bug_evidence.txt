@@ -1,0 +1,69 @@
+=== BUG EVIDENCE: undefined variable 'e' in sell-leg exception handler ===
+                price = None
+                try:
+                    price = self._get_latest_price(symbol, account=account)
+                except Exception:
+                    print(f"Failed to get latest price for {symbol}: {e}")
+                    price = None
+                if price is None:
+
+=== price=100.0 silent fallbacks ===
+                        price = None
+                if price is None:
+                    price = 100.0
+
+                        price = None
+                if price is None:
+                    price = 100.0
+
+    def _get_current_price(self, ticker: str, account_name: str) -> float:
+        """Get current price for a ticker."""
+        try:
+            # Get quote from Alpaca
+            account = self.alpaca._get_account(account_name)
+            quote = self.alpaca._api_request("GET", f"/v2/stocks/{ticker}/quotes", account=account)
+            return float(quote['askprice'])  # Use ask price for buying
+        except Exception as e:
+            self.logger.warning(f"Could not get price for {ticker}: {e}")
+            # Return a default price
+            return 100.0
+
+
+=== quotes endpoint on TRADING host (data lives on data.alpaca.markets) ===
+        try:
+            # Get quote from Alpaca
+            account = self.alpaca._get_account(account_name)
+            quote = self.alpaca._api_request("GET", f"/v2/stocks/{ticker}/quotes", account=account)
+            return float(quote['askprice'])  # Use ask price for buying
+
+=== settings default base_url includes /v2 (would double prefix in AlpacaManager URLs) ===
+class AlpacaSettings(BaseSettings):
+    """Alpaca API configuration settings."""
+    api_key: Optional[str] = None
+    api_secret: Optional[str] = None
+    base_url: str = "https://paper-api.alpaca.markets/v2"
+    use_paper_trading: bool = True
+
+    class Config:
+        env_prefix = "APCA_"
+
+887:    base_url = config.alpaca.base_url
+
+=== no main() in trade_executor though main.py imports it ===
+(exit 1 = no match)
+82:            from trading.trade_executor import main as trade_main
+
+=== utils/logging_utils missing ===
+__init__.py
+src/main.py:18:from utils.logging_utils import setup_logging
+src/web/app.py:39:        from utils.logging_utils import setup_logging
+
+=== committed pyc files ===
+src/strategies/adaptive_rotation/utils/__pycache__/__init__.cpython-311.pyc
+src/strategies/adaptive_rotation/utils/__pycache__/calendar_utils.cpython-311.pyc
+src/strategies/adaptive_rotation/utils/__pycache__/robust_stats.cpython-311.pyc
+
+=== mojibake / non-UTF8 comments in alpaca_manager.py ===
+        # FilterM-SM-kM-9M-fM-7M-6M-;M-/: M-=M-vM-1M-#M-AM-tM-?M-IM-=M-;M-RM-WM-1M-jM-5M-DM-#M-;M-8M-:M-HM-(M-VM-XM-JM-SM-NM-*0M-#M-;M-1M-XM-RM-*M-JM-1M-9M-iM-RM-;M-;M-/M-5M-=<=1
+        filtered_targets: Dict[str, float] = {}
+src/trading/alpaca_manager.py: Python script, ISO-8859 text executable

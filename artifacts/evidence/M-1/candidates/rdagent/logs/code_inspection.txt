@@ -1,0 +1,458 @@
+=== CODE INSPECTION EVIDENCE (clone @ 484776c211e4fbbeef03e0ec00d6bbee7362a4f4, tag v1.0.0) ===
+
+--- [L1] LICENSE head ---
+    MIT License
+
+    Copyright (c) Microsoft Corporation.
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+
+--- [L2] pyproject console script + python req ---
+14:  "License :: OSI Approved :: MIT License",
+32:requires-python = ">=3.10"
+35:rdagent = "rdagent.app.cli:app"
+
+--- [L3] pyproject torch extra comment ---
+123:torch = { file = ["requirements/torch.txt"] } # some agent algorithms need torch.  pip install rdagent[torch]
+
+--- [L4] requirements.txt: docker + heavy deps ---
+10:openai
+11:litellm>=1.73  # to support `from litellm import get_valid_models`
+12:azure.identity
+22:langchain
+23:langchain-community
+29:azure-ai-formrecognizer
+41:docker
+47:streamlit>=1.47  # to support  input_c.text_area(..., height="content", ...)
+56:selenium
+63:azure.ai.inference
+69:# mlflow
+70:mlflow
+71:azureml-mlflow
+75:pydantic-ai-slim[mcp,openai,prefect]==1.66.0
+79:tensorboard     # tensorboard --logdir git_ignore_folder/RD-Agent_workspace
+80:prefect
+82:# HuggingFace datasets
+83:datasets
+
+--- [L5] rdagent/utils/env.py:40-43 module-level docker import ---
+import docker  # type: ignore[import-untyped]
+import docker.models  # type: ignore[import-untyped]
+import docker.models.containers  # type: ignore[import-untyped]
+import docker.types  # type: ignore[import-untyped]
+
+--- [L6] rdagent/utils/env.py:588-605 LocalEnv docstring ---
+## Local Environment -----
+
+
+class LocalConf(EnvConf):
+    bin_path: str = ""
+    """path like <path1>:<path2>:<path3>, which will be prepend to bin path."""
+
+    retry_count: int = 0  # retry count for; run `retry_count + 1` times
+    live_output: bool = True
+
+
+ASpecificLocalConf = TypeVar("ASpecificLocalConf", bound=LocalConf)
+
+
+class LocalEnv(Env[ASpecificLocalConf]):
+    """
+    Sometimes local environment may be more convenient for testing
+    """
+
+
+--- [L7] rdagent/utils/env.py:426-443 POSIX entry wrapper (/bin/sh, timeout, chmod) applied to ALL envs incl. LocalEnv ---
+        if self.conf.running_timeout_period is None:
+            timeout_cmd = entry
+        else:
+            timeout_cmd = f"timeout --kill-after=10 {self.conf.running_timeout_period} {entry}"
+        entry_add_timeout = (
+            f"/bin/sh -c '"  # start of the sh command
+            + f"{timeout_cmd}; entry_exit_code=$?; "
+            + (
+                f"{_get_chmod_cmd(self.conf.mount_path)}; "
+                # We don't have to change the permission of the cache and input folder to remove it
+                # + f"if [ -d {self.conf.mount_path}/cache ]; then chmod 777 {self.conf.mount_path}/cache; fi; " +
+                #     f"if [ -d {self.conf.mount_path}/input ]; then chmod 777 {self.conf.mount_path}/input; fi; "
+                if isinstance(self.conf, DockerConf)
+                else ""
+            )
+            + "exit $entry_exit_code"
+            + "'"  # end of the sh command
+        )
+
+--- [L8] rdagent/utils/env.py:703-709 select.poll (POSIX-only) in LocalEnv live output ---
+            if self.conf.live_output:
+                stdout_fd = process.stdout.fileno()
+                stderr_fd = process.stderr.fileno()
+
+                poller = select.poll()
+                poller.register(stdout_fd, select.POLLIN)
+                poller.register(stderr_fd, select.POLLIN)
+
+--- [L9] rdagent/utils/env.py:142 hardcoded unix docker socket ---
+def pull_image_with_progress(image: str) -> None:
+    client = docker.APIClient(base_url="unix://var/run/docker.sock")
+    pull_logs = client.pull(image, stream=True, decode=True)
+
+--- [L10] rdagent/utils/env.py:848-880 QlibCondaConf/QlibCondaEnv (conda env rdagent4qlib, qlib pinned SHA) ---
+class QlibCondaConf(CondaConf):
+    conda_env_name: str = "rdagent4qlib"
+    enable_cache: bool = False
+    default_entry: str = "qrun conf.yaml"
+    # extra_volumes: dict = {str(Path("~/.qlib/").expanduser().resolve().absolute()): "/root/.qlib/"}
+
+
+class QlibCondaEnv(LocalEnv[QlibCondaConf]):
+    def prepare(self) -> None:
+        """Prepare the conda environment if not already created."""
+        try:
+            envs = subprocess.run("conda env list", capture_output=True, text=True, shell=True)
+            if self.conf.conda_env_name not in envs.stdout:
+                print(f"[yellow]Conda env '{self.conf.conda_env_name}' not found, creating...[/yellow]")
+                subprocess.check_call(
+                    f"conda create -y -n {self.conf.conda_env_name} python=3.10",
+                    shell=True,
+                )
+                subprocess.check_call(
+                    f"conda run -n {self.conf.conda_env_name} pip install --upgrade pip cython",
+                    shell=True,
+                )
+                subprocess.check_call(
+                    f"conda run -n {self.conf.conda_env_name} pip install git+https://github.com/microsoft/qlib.git@2fb9380b342556ddb50a4b24e4fe8655d548b2b8",
+                    shell=True,
+                )
+                subprocess.check_call(
+                    f"conda run -n {self.conf.conda_env_name} pip install catboost xgboost tables torch",
+                    shell=True,
+                )
+
+        except Exception as e:
+            print(f"[red]Failed to prepare conda env: {e}[/red]")
+
+--- [L11] rdagent/utils/env.py:1042-1062 QlibDockerConf (default docker image local_qlib, dockerfile dir) ---
+class QlibDockerConf(DockerConf):
+    model_config = SettingsConfigDict(
+        env_prefix="QLIB_DOCKER_",
+        env_parse_none_str="None",  # Nthis is the key to accept `RUNNING_TIMEOUT_PERIOD=None`
+    )
+
+    build_from_dockerfile: bool = True
+    dockerfile_folder_path: Path = Path(__file__).parent.parent / "scenarios" / "qlib" / "docker"
+    image: str = "local_qlib:latest"
+    mount_path: str = "/workspace/qlib_workspace/"
+    default_entry: str = "qrun conf.yaml"
+    extra_volumes: dict = {
+        str(Path("~/.qlib/").expanduser().resolve().absolute()): {
+            "bind": "/root/.qlib/",
+            "mode": "rw",
+        }
+    }
+    shm_size: str | None = "16g"
+    enable_gpu: bool = True
+    enable_cache: bool = False
+    save_logs_to_file: bool = True  # Explicitly inherit from DockerConf for compatibility
+
+--- [L12] components/coder/model_coder/conf.py env_type default conda ---
+12:    env_type: str = "conda"  # or "docker"
+13:    """Environment to run model code in coder and runner: 'conda' for local conda env, 'docker' for Docker container"""
+23:    if conf.env_type == "docker":
+25:    elif conf.env_type == "conda":
+28:        raise ValueError(f"Unknown env type: {conf.env_type}")
+
+--- [L13] scenarios/qlib/experiment/workspace.py:18-26 env selection docker|conda ---
+    def execute(self, qlib_config_name: str = "conf.yaml", run_env: dict = {}, *args, **kwargs) -> str:
+        if MODEL_COSTEER_SETTINGS.env_type == "docker":
+            qtde = QTDockerEnv()
+        elif MODEL_COSTEER_SETTINGS.env_type == "conda":
+            qtde = QlibCondaEnv(conf=QlibCondaConf())
+        else:
+            logger.error(f"Unknown env_type: {MODEL_COSTEER_SETTINGS.env_type}")
+            return None, "Unknown environment type"
+        qtde.prepare()
+
+--- [L14] oai/llm_conf.py backend + models ---
+class LLMSettings(ExtendedBaseSettings):
+    # backend
+    backend: str = "rdagent.oai.backend.LiteLLMAPIBackend"
+
+    chat_model: str = "gpt-4-turbo"
+    embedding_model: str = "text-embedding-3-small"
+
+34:    use_azure: bool = Field(default=False, deprecated=True)
+35:    chat_use_azure: bool = False
+36:    embedding_use_azure: bool = False
+38:    chat_use_azure_token_provider: bool = False
+39:    embedding_use_azure_token_provider: bool = False
+67:    chat_azure_api_base: str = ""
+68:    chat_azure_api_version: str = ""
+86:    embedding_azure_api_base: str = ""
+87:    embedding_azure_api_version: str = ""
+92:    use_llama2: bool = False
+99:    gcr_endpoint_type: str = "llama2_70b"  # or "llama3_70b", "phi2", "phi3_4k", "phi3_128k"
+126:    chat_use_azure_deepseek: bool = False
+127:    chat_azure_deepseek_endpoint: str = ""
+128:    chat_azure_deepseek_key: str = ""
+
+--- [L15] oai/backend/__init__.py (registered backends) ---
+from .deprec import DeprecBackend  # type: ignore[attr-defined]
+from .litellm import LiteLLMAPIBackend
+
+--- [L16] oai/backend/litellm.py cost tracking ---
+        global ACC_COST
+        try:
+            cost = completion_cost(model=model, messages=messages, completion=content)
+        except Exception as e:
+            logger.warning(f"Cost calculation failed for model {model}: {e}. Skip cost statistics.")
+            cost = np.nan
+        else:
+            ACC_COST += cost
+            if LITELLM_SETTINGS.log_llm_chat_content:
+                logger.info(
+                    f"Current Cost: ${float(cost):.10f}; Accumulated Cost: ${float(ACC_COST):.10f}; {finish_reason=}",
+                )
+
+--- [L17] oai/backend/pydantic_ai.py PROVIDER_TO_ENV_MAP ---
+PROVIDER_TO_ENV_MAP = {
+    "openai": "OPENAI",
+    "azure_ai": "AZURE_AI",
+    "azure": "AZURE",
+    "litellm_proxy": "LITELLM_PROXY",
+}
+
+
+
+--- [L18] README docker requirement ---
+### 🐳 Docker installation.
+Users must ensure Docker is installed before attempting most scenarios. Please refer to the [official 🐳Docker page](https://docs.docker.com/engine/install/) for installation instructions.
+Ensure the current user can run Docker commands **without using sudo**. You can verify this by executing `docker run hello-world`.
+
+--- [L19] README security note re docker socket ---
+The Web UI starts tasks that generate and execute code. Treat authenticated access as trusted operator access, and run workers in an isolated, least-privileged environment with restricted network egress and no host credentials or Docker socket exposed to generated code.
+
+
+--- [L20] docs DeepSeek/LiteLLM provider config ---
+   🔥 **Attention**: We now provide experimental support for **DeepSeek** models! You can use DeepSeek's official API for cost-effective and high-performance inference. See the configuration example below for DeepSeek setup.
+
+      # CHAT MODEL: Using DeepSeek Official API
+      CHAT_MODEL=deepseek/deepseek-chat 
+      DEEPSEEK_API_KEY=<replace_with_your_deepseek_api_key>
+Additionally, you need to set up the the additional parameters for the respective model provider, and the parameter names must align with those required by LiteLLM.
+
+For example, if you are using a DeepSeek model, you need to set as follows:
+
+   .. code-block:: Properties
+
+      # For some models LiteLLM requires a prefix to the model name.
+      CHAT_MODEL=deepseek/deepseek-chat
+      DEEPSEEK_API_KEY=<replace_with_your_deepseek_api_key>
+
+--- [L21] scenarios dir listing (quant scenario paths) ---
+rdagent/app/qlib_rd_loop/:
+conf.py
+factor.py
+factor_from_report.py
+model.py
+prompts.yaml
+quant.py
+
+rdagent/scenarios/:
+data_science
+finetune
+general_model
+kaggle
+qlib
+rl
+shared
+
+rdagent/scenarios/qlib/:
+developer
+docker
+experiment
+factor_experiment_loader
+prompts.yaml
+proposal
+
+--- [L22] test/oai/test_base.py MockBackend ---
+import pytest
+
+
+class MockBackend:
+    def __init__(self):
+        self.messages = []
+
+    def _add_json_in_prompt(self, new_messages):
+        self.messages.append("JSON_ADDED")
+
+
+def test_json_added_once():
+    backend = MockBackend()
+    try_n = 3
+    json_added = False
+    new_messages = ["msg1"]
+
+    for _ in range(try_n):
+        if not json_added:
+            backend._add_json_in_prompt(new_messages)
+
+--- [L23] grep dry-run/no-LLM mode across repo ---
+(no runtime no-LLM mode found; only unrelated prompt text)
+
+--- [L24] pyproject pytest offline marker ---
+75:  "offline: tests that do not require external API calls",
+76-]
+
+--- [L25] app/cli.py commands ---
+82:@app.command(name="fin_factor")
+93:@app.command(name="fin_model")
+104:@app.command(name="fin_quant")
+115:@app.command(name="fin_factor_report")
+125:@app.command(name="general_model")
+130:@app.command(name="data_science")
+149:@app.command(name="llm_finetune")
+176:@app.command(name="grade_summary")
+181:app.command(name="ui")(ui)
+182:app.command(name="server_ui")(server_ui)
+185:@app.command(name="health_check")
+194:@app.command(name="collect_info")
+199:app.command(name="ds_user_interact")(ds_user_interact)
+
+--- [L26] components/workflow/rd_loop.py RDLoop wiring (own loop control) ---
+from rdagent.utils.qlib import ALPHA20, validate_qlib_features
+from rdagent.utils.workflow import LoopBase, LoopMeta
+
+
+class RDLoop(LoopBase, metaclass=LoopMeta):
+
+        }  # for user interaction
+
+        self.hypothesis2experiment: Hypothesis2Experiment = (
+            import_class(PROP_SETTING.hypothesis2experiment)()
+            if hasattr(PROP_SETTING, "hypothesis2experiment") and PROP_SETTING.hypothesis2experiment
+            else None
+        )
+
+        self.coder: Developer = (
+            import_class(PROP_SETTING.coder)(scen) if hasattr(PROP_SETTING, "coder") and PROP_SETTING.coder else None
+        )
+        self.runner: Developer = (
+            import_class(PROP_SETTING.runner)(scen) if hasattr(PROP_SETTING, "runner") and PROP_SETTING.runner else None
+        )
+
+        self.summarizer: Experiment2Feedback = (
+            import_class(PROP_SETTING.summarizer)(scen)
+            if hasattr(PROP_SETTING, "summarizer") and PROP_SETTING.summarizer
+            else None
+        )
+        self.trace = Trace(scen=scen)
+        super().__init__()
+
+    # excluded steps
+    def _set_interactor(self, user_request_q: Queue, user_response_q: Queue):
+        self.user_request_q = user_request_q
+
+--- [L27] more POSIX checks across runtime code ---
+rdagent/utils/env.py:142:    client = docker.APIClient(base_url="unix://var/run/docker.sock")
+rdagent/utils/env.py:707:                poller = select.poll()
+
+--- [L28] scenarios/qlib/docker/Dockerfile (full) ---
+FROM pytorch/pytorch:2.2.1-cuda12.1-cudnn8-runtime
+
+# For GPU support, please choose the proper tag from https://hub.docker.com/r/pytorch/pytorch/tags
+
+RUN apt-get clean && apt-get update && apt-get install -y \  
+    curl \  
+    vim \  
+    git \  
+    build-essential \
+    coreutils \
+    && rm -rf /var/lib/apt/lists/* 
+
+RUN git clone https://github.com/microsoft/qlib.git
+
+WORKDIR /workspace/qlib
+
+RUN git fetch && git reset 2fb9380b342556ddb50a4b24e4fe8655d548b2b8 --hard
+
+RUN python -m pip install --upgrade cython
+RUN python -m pip install -e .
+
+RUN pip install catboost
+RUN pip install xgboost
+RUN pip install tables
+
+--- [L29] components/coder/factor_coder/config.py get_factor_env (LocalEnv + current conda env) ---
+
+
+def get_factor_env(
+    conf_type: Optional[str] = None,
+    extra_volumes: dict = {},
+    running_timeout_period: int = 600,
+    enable_cache: Optional[bool] = None,
+) -> Env:
+    conf = FactorCoSTEERSettings()
+    if hasattr(conf, "python_bin"):
+        env = LocalEnv(conf=(CondaConf(conda_env_name=os.environ.get("CONDA_DEFAULT_ENV"))))
+    env.conf.extra_volumes = extra_volumes.copy()
+    env.conf.running_timeout_period = running_timeout_period
+    if enable_cache is not None:
+        env.conf.enable_cache = enable_cache
+    env.prepare()
+
+--- [L30] CondaConf._update_bin_path uses POSIX 'env | grep' ---
+        conda_path_result = subprocess.run(
+            f"conda run -n {self.conda_env_name} --no-capture-output env | grep '^PATH='",
+            capture_output=True,
+            text=True,
+            shell=True,
+        )
+        self.bin_path = conda_path_result.stdout.strip().split("=")[1] if conda_path_result.returncode == 0 else ""
+
+
+--- [L31] LoopBase per-step session dump/load (integration surface) ---
+128:        self.session_folder = Path(LOG_SETTINGS.trace_path) / "__session__"
+308:                            self.dump(self.session_folder / f"{li}" / f"{si}_{name}")
+354:    async def run(self, step_n: int | None = None, loop_n: int | None = None, all_duration: str | None = None) -> None:
+427:    def dump(self, path: str | Path) -> None:
+447:        final_loop_session_folder = self.session_folder / str(li)
+455:    def load(
+481:        session_folder = None
+485:                session_folder = path / "__session__"
+487:                session_folder = path
+497:            session_folder = path.parent.parent
+505:                session.session_folder = session_folder
+515:                session.session_folder = checkout / "__session__"
+
+--- [L32] app/utils/health_check.py docker probe + ubuntu ref ---
+def check_docker_status() -> None:
+    container = None
+    try:
+        client = docker.from_env()
+        client.images.pull("hello-world")
+        container = client.containers.run("hello-world", detach=True)
+        logs = container.logs().decode("utf-8")
+        print(logs)
+        logger.info(f"The docker status is normal")
+    except docker.errors.DockerException as e:
+        logger.error(f"An error occurred: {e}")
+        logger.warning(
+            f"Docker status is exception, please check the docker configuration or reinstall it. Refs: https://docs.docker.com/engine/install/ubuntu/."
+        )
+
+--- [L33] QlibFactorScenario / quant scenario class paths ---
+rdagent/scenarios/qlib/experiment/factor_experiment.py:30:class QlibFactorScenario(Scenario):
+rdagent/scenarios/qlib/experiment/model_experiment.py:26:class QlibModelScenario(Scenario):
+rdagent/scenarios/qlib/experiment/quant_experiment.py:41:class QlibQuantScenario(Scenario):
+rdagent/scenarios/qlib/proposal/factor_proposal.py:15:class QlibFactorHypothesisGen(FactorHypothesisGen):
+rdagent/scenarios/qlib/proposal/model_proposal.py:14:class QlibModelHypothesisGen(ModelHypothesisGen):
+rdagent/scenarios/qlib/proposal/quant_proposal.py:46:class QlibQuantHypothesisGen(FactorAndModelHypothesisGen):
+
+--- [L34] LocalConf.live_output default ---
+class LocalConf(EnvConf):
+    bin_path: str = ""
+    """path like <path1>:<path2>:<path3>, which will be prepend to bin path."""
+
+    retry_count: int = 0  # retry count for; run `retry_count + 1` times
+    live_output: bool = True
+

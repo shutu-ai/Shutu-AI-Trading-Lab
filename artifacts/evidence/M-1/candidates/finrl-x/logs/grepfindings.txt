@@ -1,0 +1,37 @@
+=== client_order_id anywhere ===
+(exit 1)
+
+=== websocket / streaming / event loop ===
+src/data/backfill_historical_sp500.py:199:        schedule = nyse.schedule(
+src/data/backfill_historical_sp500.py:203:        if not schedule.empty:
+src/data/backfill_historical_sp500.py:204:            actual = schedule.index[0].strftime("%Y-%m-%d")
+src/data/data_fetcher.py:1030:            schedule = mcal.get_calendar(name='NYSE').schedule(start_date=end_date, end_date=end_date, tz='America/New_York')
+src/data/data_fetcher.py:1032:            if not schedule.empty:
+src/data/data_fetcher.py:1034:                    close_time = schedule['market_close'].iloc[-1]
+src/data/trading_calendar.py:48:    # Get current timezone name as tz parameter for calendar schedule
+src/data/trading_calendar.py:59:    schedule = cal.schedule(start_date=start_date, end_date=end_date, tz=tzinfo)
+src/data/trading_calendar.py:60:    return tuple(schedule.index.strftime('%Y-%m-%d').tolist())
+src/data/trading_calendar.py:91:    # Reuse cached trading days via set to avoid repeated schedule queries
+src/strategies/adaptive_rotation/utils/calendar_utils.py:79:    # Get trading schedule
+src/strategies/adaptive_rotation/utils/calendar_utils.py:80:    schedule = calendar.schedule(start_date=start, end_date=end)
+src/strategies/adaptive_rotation/utils/calendar_utils.py:83:    trading_days = pd.DatetimeIndex(schedule.index.date).unique()
+src/strategies/strategylogger.py:2:import threading
+src/strategies/strategylogger.py:12:class AsyncWriterThread(threading.Thread):
+(exit 0)
+
+=== wait_for_order_fill callers ===
+src/trading/alpaca_manager.py:365:    def wait_for_order_fill(self, order_id: str, timeout_seconds: int = 300,
+src/trading/trade_executor.py:331:                    final_response = self.alpaca.wait_for_order_fill(
+
+=== get_orders callers (reconciliation?) ===
+src/trading/alpaca_manager.py:382:            order = self.get_order_status(order_id, account_name)
+src/trading/performance_analyzer.py:33:        orders = manager.get_orders(status='closed', limit=1, direction='asc')
+
+=== recovery / resume / restart handling ===
+src/data/data_fetcher.py:874:                        'capitalExpenditureCoverageRatio': 'capex_coverage',
+src/strategies/adaptive_rotation/market_regime.py:514:        exit_return_threshold: Recovery threshold (default 0.01)
+src/strategies/adaptive_rotation/market_regime.py:527:    # Check recovery (3-day return > +1%)
+src/strategies/adaptive_rotation/market_regime.py:531:        recovery_return = (current_price - past_price) / past_price
+src/strategies/adaptive_rotation/market_regime.py:533:        if recovery_return > exit_return_threshold:
+src/strategies/adaptive_rotation/market_regime.py:534:            return True, "recovery"
+(exit 0)

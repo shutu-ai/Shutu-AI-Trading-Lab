@@ -1,0 +1,50 @@
+Collecting nautilus_trader
+  Downloading nautilus_trader-1.231.0-cp313-cp313-win_amd64.whl.metadata (39 kB)
+Collecting click<9.0.0,>=8.4.1 (from nautilus_trader)
+  Using cached click-8.5.1-py3-none-any.whl.metadata (2.6 kB)
+Collecting fsspec==2026.2.0 (from nautilus_trader)
+  Downloading fsspec-2026.2.0-py3-none-any.whl.metadata (10 kB)
+Collecting msgspec<1.0.0,>=0.21.1 (from nautilus_trader)
+  Downloading msgspec-0.22.0-cp313-cp313-win_amd64.whl.metadata (6.1 kB)
+Collecting numpy>=1.26.4 (from nautilus_trader)
+  Using cached numpy-2.5.5-cp313-cp313-win_amd64.whl.metadata (6.6 kB)
+Collecting pandas<4.0.0,>=2.3.3 (from nautilus_trader)
+  Using cached pandas-3.1.1-cp313-cp313-win_amd64.whl.metadata (16 kB)
+Collecting portion>=2.6.1 (from nautilus_trader)
+  Downloading portion-2.6.3-py3-none-any.whl.metadata (35 kB)
+Collecting pyarrow>=25.0.0 (from nautilus_trader)
+  Using cached pyarrow-26.0.1-cp313-cp313-win_amd64.whl.metadata (3.0 kB)
+Collecting pytz>=2026.2 (from nautilus_trader)
+  Using cached pytz-2026.6-py2.py3-none-any.whl.metadata (22 kB)
+Collecting tqdm<5.0.0,>=4.68.4 (from nautilus_trader)
+  Using cached tqdm-4.70.1-py3-none-any.whl.metadata (57 kB)
+Collecting tzdata>=2026.3 (from nautilus_trader)
+  Using cached tzdata-2026.6-py2.py3-none-any.whl.metadata (1.4 kB)
+Collecting python-dateutil>=2.9.0 (from pandas<4.0.0,>=2.3.3->nautilus_trader)
+  Using cached python_dateutil-4.0.0-py3-none-any.whl.metadata (7.3 kB)
+Collecting colorama (from tqdm<5.0.0,>=4.68.4->nautilus_trader)
+  Using cached colorama-0.4.6-py2.py3-none-any.whl.metadata (17 kB)
+Collecting sortedcontainers~=2.4 (from portion>=2.6.1->nautilus_trader)
+  Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl.metadata (10 kB)
+Downloading nautilus_trader-1.231.0-cp313-cp313-win_amd64.whl (112.7 MB)
+   ---------------------------------------- 112.7/112.7 MB 842.6 kB/s  0:01:20
+Downloading fsspec-2026.2.0-py3-none-any.whl (202 kB)
+Using cached click-8.5.1-py3-none-any.whl (126 kB)
+Downloading msgspec-0.22.0-cp313-cp313-win_amd64.whl (192 kB)
+Using cached pandas-3.1.1-cp313-cp313-win_amd64.whl (10.7 MB)
+Using cached tqdm-4.70.1-py3-none-any.whl (80 kB)
+Using cached numpy-2.5.5-cp313-cp313-win_amd64.whl (12.6 MB)
+Downloading portion-2.6.3-py3-none-any.whl (28 kB)
+Downloading sortedcontainers-2.4.0-py2.py3-none-any.whl (29 kB)
+Using cached pyarrow-26.0.1-cp313-cp313-win_amd64.whl (29.0 MB)
+Using cached python_dateutil-4.0.0-py3-none-any.whl (92 kB)
+Using cached pytz-2026.6-py2.py3-none-any.whl (506 kB)
+Using cached tzdata-2026.6-py2.py3-none-any.whl (348 kB)
+Using cached colorama-0.4.6-py2.py3-none-any.whl (25 kB)
+Installing collected packages: sortedcontainers, pytz, tzdata, pyarrow, portion, numpy, msgspec, fsspec, colorama, click, tqdm, python-dateutil, pandas, nautilus_trader
+
+Successfully installed click-8.5.1 colorama-0.4.6 fsspec-2026.2.0 msgspec-0.22.0 nautilus_trader-1.231.0 numpy-2.5.5 pandas-3.1.1 portion-2.6.3 pyarrow-26.0.1 python-dateutil-4.0.0 pytz-2026.6 sortedcontainers-2.4.0 tqdm-4.70.1 tzdata-2026.6
+
+[notice] A new release of pip is available: 26.2.1 -> 26.3
+[notice] To update, run: D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-nautilus\Scripts\python.exe -m pip install --upgrade pip
+EXIT=0

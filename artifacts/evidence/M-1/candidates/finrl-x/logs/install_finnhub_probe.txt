@@ -1,0 +1,9 @@
+### Probe: is finnhub resolvable at all on py3.13 (same proxy)?
+### Command: python -m pip index versions finnhub --proxy http://192.168.1.2:8080
+
+### Also: finnhub usage in src/:
+(grep exit 1 = no matches)
+ERROR: No matching distribution found for finnhub
+
+[notice] A new release of pip is available: 26.2.1 -> 26.3
+[notice] To update, run: D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-finrl\Scripts\python.exe -m pip install --upgrade pip

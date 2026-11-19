@@ -1,0 +1,15 @@
+Requirement already satisfied: nautilus_trader in .\.venv-nautilus\Lib\site-packages (1.231.0)
+Collecting nautilus_trader
+  Downloading nautilus_trader-2.0.0rc9-cp313-cp313-win_amd64.whl.metadata (41 kB)
+Downloading nautilus_trader-2.0.0rc9-cp313-cp313-win_amd64.whl (72.1 MB)
+   ---------------------------------------- 72.1/72.1 MB 5.2 MB/s  0:00:14
+Installing collected packages: nautilus_trader
+  Attempting uninstall: nautilus_trader
+    Found existing installation: nautilus_trader 1.231.0
+    Uninstalling nautilus_trader-1.231.0:
+      Successfully uninstalled nautilus_trader-1.231.0
+Successfully installed nautilus_trader-2.0.0rc9
+
+[notice] A new release of pip is available: 26.2.1 -> 26.3
+[notice] To update, run: D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-nautilus\Scripts\python.exe -m pip install --upgrade pip
+EXIT=0

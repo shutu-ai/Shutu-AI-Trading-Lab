@@ -1,0 +1,22 @@
+=== version ===
+alpaca-py dist version: 0.45.0
+=== endpoint constants (alpaca/common/enums.py:23-24, verified by source read) ===
+TRADING_PAPER value: https://paper-api.alpaca.markets
+TRADING_LIVE value: https://api.alpaca.markets
+=== construct client with DUMMY keys (no network at construction) ===
+paper client _base_url: BaseURL.TRADING_PAPER
+live-mode _base_url (constant inspection only, never called): BaseURL.TRADING_LIVE
+=== market order request (fractional qty and notional) ===
+qty-order: {'symbol': 'SPY', 'qty': 0.5, 'notional': None, 'side': <OrderSide.BUY: 'buy'>, 'type': <OrderType.MARKET: 'market'>, 'time_in_force': <TimeInForce.DAY: 'day'>, 'order_class': None, 'extended_hours': None, 'client_order_id': None, 'legs': None, 'take_profit': None, 'stop_loss': None, 'position_intent': None}
+notional-order: {'symbol': 'SPY', 'qty': None, 'notional': 50.0, 'side': <OrderSide.BUY: 'buy'>, 'type': <OrderType.MARKET: 'market'>, 'time_in_force': <TimeInForce.DAY: 'day'>, 'order_class': None, 'extended_hours': None, 'client_order_id': None, 'legs': None, 'take_profit': None, 'stop_loss': None, 'position_intent': None}
+=== extended-hours + OCO expressiveness ===
+OCO keys: ['client_order_id', 'extended_hours', 'legs', 'limit_price', 'notional', 'order_class', 'position_intent', 'qty', 'side', 'stop_loss', 'symbol', 'take_profit', 'time_in_force', 'type']
+=== order query filters ===
+query model: {'status': <QueryOrderStatus.OPEN: 'open'>, 'limit': None, 'after': None, 'until': None, 'direction': None, 'nested': None, 'side': None, 'symbols': None}
+=== validation negatives ===
+negative qty: ACCEPTED (finding)
+both qty+notional rejected: ValidationError 1 validation error for MarketOrderRequest
+  Value error, Both qty and notional can not be set. [type=value_error, input_value={'symbol': 'SPY', 'qty': ...rType.
+=== client_order_id support ===
+client_order_id accepted: TBL-TEST-0001
+=== DONE (offline; no network used) ===

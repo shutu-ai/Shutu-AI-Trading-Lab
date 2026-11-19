@@ -1,0 +1,35 @@
+# Complexity metrics (clone @ 8a4ac22, Thu Nov 19 10:03:46 UTC 2026)
+
+## LOC (git ls-files)
+-- all .rs (incl adapters/generated):
+  320236 total
+-- .rs excluding adapters/ and generated:
+ 226272 total
+-- .py + .pyi:
+ 163701 total
+-- total tracked files:
+5724
+
+## module counts
+-- Rust crates (28):
+Cargo.toml README.md adapters analysis backtest cli common core cryptography data event_store execution indicators infrastructure lib.rs live macros model network persistence plugin portfolio pyo3 risk serialization system testkit trading 
+-- python adapter dirs:
+architect_ax betfair binance blockchain bybit coinapi coinbase databento deribit derive dydx finfeed hyperliquid interactive_brokers kalshi kraken lighter okx polymarket sandbox tardis 
+-- docs/concepts guides:
+113
+-- rust adapter crates:
+architect_ax betfair binance blockchain bybit coinapi coinbase databento deribit derive dydx finfeed hyperliquid interactive_brokers kalshi kraken lighter okx polymarket sandbox tardis 
+
+## release cadence (RELEASES.md):
+Released on TBD (UTC).
+Released on 10th November 2026 (UTC).
+Released on 28th October 2026 (UTC).
+Released on 15th October 2026 (UTC).
+Released on 4th October 2026 (UTC).
+Released on 15th September 2026 (UTC).
+Released on 2nd September 2026 (UTC).
+Released on 20th August 2026 (UTC).
+Released on 2nd August 2026 (UTC).
+Released on 29th June 2026 (UTC).
+Released on 25th June 2026 (UTC).
+Released on 8th June 2026 (UTC).

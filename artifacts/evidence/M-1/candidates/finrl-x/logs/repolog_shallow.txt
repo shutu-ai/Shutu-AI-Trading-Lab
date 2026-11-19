@@ -1,0 +1,17 @@
+=== git log on shallow clone (as delivered) ===
+4409abe Merge pull request #95 from emt-Q/fix/ml-strategy-apply-risk-limits
+
+=== HEAD ===
+4409abe925c904e570be78ebfb5e77ac3491dff8
+
+=== shallow marker ===
+4409abe925c904e570be78ebfb5e77ac3491dff8
+
+=== remote ===
+origin	https://github.com/AI4Finance-Foundation/FinRL-Trading.git (fetch)
+origin	https://github.com/AI4Finance-Foundation/FinRL-Trading.git (push)
+
+=== branch ===
+* master
+  remotes/origin/HEAD -> origin/master
+  remotes/origin/master

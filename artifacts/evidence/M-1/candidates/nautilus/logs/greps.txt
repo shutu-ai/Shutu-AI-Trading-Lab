@@ -1,0 +1,533 @@
+# NautilusTrader order-semantics citation transcript (clone @ 8a4ac22fc08990a96c6e5750c76a3fa744f4d141, Thu Nov 19 10:02:27 UTC 2026)
+
+## (a) client_order_id generation: crates/common/src/generators/client_order_id.rs
+use crate::clock::Clock;
+
+const DATETIME_TAG_LEN: usize = 15; // "YYYYMMDD-HHMMSS"
+const DATETIME_TAG_COMPACT_LEN: usize = 14; // "YYYYMMDDHHMMSS"
+const MAX_USIZE_DECIMAL_LEN: usize = 20; // Maximum decimal digits for a 64-bit usize
+
+#[inline]
+fn fixed_prefix_capacity(trader_tag: &str, strategy_tag: &str, use_hyphens: bool) -> usize {
+    if use_hyphens {
+        "O-".len()
+            + DATETIME_TAG_LEN
+            + "-".len()
+            + trader_tag.len()
+            + "-".len()
+            + strategy_tag.len()
+            + "-".len()
+    } else {
+        "O".len() + DATETIME_TAG_COMPACT_LEN + trader_tag.len() + strategy_tag.len()
+    }
+}
+
+/// Slow path across second boundaries: rebuilds the fixed prefix directly in the output buffer.
+fn write_fixed_prefix(
+    buf: &mut String,
+    trader_tag: &str,
+    strategy_tag: &str,
+    use_hyphens: bool,
+    epoch_second: u64,
+) {
+    let now_utc = Offset::UTC.to_datetime(
+        Timestamp::from_second(
+            i64::try_from(epoch_second).expect("seconds timestamp should fit i64"),
+        )
+        .expect("seconds timestamp should be within valid range"),
+    );
+
+    buf.clear();
+
+--- generate() line 191-209 ---
+    pub fn generate(&mut self) -> ClientOrderId {
+        if self.use_uuids {
+            let mut uuid_value = UUID4::new().to_string();
+
+            if !self.use_hyphens {
+                uuid_value = uuid_value.replace('-', "");
+            }
+            return ClientOrderId::from(uuid_value);
+        }
+
+        let timestamp_ms = self.clock.borrow().timestamp_ms();
+        self.refresh_fixed_prefix(timestamp_ms);
+        self.count += 1;
+
+        // The hot path only truncates the old count and appends the new count, avoiding repeated
+        // copies of the fixed prefix.
+        self.buf.truncate(self.fixed_prefix_len);
+        self.buf
+            .push_str(self.count.format_into(&mut self.count_buf));
+
+## OrderFactory wiring: crates/common/src/factories/order.rs:43-77
+pub struct OrderFactory {
+    clock: Rc<RefCell<dyn Clock>>,
+    trader_id: TraderId,
+    strategy_id: StrategyId,
+    order_id_generator: ClientOrderIdGenerator,
+    order_list_id_generator: OrderListIdGenerator,
+}
+
+#[bon::bon]
+impl OrderFactory {
+    /// Creates a new [`OrderFactory`] instance.
+    pub fn new(
+        trader_id: TraderId,
+        strategy_id: StrategyId,
+        init_order_id_count: Option<usize>,
+        init_order_list_id_count: Option<usize>,
+        clock: Rc<RefCell<dyn Clock>>,
+        use_uuids_for_client_order_ids: bool,
+        use_hyphens_in_client_order_ids: bool,
+    ) -> Self {
+        let order_id_generator = ClientOrderIdGenerator::new(
+            trader_id,
+            strategy_id,
+            init_order_id_count.unwrap_or(0),
+            clock.clone(),
+            use_uuids_for_client_order_ids,
+            use_hyphens_in_client_order_ids,
+        );
+
+        let order_list_id_generator = OrderListIdGenerator::new(
+            trader_id,
+            strategy_id,
+            init_order_list_id_count.unwrap_or(0),
+            clock.clone(),
+        );
+
+## TWAP child id spawn: crates/trading/src/algorithm/core.rs:215-225
+        let sequence = self
+            .exec_spawn_ids
+            .entry(*primary_id)
+            .and_modify(|s| *s += 1)
+            .or_insert(1);
+
+        ClientOrderId::new(format!("{primary_id}-E{sequence}"))
+    }
+
+    /// Returns the current spawn sequence for a primary order, if any.
+    #[must_use]
+
+## (b) journal/event persistence
+### crates/event_store/src/lib.rs:16-23 (append-only event store, tail-replay)
+//! Event store and authoritative log of state-affecting messages for [NautilusTrader](https://nautilustrader.io).
+//!
+//! The `nautilus-event-store` crate provides an embedded, append-only event store that captures
+//! commands, events, venue reports, and correlations flowing across the message bus. Combined with
+//! cache snapshots, it provides stable restarts via tail-replay, deterministic incident replay,
+//! end-to-end audit of agent decisions, and counterfactual research.
+//!
+//! See `README.md` for the high-level specification.
+### Redis cache order event log: crates/infrastructure/src/redis/cache.rs:1112,2202
+
+    Ok(())
+}
+
+async fn update_order_event_log(
+    conn: &mut ConnectionManager,
+    trader_key: &str,
+    encoding: SerializationEncoding,
+    key: &str,
+    value: &[Bytes],
+) -> anyhow::Result<()> {
+    }
+
+    fn update_order(&self, order_event: &OrderEventAny) -> anyhow::Result<()> {
+        let client_order_id = order_event.client_order_id();
+        let key = format!("{ORDERS}{REDIS_DELIMITER}{client_order_id}");
+        let payload = self.database.serialize_payload(order_event)?;
+
+### Postgres cache update_order: crates/infrastructure/src/sql/cache.rs:1682 + config doc 74-76
+/// Configuration for a Postgres-backed cache database.
+///
+/// Missing fields are resolved from Postgres environment variables and then built-in defaults.
+    }
+
+    fn update_order(&self, event: &OrderEventAny) -> anyhow::Result<()> {
+        let query = DatabaseQuery::UpdateOrder(event.clone());
+        self.tx.send(query).map_err(|e| {
+            anyhow::anyhow!("Failed to send query update_order to database message handler: {e}")
+        })
+    }
+
+    fn update_position(&self, position: &Position) -> anyhow::Result<()> {
+        let query = if position.requires_replay_state() {
+### live node config: crates/live/src/node/config.rs:505-513 (snapshot persistence/purge)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, bon::Builder)]
+#[serde(default, deny_unknown_fields)]
+pub struct LiveExecutionEngineConfig {
+    /// If the cache should be loaded on initialization.
+    #[builder(default = true)]
+    pub load_cache: bool,
+    /// If order state snapshots should be persisted to a configured cache database.
+    ///
+    /// Snapshots are persisted during order submission processing and after each state change.
+    #[builder(default)]
+    pub snapshot_orders: bool,
+    /// If position state snapshots should be published and, with cache backing, persisted.
+    ///
+    /// Snapshots are published when positions open, change, or close. A configured cache database
+    /// backing also persists them.
+    #[builder(default)]
+    pub purge_closed_positions_buffer_mins: Option<u32>,
+    /// The interval (minutes) between purging account events from the in-memory cache.
+    pub purge_account_events_interval_mins: Option<u32>,
+    /// The time buffer (minutes) before account events can be purged.
+    pub purge_account_events_lookback_mins: Option<u32>,
+    /// If purging also deletes orders and positions from the backing database.
+    /// Redis and PostgreSQL retain persisted account events for replay.
+    #[builder(default)]
+    pub purge_from_database: bool,
+    /// The interval (seconds) between audits that remove own-book orders the cache no longer
+### no SQLite in 2.x cache backends:
+(no output = no SQLite backend in 2.x; 1.x Python line had SQLite via SQLAlchemy - NOT verified here)
+
+## (c) reconciliation
+### crates/execution/src/reconciliation/mod.rs:19-43
+//! into line with what the venue reports. Called at startup (mass status) and
+//! continuously at runtime (open-order and position checks).
+//!
+//! Public entry points:
+//! - [`process_mass_status_for_reconciliation`] - partial-window fill reconstruction
+//! - [`process_mass_status_for_reconciliation_without_synthetic_reports`] - reconstruction that
+//!   preserves the input report set when adjustment would require synthetic reports
+//! - [`generate_reconciliation_order_events`] - venue-temporal event sequence for a report
+//! - [`reconcile_order_report`] - core order-state reconciliation
+//! - [`reconcile_fill_report`] - apply a venue fill to a cached order, with dedup
+//! - [`generate_external_order_status_events`] - synthesize events for an external order
+//! - [`check_position_reconciliation`] - final qty and avg-px tolerance check
+//!
+//! Invariants maintained across all paths:
+//! 1. When enabled, synthetic adjustment aligns position quantity with the venue within instrument
+//!    precision.
+//! 2. When enabled, synthetic adjustment aligns average price with the venue within tolerance
+//!    (default 0.01%).
+//! 3. All generated fills preserve correct unrealized PnL.
+//! 4. Synthetic `trade_id` and `venue_order_id` values are deterministic
+//!    functions of the logical event, so restart replays dedupe.
+//!
+//! See `docs/concepts/execution/reconciliation.md` for the operator-facing description.
+
+use nautilus_core::correctness::CorrectnessResult;
+### config: crates/live/src/node/config.rs:434-451
+    /// If reconciliation is active at start-up.
+    #[builder(default = true)]
+    pub reconciliation: bool,
+    /// The delay (seconds) before starting reconciliation at startup.
+    #[builder(default = 10.0)]
+    pub reconciliation_startup_delay_secs: f64,
+    /// The maximum lookback minutes to reconcile state for.
+    pub reconciliation_lookback_mins: Option<u32>,
+    /// Specific instrument IDs to reconcile (if None, reconciles all).
+    pub reconciliation_instrument_ids: Option<Vec<String>>,
+    /// If unclaimed order events with an EXTERNAL strategy ID should be filtered/dropped.
+    #[builder(default)]
+    pub filter_unclaimed_external_orders: bool,
+    /// If position status reports are filtered from reconciliation.
+    #[builder(default)]
+    pub filter_position_reports: bool,
+    /// Client order IDs to filter from reconciliation.
+    pub filtered_client_order_ids: Option<Vec<String>>,
+### startup spec test: crates/live/tests/spec/main.rs:158-184
+async fn startup_reconciliation() {
+    // Parse Cucumber's tag filter without consuming libtest or nextest arguments
+    let cli = cucumber::cli::Opts::parse_from(["spec"]);
+    let writer = StartupWorld::cucumber()
+        .with_cli::<cucumber::cli::Empty>(cli)
+        .max_concurrent_scenarios(1)
+        .fail_on_skipped()
+        .run(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/spec/features/startup_reconciliation.feature"
+        ))
+        .await;
+    assert!(!writer.execution_has_failed(), "startup scenarios failed");
+    assert!(
+        writer.passed_steps() > 0,
+        "no startup scenarios matched the filter"
+    );
+}
+
+#[given("startup reconciliation is enabled")]
+fn reconciliation_enabled(world: &mut StartupWorld) {
+    world.config.exec_engine.reconciliation = true;
+}
+
+#[given("startup reconciliation is disabled")]
+fn reconciliation_disabled(world: &mut StartupWorld) {
+    world.config.exec_engine.reconciliation = false;
+
+## (d) order state machine
+### OrderStatus enum: crates/model/src/enums.rs:1478-1560
+pub enum OrderStatus {
+    /// The order is initialized (instantiated) within the Nautilus system.
+    Initialized = 1,
+    /// The order was denied by the Nautilus system, either for being invalid, unprocessable, or exceeding a risk limit.
+    Denied = 2,
+    /// The order became emulated by the Nautilus system in the `OrderEmulator` component.
+    Emulated = 3,
+    /// The order was released by the Nautilus system from the `OrderEmulator` component.
+    Released = 4,
+    /// The order was submitted by the Nautilus system to the external service or trading venue (awaiting acknowledgement).
+    Submitted = 5,
+    /// The order was acknowledged by the trading venue as being received and valid (may now be working).
+    Accepted = 6,
+    /// The order was rejected by the trading venue.
+    Rejected = 7,
+    /// The order was canceled (closed/done).
+    Canceled = 8,
+    /// The order reached a GTD expiration (closed/done).
+    Expired = 9,
+    /// The order STOP price was triggered on a trading venue.
+    Triggered = 10,
+    /// The order is currently pending a request to modify on a trading venue.
+    PendingUpdate = 11,
+    /// The order is currently pending a request to cancel on a trading venue.
+    PendingCancel = 12,
+    /// The order has been partially filled on a trading venue.
+    PartiallyFilled = 13,
+    /// The order has been completely filled on a trading venue (closed/done).
+    Filled = 14,
+    /// The order is terminal after an authoritative venue void or fill correction.
+    Voided = 15,
+}
+
+impl OrderStatus {
+    /// Returns whether the order status represents an open (working) order at the venue.
+    ///
+    /// This excludes `Submitted`, which is in-flight rather than working. When filtering venue
+    /// order status reports for orders the venue still holds, use `is_open() || is_inflight()`:
+    /// a venue that reports a resting order as pending maps it to `Submitted`, and testing
+    /// `is_open()` alone silently drops it from reconciliation.
+    #[must_use]
+    pub const fn is_open(self) -> bool {
+        matches!(
+            self,
+            Self::Accepted
+                | Self::Triggered
+                | Self::PendingUpdate
+                | Self::PendingCancel
+                | Self::PartiallyFilled
+        )
+    }
+
+    /// Returns whether the order status represents a terminal (closed) state.
+    #[must_use]
+    pub const fn is_closed(self) -> bool {
+        matches!(
+            self,
+            Self::Denied
+                | Self::Rejected
+                | Self::Canceled
+                | Self::Expired
+                | Self::Filled
+                | Self::Voided
+        )
+    }
+
+    /// Returns whether the order status represents an in-flight request to the venue.
+    ///
+    /// `PENDING_UPDATE` and `PENDING_CANCEL` are both open and in-flight: the order is working at
+    /// the venue while a modify or cancel request is outstanding.
+    #[must_use]
+    pub const fn is_inflight(self) -> bool {
+        matches!(
+            self,
+            Self::Submitted | Self::PendingUpdate | Self::PendingCancel
+        )
+    }
+
+    /// Returns whether the order can be cancelled from this status.
+    #[must_use]
+    pub const fn is_cancellable(self) -> bool {
+        matches!(
+            self,
+### apply() transition validation: crates/model/src/orders/mod.rs:389-390,817-860
+    pub fn apply(&mut self, event: OrderEventAny) -> Result<(), OrderError> {
+        self.validate_event_identity(&event)?;
+
+        if let OrderEventAny::FillVoided(event) = &event {
+            self.validate_fill_void(event)?;
+        }
+
+        let mut has_prior_fill_void = false;
+
+        // Check for duplicate fill before state transition to maintain consistency
+        if let OrderEventAny::Filled(fill) = &event {
+            let record = self.fill_record(fill.trade_id);
+            has_prior_fill_void = record.is_voided;
+
+            match record.last_px {
+                Some(price) if price == fill.last_px => {
+                    return Err(OrderError::DuplicateFill(fill.trade_id));
+                }
+                Some(_) => {
+                    self.restate_fill_price(event);
+                    return Ok(());
+                }
+                None => {}
+            }
+        }
+
+        if matches!(event, OrderEventAny::Triggered(_))
+            && !TRIGGERABLE_ORDER_TYPES.contains(&self.order_type)
+        {
+            return Err(OrderError::InvalidOrderEvent);
+        }
+
+        match &event {
+            OrderEventAny::Initialized(_) => return Err(OrderError::AlreadyInitialized),
+
+            // A replayed expiry must not overwrite a later fill's status or timestamps
+            OrderEventAny::Expired(_)
+                if matches!(self.status, OrderStatus::Expired | OrderStatus::Filled)
+                    && self
+                        .events
+                        .iter()
+                        .rposition(|event| matches!(event, OrderEventAny::Expired(_)))
+                        .is_some_and(|index| {
+                            self.events[index + 1..]
+### duplicate fill guard: crates/model/src/orders/mod.rs:413 + crates/execution/src/engine/mod.rs:4039-4047
+
+    fn validate_fill_for_order(&self, order: &OrderAny, fill: &OrderFilled) -> anyhow::Result<()> {
+        if order.is_duplicate_fill(fill) {
+            log::warn!(
+                "Duplicate fill: {} trade_id={} already applied, skipping",
+                order.client_order_id(),
+                fill.trade_id
+            );
+            anyhow::bail!("Duplicate fill");
+
+## submit idempotency (dedup dispatch)
+### crates/execution/src/engine/mod.rs:2196-2219 validate_submission match
+        }
+
+        match self.validate_submission(&command) {
+            SubmissionValidationResult::Valid => {}
+            SubmissionValidationResult::StaleOrder {
+                client_order_id,
+                status,
+            } => {
+                log::warn!(
+                    "Skipping stale submit command for {client_order_id} in status {status}"
+                );
+                return;
+            }
+            SubmissionValidationResult::Dispatched { client_order_id } => {
+                log::warn!(
+                    "Skipping duplicate submit command for {client_order_id} already dispatched to an execution client"
+                );
+                return;
+            }
+            SubmissionValidationResult::Deny(reason) => {
+                self.deny_submission(&command, &reason);
+                return;
+            }
+        }
+### validate_submission fn:2321 (cache.order check)
+7:                if let Some(order) = cache.order(&client_order_id)
+10:                    return SubmissionValidationResult::StaleOrder {
+17:                    return SubmissionValidationResult::Dispatched { client_order_id };
+36:                SubmissionValidationResult::Deny(OrderDeniedReason::OrderListDenied {
+
+## (e) alpaca
+### grep -ril alpaca over entire clone (all file types):
+(no output = zero matches)
+### python adapters in clone:
+__init__.py
+__init__.pyi
+architect_ax
+betfair
+binance
+blockchain
+bybit
+coinapi
+coinbase
+databento
+deribit
+derive
+dydx
+finfeed
+hyperliquid
+interactive_brokers
+kalshi
+kraken
+lighter
+okx
+polymarket
+sandbox
+tardis
+### installed 2.0.0rc9 adapters:
+__init__.py
+__init__.pyi
+__pycache__
+architect_ax
+betfair
+binance
+blockchain
+bybit
+coinapi
+coinbase
+databento
+deribit
+derive
+dydx
+finfeed
+hyperliquid
+interactive_brokers
+kalshi
+kraken
+lighter
+okx
+polymarket
+sandbox
+tardis
+### alpaca string count in installed rc9 package:
+(no output = zero files contain alpaca)
+
+## reconciliation default = ON
+    #[builder(default)]
+    pub debug: bool,
+    /// If reconciliation is active at start-up.
+    #[builder(default = true)]
+    pub reconciliation: bool,
+    /// The delay (seconds) before starting reconciliation at startup.
+    #[builder(default = 10.0)]
+    pub reconciliation_startup_delay_secs: f64,
+    /// The maximum lookback minutes to reconcile state for.
+    pub reconciliation_lookback_mins: Option<u32>,
+    /// Specific instrument IDs to reconcile (if None, reconciles all).
+    pub reconciliation_instrument_ids: Option<Vec<String>>,
+    /// If unclaimed order events with an EXTERNAL strategy ID should be filtered/dropped.
+    #[builder(default)]
+    pub filter_unclaimed_external_orders: bool,
+    /// If position status reports are filtered from reconciliation.
+    #[builder(default)]
+    pub filter_position_reports: bool,
+    /// Client order IDs to filter from reconciliation.
+    pub filtered_client_order_ids: Option<Vec<String>>,
+    /// If MARKET order events will be generated during reconciliation to align discrepancies.
+
+## event_store default = None (opt-in)
+    ///
+    /// When set, the live node boots a kernel-managed event-store run for audit and replay.
+    /// The caller supplies a factory via `LiveNodeBuilder::with_event_store` to construct
+    /// the concrete `KernelEventStore`; this field carries the configuration that factory reads.
+    pub event_store: Option<EventStoreConfig>,
+    /// If the asyncio event loop should run in debug mode.
+    fn live_node_config_default_has_no_event_store() {
+        let config = LiveNodeConfig::default();
+        assert!(config.event_store.is_none());
+    }
+
+## default cache = in-memory no-op persistence
+
+    fn update_order(&self, _order_event: &OrderEventAny) -> anyhow::Result<()> {
+        Ok(())
+## reconciliation default = ON (authoritative absolute lines)
+434-    /// If reconciliation is active at start-up.
+435-    #[builder(default = true)]
+436:    pub reconciliation: bool,
+(grep -n -B2 output above: line 435 builder default = true)

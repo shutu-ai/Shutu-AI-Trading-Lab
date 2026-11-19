@@ -1,0 +1,56 @@
+=== env ===
+Thu Nov 19 09:59:19 UTC 2026
+=== account report ===
+                                          total  ... base_currency
+2020-08-14 10:00:00.223+00:00  1000000.00000000  ...          None
+2020-08-14 10:00:00.223+00:00       10.00000000  ...          None
+2020-08-14 10:22:34.574+00:00   999989.38468858  ...          None
+2020-08-14 10:22:34.574+00:00       10.02500000  ...          None
+2020-08-14 10:22:37.074+00:00   999978.76937716  ...          None
+...                                         ...  ...           ...
+2020-08-14 14:24:40.817+00:00       10.07500000  ...          None
+2020-08-14 14:24:43.317+00:00   999956.22058289  ...          None
+2020-08-14 14:24:43.317+00:00       10.10000000  ...          None
+2020-08-14 14:59:58.693+00:00   999998.90531399  ...          None
+2020-08-14 14:59:58.693+00:00       10.00000000  ...          None
+
+[158 rows x 10 columns]
+=== order fills report ===
+                                      trader_id  ...  avg_px
+client_order_id                                  ...        
+O-20200814-102234-001-000-1      BACKTESTER-001  ...  424.55
+O-20200814-102234-001-000-1-E1   BACKTESTER-001  ...  424.57
+O-20200814-102234-001-000-1-E2   BACKTESTER-001  ...  424.57
+O-20200814-102234-001-000-1-E3   BACKTESTER-001  ...  424.56
+O-20200814-103237-001-000-2      BACKTESTER-001  ...  423.49
+...                                         ...  ...     ...
+O-20200814-142435-001-000-29     BACKTESTER-001  ...  424.40
+O-20200814-142435-001-000-29-E1  BACKTESTER-001  ...  424.38
+O-20200814-142435-001-000-29-E2  BACKTESTER-001  ...  424.38
+O-20200814-142435-001-000-29-E3  BACKTESTER-001  ...  424.34
+O-20200814-145958-001-000-30     BACKTESTER-001  ...  426.89
+
+[75 rows x 31 columns]
+=== positions report ===
+                                                                                               events  ...  is_snapshot
+position_id                                                                                            ...             
+ETHUSDT.BINANCE-EMACrossTWAP-000-59395ed2-d3bd-...  [{'type': 'OrderFilled', 'trader_id': 'BACKTES...  ...         True
+ETHUSDT.BINANCE-EMACrossTWAP-000-0d246c26-1b3d-...  [{'type': 'OrderFilled', 'trader_id': 'BACKTES...  ...         True
+ETHUSDT.BINANCE-EMACrossTWAP-000-8fdc7126-6ab2-...  [{'type': 'OrderFilled', 'trader_id': 'BACKTES...  ...         True
+ETHUSDT.BINANCE-EMACrossTWAP-000-3258acc9-682a-...  [{'type': 'OrderFilled', 'trader_id': 'BACKTES...  ...         True
+ETHUSDT.BINANCE-EMACrossTWAP-000-48c7b3e0-b3f6-...  [{'type': 'OrderFilled', 'trader_id': 'BACKTES...  ...         True
+ETHUSDT.BINANCE-EMACrossTWAP-000-1cbade9e-349c-...  [{'type': 'OrderFilled', 'trader_id': 'BACKTES...  ...         True
+ETHUSDT.BINANCE-EMACrossTWAP-000-885f1dc8-e44c-...  [{'type': 'OrderFilled', 'trader_id': 'BACKTES...  ...         True
+ETHUSDT.BINANCE-EMACrossTWAP-000-8176b0ec-28b7-...  [{'type': 'OrderFilled', 'trader_id': 'BACKTES...  ...         True
+ETHUSDT.BINANCE-EMACrossTWAP-000-d6f326cc-3e67-...  [{'type': 'OrderFilled', 'trader_id': 'BACKTES...  ...         True
+ETHUSDT.BINANCE-EMACrossTWAP-000-cfd0d01b-9b37-...  [{'type': 'OrderFilled', 'trader_id': 'BACKTES...  ...         True
+ETHUSDT.BINANCE-EMACrossTWAP-000-6686959e-935a-...  [{'type': 'OrderFilled', 'trader_id': 'BACKTES...  ...         True
+ETHUSDT.BINANCE-EMACrossTWAP-000-99675bdd-f3c3-...  [{'type': 'OrderFilled', 'trader_id': 'BACKTES...  ...         True
+ETHUSDT.BINANCE-EMACrossTWAP-000-67adb5b8-ff08-...  [{'type': 'OrderFilled', 'trader_id': 'BACKTES...  ...         True
+ETHUSDT.BINANCE-EMACrossTWAP-000-b1a974db-16fe-...  [{'type': 'OrderFilled', 'trader_id': 'BACKTES...  ...         True
+ETHUSDT.BINANCE-EMACrossTWAP-000                    [{'type': 'OrderFilled', 'trader_id': 'BACKTES...  ...        False
+
+[15 rows x 36 columns]
+=== engine.run() wall time: 0.144s ===
+EXIT=0
+Thu Nov 19 09:59:23 UTC 2026

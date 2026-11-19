@@ -1,0 +1,25 @@
+=== CMD: curl -L --proxy http://192.168.1.2:8080 -o v3/qlib_data_simple_cn_1d_latest.zip https://github.com/SunsetWolf/qlib_dataset/releases/download/v3/qlib_data_simple_cn_1d_latest.zip ===
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0  0      0   0      0   0      0      0      0                              0100      9 100      9   0      0     15      0                              0100      9 100      9   0      0     15      0                              0100      9 100      9   0      0     15      0                              0
+=== EXIT: 0 ===
+total 1
+drwxr-xr-x 1 sWX1536744 1049089 0 Nov 19 11:55 .
+drwxr-xr-x 1 sWX1536744 1049089 0 Nov 19 11:54 ..
+-rw-r--r-- 1 sWX1536744 1049089 9 Nov 19 11:55 qlib_data_simple_cn_1d_latest.zip
+
+=== NOTE: v3/qlib_data_simple_cn_1d_latest.zip returned 'Not Found' (9 bytes); simple variant only exists in v2 release. Asset listing via https://api.github.com/repos/SunsetWolf/qlib_dataset/releases ===
+=== Available assets: v3: qlib_data_cn_1d_latest.zip (240739135 B), qlib_data_hs300_5min_latest.zip, qlib_data_us_1d_latest.zip; v2: qlib_data_simple_cn_1d_latest.zip (51810838 B), qlib_data_pit_1d_latest.zip (2865 B) ===
+
+=== CMD: curl -L --proxy http://192.168.1.2:8080 -o .../data/qlib_data_cn_1d_latest.zip https://github.com/SunsetWolf/qlib_dataset/releases/download/v3/qlib_data_cn_1d_latest.zip ===
+http_code=200 size=240739135 time=272.420425s
+=== EXIT: 0 ===
+
+=== CMD: curl PIT dataset ===
+http_code=200 size=2865 time=2.171852s
+=== EXIT: 0 ===
+total 235104
+drwxr-xr-x 1 sWX1536744 1049089         0 Nov 19 12:00 .
+drwxr-xr-x 1 sWX1536744 1049089         0 Nov 19 11:55 ..
+-rw-r--r-- 1 sWX1536744 1049089 240739135 Nov 19 12:00 qlib_data_cn_1d_latest.zip
+-rw-r--r-- 1 sWX1536744 1049089      2865 Nov 19 12:00 qlib_data_pit_1d_latest.zip
