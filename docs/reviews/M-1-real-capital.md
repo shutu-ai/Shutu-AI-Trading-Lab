@@ -3,7 +3,7 @@
 | 字段 | 值 |
 |---|---|
 | stage_id | M-1 |
-| commit | 见 `docs/reviews/M-1-engineering.md` 头部 |
+| commit | `ea894ec2`（主证据提交，见 engineering 报告头部） |
 | protocol_hash | NOT_APPLICABLE |
 | environment | 本地沙箱；无任何券商账户连接 |
 | test_commands | NOT_APPLICABLE |

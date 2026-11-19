@@ -3,7 +3,7 @@
 | 字段 | 值 |
 |---|---|
 | stage_id | M-1 |
-| commit | 最终提交 SHA 见本报告文末（随最终 commit 更新）；基线 commit `0c31e651`；POC 主提交 `11424ad6` |
+| commit | **`ea894ec2`**（证据与文档主提交）；基线 commit `0c31e651`；POC 主提交 `11424ad6`；报告字段更新提交紧随其后 |
 | code_hash | 全部工件由 git 跟踪可重算；fake broker POC 代码位于 `artifacts/poc/M-1/fake_broker_poc/` |
 | protocol_hash | NOT_APPLICABLE — 本阶段无研究协议（M3 才冻结） |
 | environment | Windows 11 Pro 10.0.26200 / Python 3.13.15 / Git 2.55.0 / 强制代理 `http://192.168.1.2:8080`；无 Alpaca 密钥、无 LLM 密钥 |
