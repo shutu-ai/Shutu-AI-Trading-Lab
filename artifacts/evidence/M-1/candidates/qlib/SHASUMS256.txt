@@ -1,0 +1,2 @@
+018a0ce1b7f7c8c429f19d1cdbe1429d0297c6c4a881c631dfaeb95ecd05306a *qlib_data_cn_1d_latest.zip
+f1e0b5d60f848d9c7f8ff43a09e2a2c6095bfdfe77a369c57938e4cebbc0873b *qlib_data_pit_1d_latest.zip

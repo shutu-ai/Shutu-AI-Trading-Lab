@@ -3,7 +3,7 @@
 | 字段 | 值 |
 |---|---|
 | stage_id | M-1 |
-| commit | **`ea894ec2`**（证据与文档主提交）；基线 commit `0c31e651`；POC 主提交 `11424ad6`；报告字段更新提交紧随其后 |
+| commit | **`6d26a0f`**（证据与文档主提交）；基线 commit `0c31e651`；POC 主提交 `661c520`；报告字段更新提交紧随其后 |
 | code_hash | 全部工件由 git 跟踪可重算；fake broker POC 代码位于 `artifacts/poc/M-1/fake_broker_poc/` |
 | protocol_hash | NOT_APPLICABLE — 本阶段无研究协议（M3 才冻结） |
 | environment | Windows 11 Pro 10.0.26200 / Python 3.13.15 / Git 2.55.0 / 强制代理 `http://192.168.1.2:8080`；无 Alpaca 密钥、无 LLM 密钥 |
@@ -33,6 +33,8 @@
 4. 基线 §17"停于 ENGINEERING_START_APPROVAL_PENDING" → 用户本会话已明确下达 M-1 启动授权，状态视为放行 M-1；其余阶段门不变。
 
 详见 `artifacts/evidence/M-1/env/environment_and_decisions.md`。
+
+**历史改写记录（推送前审计）**：6. 首次推送前发现 qlib 数据集（zip 229.6MB + 解压 411MB，共 30,585 文件）在 .gitignore 规则生效前被后台提交卷入 git 历史，超过 GitHub 单文件 100MB 限制且违反仓库卫生原则 → 以 `git filter-branch` 从全部提交中剥离 `artifacts/evidence/M-1/candidates/qlib/data/`；pack 由 451.4MB 降至 1.88MB。改写后提交 SHA：`11424ad6→661c520`、`a6f84e49→4631c23`、`ea894ec2→6d26a0f`、`7103c58f→a93d435`（基线 `0c31e651` 不含数据故 SHA 不变）。数据集本身以 SHA256 留证（`candidates/qlib/SHASUMS256.txt`）并可从原始 URL 复现下载。远端仓库为空、无协作者，改写不影响任何他人。
 
 ## 1. 候选评估结论汇总（真实运行，非 README）
 

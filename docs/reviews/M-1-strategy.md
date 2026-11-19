@@ -3,7 +3,7 @@
 | 字段 | 值 |
 |---|---|
 | stage_id | M-1 |
-| commit | `ea894ec2`（主证据提交，见 engineering 报告头部） |
+| commit | `6d26a0f`（主证据提交，见 engineering 报告头部） |
 | code_hash | 本阶段工件由 git 跟踪；POC 代码哈希随提交可重算 |
 | protocol_hash | NOT_APPLICABLE — 本阶段未运行任何策略验证，无研究协议 |
 | environment | Windows 11 / Python 3.13.15 / 本地沙箱，无券商连接 |
