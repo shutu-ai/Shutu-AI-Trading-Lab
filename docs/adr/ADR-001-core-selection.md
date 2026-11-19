@@ -79,8 +79,8 @@ fake broker 契约 POC（`artifacts/poc/M-1/fake_broker_poc/`，20/20 用例通�
 
 | 组件 | M-1 结论 | 采用方式 |
 |---|---|---|
-| qlib 0.9.8 | Py3.13 安装+工作流可跑（需 `mlflow<3` 钉扎，mlflow 3.x 破坏其 recorder）；CN 样本数据 PIT 成分真实存在但价格面板有快照伪影（87 标的同日截止）、公开数据止于 2022-12、无 US 样本 | **候选封装**：仅复用其 bin 格式数据管道与回测引擎思路；数据供应按 §4.1 供应商矩阵另建（qlib 公开数据不进入研究证据链）。M1 实测 US 数据接入成本后再定最终角色 |
-| RD-Agent 1.0.0 | 安装成功但依赖足迹极大（langchain/langgraph/prefect/azure 全家桶+Docker）；Docker 模块级依赖（`utils/env.py:40`）；LLM 研究循环无凭证 `BLOCKED_ENV` | **暂缓**：M4 前不承诺。若采用，仅其研究循环在隔离沙箱内运行，试验账本必须写回我方不可删除账本（对接点=研究接口，非拼接） |
+| qlib 0.9.8 | Py3.13 安装+LightGBM Alpha158 工作流端到端跑通（Windows，10m27s；需钉扎 `mlflow<3`，mlflow 3.x 破坏 recorder）；CN 样本数据 PIT 成分真实存在但价格面板有快照伪影（88 个早停标的中 87 个同日截止）、公开数据止于 2022-12、无 US 样本 | **候选封装**：仅复用其 bin 格式数据管道与回测引擎思路；数据供应按 §4.1 供应商矩阵另建（qlib 公开数据不进入研究证据链）。M1 实测 US 数据接入成本后再定最终角色 |
+| RD-Agent 1.0.0 | 安装成功（=锁定 v1.0.0 tag）；**原生 Windows 不可用**（POSIX 硬编码：`/bin/sh`、`select.poll()`、unix socket）→ 需 Linux/WSL2；Docker 可选（qlib 场景默认 conda）；LLM 循环无凭证 `BLOCKED_ENV`，默认 gpt-4-turbo + evolving_n=10 成本需预算门；依赖足迹大（286 包）；LiteLLM 后端存在内部 AttributeError 缺陷 | **暂缓**：M4 前不承诺。若采用：Linux/WSL2 隔离沙箱内运行（其 README:436 自述要求隔离 worker），试验账本必须写回我方不可删除账本（对接点=注入我方 runner 类，非拼接），先建 LLM 预算硬门 |
 | FinRL-X | 见 §3.1 | **拒绝**（仅作设计参考：权重→订单再平衡语义的反面教材与部分思路） |
 | alpaca-py | 见 §2.1 | **采用**（BrokerAdapter 唯一基座） |
 | NautilusTrader | 见 §3.2 | **拒绝**（保留重评条件，无自动路径） |

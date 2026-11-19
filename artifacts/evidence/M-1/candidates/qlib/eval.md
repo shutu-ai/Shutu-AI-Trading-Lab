@@ -43,12 +43,23 @@ Venv: `third_party/.venv-qlib` (Python 3.13.15, pip 26.2.1). All downloads via p
      `MlflowException: Run 'aac39cbe3678478ab7c1600edaf9dd69' not found`
      from `qlib/workflow/recorder.py:349` `mlflow.start_run(self.id, ...)` → mlflow file store. qlib passes a fresh recorder UUID as the mlflow run id; mlflow 3.x no longer accepts that (file-store backend also prints a deprecation FutureWarning).
   2. **Pin change recorded:** installed `mlflow<3` → **mlflow 2.22.5** (still inside qlib's own declared constraint `mlflow<3.13`; pyproject comment says mlflow 3.13 disables qlib's filesystem tracking backend). Side effects recorded in `logs/install.txt`: pyarrow 23.0.1 → 19.0.1 (mlflow 2.22 constraint), packaging downgraded to 24.2 (pip reports `vcs-versioning 2.6.0 requires packaging>=26.2 ... incompatible` — build-time-only package, no runtime impact on qlib; log: `logs/install.txt`).
-  3. Retry with mlflow 2.22.5: see final Runtime verdict + metrics below (filled in `logs/runtime.txt` after the `=== RETRY ===` marker).
+  3. Retry with mlflow 2.22.5: **PASS — full end-to-end run, exit 0.** Log: `logs/runtime.txt` (after `=== RETRY ===`), metrics extract in `metrics_output.txt`, config in `config/workflow_config_lightgbm_Alpha158.yaml` (only `provider_uri` changed to the evidence data dir).
+
+  Final run facts (all verbatim from `logs/runtime.txt`):
+  - **Wall time:** START 12:13:00 → END 12:23:27 = **10m27s** total. Breakdown: Alpha158 data init **350.6s**, LightGBM training ~45s (early stop, best iteration 18), TopkDropout backtest 871 trading days in **39s** (~22 it/s).
+  - **Signal metrics** (SigAnaRecord): `IC 0.0468`, `ICIR 0.3816`, `Rank IC 0.0490`, `Rank ICIR 0.4067`.
+  - **Portfolio metrics** (PortAnaRecord, csi300 2017-01-01→2020-08-01, benchmark SH000300, 100M CNY, costs 0.05%/0.15%):
+    - benchmark: annualized_return 0.1136, information_ratio 0.5987, max_drawdown -0.3705
+    - excess return w/o cost: annualized_return 0.1260, information_ratio 1.4286, max_drawdown -0.0723
+    - excess return with cost: annualized_return 0.0807, information_ratio 0.9145, max_drawdown -0.0861
+  - These match the magnitude of qlib's published LightGBM Alpha158 reference numbers (their README lists excess return w/o cost ≈ 0.12, IC ≈ 0.05) — sane, not suspicious.
+  - Warnings during run (benign, documented in log): gym deprecation shim, `$close field data contains nan` (sample-data quality), index SH000300 has no factor file → adjusted-price orders for benchmark, "trade unit 100 not supported in adjusted_price mode", future-calendar warning in backtest infra.
 
 ## [Dependencies]
 
 - **PASS** — `pip list`: **195 packages** (see `logs/piplist.txt`; count line at bottom).
-- Heavy deps (versions actually installed): numpy 2.5.5, pandas 2.3.3, pyarrow 19.0.1 (downgraded from 23.0.1 by mlflow<3), lightgbm 4.7.0, mlflow 2.22.5, scikit-learn 1.9.1, matplotlib 3.11.2, cvxpy (with clarabel/osqp/qdldl/scs/highspy solvers), scipy. **torch NOT installed** (rl extras only; not needed for this POC). jupyter + notebook are pulled in by default (fat dependency footprint).
+- Heavy deps (versions actually installed, final state after mlflow<3): numpy 2.5.5, pandas 2.3.3, pyarrow 19.0.1 (downgraded from 23.0.1 by mlflow<3), lightgbm 4.7.0, mlflow 2.22.5, scikit-learn 1.9.1, matplotlib 3.11.2, cvxpy (with clarabel/osqp/qdldl/scs/highspy solvers), scipy. **torch NOT installed** (rl extras only; not needed for this POC). jupyter + notebook are pulled in by default (fat dependency footprint).
+- Final package count after mlflow downgrade: **196** (`logs/piplist.txt`, final block; 195 before).
 - qlib version string: **0.9.8** (`logs/install.txt`).
 
 ## [Windows/Py3.13 compat]

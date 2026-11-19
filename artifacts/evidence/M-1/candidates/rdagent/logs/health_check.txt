@@ -1,0 +1,65 @@
+# CLI health_check (no LLM call; checks env/docker/ports)
+# command: rdagent health_check (cwd = this logs dir)
+# date: 2026-11-19T12:21:00+02:00
+
+D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\fitz\__init__.py:17: FutureWarning: The `fitz` API is deprecated and will be removed in future. Use `import pymupdf` instead.
+  warnings.warn(
+2026-11-19 12:21:44.736 +02:00 | WARNING  | rdagent.app.utils.health_check:env_check:96 - We did not find BACKEND in your configuration, please add it to your .env file. You can run a command like this: `dotenv set BACKEND rdagent.oai.backend.LiteLLMAPIBackend`
+--- Logging error in Loguru Handler #1 ---
+Record was: {'elapsed': datetime.timedelta(seconds=42, microseconds=507393), 'exception': None, 'extra': {'_rdagent_raw': False}, 'file': (name='logger.py', path='D:\\dev-projects\\Shutu-AI-Trading-Lab\\third_party\\.venv-rdagent\\Lib\\site-packages\\rdagent\\log\\logger.py'), 'function': 'env_check', 'level': (name='INFO', no=20, icon='\u2139\ufe0f'), 'line': 123, 'message': '\U0001f680 Starting test...\n', 'module': 'logger', 'name': 'rdagent.app.utils.health_check', 'process': (id=46776, name='MainProcess'), 'template': '\U0001f680 Starting test...\n', 'thread': (id=46576, name='MainThread'), 'time': datetime(2026, 11, 19, 12, 21, 44, 800161, tzinfo=datetime.timezone(datetime.timedelta(seconds=7200), '埃及标准时间'))}
+Traceback (most recent call last):
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\loguru\_handler.py", line 206, in emit
+    self._sink.write(str_record)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\loguru\_simple_sinks.py", line 31, in write
+    self._stream.write(message)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\colorama\ansitowin32.py", line 47, in write
+    self.__convertor.write(text)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\colorama\ansitowin32.py", line 177, in write
+    self.write_and_convert(text)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\colorama\ansitowin32.py", line 205, in write_and_convert
+    self.write_plain_text(text, cursor, len(text))
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\colorama\ansitowin32.py", line 210, in write_plain_text
+    self.wrapped.write(text[start:end])
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'gbk' codec can't encode character '\U0001f680' in position 91: illegal multibyte sequence
+--- End of logging error ---
+--- Logging error in Loguru Handler #1 ---
+Record was: {'elapsed': datetime.timedelta(seconds=42, microseconds=577759), 'exception': None, 'extra': {'_rdagent_raw': False}, 'file': (name='logger.py', path='D:\\dev-projects\\Shutu-AI-Trading-Lab\\third_party\\.venv-rdagent\\Lib\\site-packages\\rdagent\\log\\logger.py'), 'function': 'test_embedding', 'level': (name='INFO', no=20, icon='\u2139\ufe0f'), 'line': 79, 'message': '\U0001f9ea Testing embedding model: None', 'module': 'logger', 'name': 'rdagent.app.utils.health_check', 'process': (id=46776, name='MainProcess'), 'template': '\U0001f9ea Testing embedding model: None', 'thread': (id=46576, name='MainThread'), 'time': datetime(2026, 11, 19, 12, 21, 44, 870527, tzinfo=datetime.timezone(datetime.timedelta(seconds=7200), '埃及标准时间'))}
+Traceback (most recent call last):
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\loguru\_handler.py", line 206, in emit
+    self._sink.write(str_record)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\loguru\_simple_sinks.py", line 31, in write
+    self._stream.write(message)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\colorama\ansitowin32.py", line 47, in write
+    self.__convertor.write(text)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\colorama\ansitowin32.py", line 177, in write
+    self.write_and_convert(text)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\colorama\ansitowin32.py", line 205, in write_and_convert
+    self.write_plain_text(text, cursor, len(text))
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\colorama\ansitowin32.py", line 210, in write_plain_text
+    self.wrapped.write(text[start:end])
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'gbk' codec can't encode character '\U0001f9ea' in position 95: illegal multibyte sequence
+--- End of logging error ---
+--- Logging error in Loguru Handler #1 ---
+Record was: {'elapsed': datetime.timedelta(seconds=42, microseconds=739217), 'exception': None, 'extra': {'_rdagent_raw': False}, 'file': (name='logger.py', path='D:\\dev-projects\\Shutu-AI-Trading-Lab\\third_party\\.venv-rdagent\\Lib\\site-packages\\rdagent\\log\\logger.py'), 'function': 'test_embedding', 'level': (name='ERROR', no=40, icon='\u274c'), 'line': 90, 'message': '\u274c Embedding test failed: litellm.BadRequestError: GetLLMProvider Exception - model parameter is required but was None. Please provide a valid model name.\n\noriginal model: None', 'module': 'logger', 'name': 'rdagent.app.utils.health_check', 'process': (id=46776, name='MainProcess'), 'template': '\u274c Embedding test failed: litellm.BadRequestError: GetLLMProvider Exception - model parameter is required but was None. Please provide a valid model name.\n\noriginal model: None', 'thread': (id=46576, name='MainThread'), 'time': datetime(2026, 11, 19, 12, 21, 45, 31985, tzinfo=datetime.timezone(datetime.timedelta(seconds=7200), '埃及标准时间'))}
+Traceback (most recent call last):
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\litellm\litellm_core_utils\get_llm_provider_logic.py", line 219, in _get_llm_provider
+    raise ValueError("model parameter is required but was None. Please provide a valid model name.")
+ValueError: model parameter is required but was None. Please provide a valid model name.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\third_party\.venv-rdagent\Lib\site-packages\rdagent\app\utils\health_check.py", line 81, in test_embedding
+HEALTH_CHECK_EXIT=0

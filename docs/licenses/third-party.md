@@ -8,9 +8,9 @@
 
 | 仓库 | 锁定 SHA | 版本 | 许可证 | NOTICE | 用途评估结论 |
 |---|---|---|---|---|---|
-| microsoft/RD-Agent | `484776c211e4fbbeef03e0ec00d6bbee7362a4f4` | 见 eval.md | MIT | 未见 | 研究侧候选（LLM 循环 BLOCKED_ENV，详见 eval） |
-| microsoft/qlib | `54355232463878d2eebb91fe0ee5fa7fa1f5976c` | 见 eval.md | MIT | 未见 | 研究数据/回测候选 |
-| AI4Finance-Foundation/FinRL-Trading ("FinRL-X") | `4409abe925c904e570be78ebfb5e77ac3491dff8` | 见 eval.md | Apache-2.0 | 未见 | 交易侧候选（评估结论见 ADR-001） |
+| microsoft/RD-Agent | `484776c211e4fbbeef03e0ec00d6bbee7362a4f4` | 1.0.0（PyPI，=clone v1.0.0 tag） | MIT | 未见 | 研究侧候选（LLM 循环 BLOCKED_ENV，详见 eval） |
+| microsoft/qlib | `54355232463878d2eebb91fe0ee5fa7fa1f5976c` | 0.9.8（editable 安装） | MIT | 未见 | 研究数据/回测候选 |
+| AI4Finance-Foundation/FinRL-Trading ("FinRL-X") | `4409abe925c904e570be78ebfb5e77ac3491dff8` | 无 PyPI 包（clone 直接安装；恢复安装含 3 项已记录偏差） | Apache-2.0 | 未见 | 交易侧候选（评估结论见 ADR-001：拒绝） |
 | alpacahq/alpaca-py | `f8fd9555ec182ccc0f8f6b5b819779fe7b2fb6d3` | 0.45.0 (PyPI) | Apache-2.0 | 未见 | **采用**：BrokerAdapter 基座 |
 | nautechsystems/nautilus_trader | `8a4ac22fc08990a96c6e5750c76a3fa744f4d141` | 1.231.0 / 2.0.0rc9 | **LGPL-3.0** | 未见 | 不采用（ADR-001 §C） |
 
@@ -40,7 +40,7 @@
 | Alpaca Algo Trader Plus | $99/月，全 SIP 实时 | 需要实时 SIP 时评估（架构 §4.1） |
 | Polygon.io（2026 年起品牌迁移为 Massive） | Basic $0（EOD、5 请求/分）；Starter $29/月；Developer $79/月（历史数据主力档）；Advanced $199/月（实时） | 候选（M1 实测） |
 | Sharadar (via Nasdaq Data Link) | 含退市公司（10,000+）与 S&P 500 历史成分（含生效日期）；订阅制（价格未核实，历史参考 $35–75/月，须以订购页为准） | 历史成分/退市研究的主力候选（M1 实测） |
-| qlib 公开样本数据 | Microsoft GitHub 发布，MIT 仓库附带；数据本身授权条款需单独核实；CN 样本为主、US 样本有限 | 仅 POC/测试 fixture |
+| qlib 公开样本数据 | Microsoft GitHub 发布（SunsetWolf/qlib_dataset v3）；MIT 仓库附带；数据集本身条款需单独核实；CN 样本为主、US 样本有限 | 仅 POC/测试 fixture。数据集 SHA256：CN `018a0ce1…cd05306a`、PIT demo `f1e0b5d6…bbc0873b`（完整值见 `artifacts/evidence/M-1/candidates/qlib/data/SHASUMS256.txt`） |
 
 ## 4. 待办与义务
 

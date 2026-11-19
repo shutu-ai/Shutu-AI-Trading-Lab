@@ -216,3 +216,20 @@ Version: 1.9.1
 Name: matplotlib
 Version: 3.11.2
 (torch: NOT INSTALLED)
+
+=== FINAL pip list AFTER mlflow<3 downgrade (mlflow 2.22.5, pyarrow 19.0.1): ===
+Package                            Version     Editable project location
+---------------------------------- ----------- -----------------------------------------------------
+aiohappyeyeballs                   2.7.1
+aiohttp                            3.14.5
+196
+Name: numpy
+Version: 2.5.5
+Name: pandas
+Version: 2.3.3
+Name: pyarrow
+Version: 19.0.1
+Name: lightgbm
+Version: 4.7.0
+Name: mlflow
+Version: 2.22.5

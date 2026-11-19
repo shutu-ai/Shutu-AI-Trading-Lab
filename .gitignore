@@ -13,3 +13,7 @@ __pycache__/
 # OS
 Thumbs.db
 .DS_Store
+
+# Large third-party datasets (audit via SHA256 in evidence manifests, re-downloadable)
+artifacts/evidence/M-1/candidates/qlib/data/
+artifacts/evidence/M-1/candidates/qlib/mlruns/

@@ -1,3 +1,97 @@
 ### Adaptive rotation backtest, synthetic offline data, py3.13 venv
 ### python src/strategies/run_adaptive_rotation_strategy.py --config src/strategies/AdaptiveRotationConf_v1.2.2.yaml --backtest --start 2024-01-01 --end 2024-06-30 --data-dir <evidence>/logs/synthdata
 Thu Nov 19 12:14:56     2026
+
+============================================================
+Running Backtest
+Config: src/strategies/AdaptiveRotationConf_v1.2.2.yaml
+Period: 2024-01-01 to 2024-06-30
+Rebalance: W-FRI
+Daily Fast Track: Enabled
+============================================================
+
+1. Loading and preprocessing data...
+[DataPreprocessor] Loading 31 symbols from D:/dev-projects/Shutu-AI-Trading-Lab/artifacts/evidence/M-1/candidates/finrl-x/logs/synthdata
+[DataPreprocessor] Loaded daily data for 31 symbols
+[DataPreprocessor] Week-end dates: 441 weeks
+[DataPreprocessor] Aggregated to weekly for 31 symbols
+[DataPreprocessor] Aligned to 441 common dates
+[DataPreprocessor] Date range: 2017-01-06 00:00:00 to 2025-06-09 00:00:00
+2. Initializing strategy engine...
+
+3. Running backtest with Daily Monitoring:
+   - Weekly rebalance points: 26
+   - Daily monitoring: 130 days
+   - Daily checks: Fast Risk-Off + Stop-Loss
+   [FAST TRACK TRIGGERED] 2024-01-23: Price=True, Vol=False
+   [FAST TRACK ADJUSTMENT] Would reduce exposure to 50.0% (event logged)
+   Progress: 17/130 days scanned, 3 weekly rebalances, 1 fast track adj, 0 stop-loss adj
+   [FAST TRACK TRIGGERED] 2024-02-12: Price=True, Vol=False
+   [FAST TRACK ADJUSTMENT] Would reduce exposure to 50.0% (event logged)
+   Progress: 31/130 days scanned, 6 weekly rebalances, 2 fast track adj, 0 stop-loss adj
+   [FAST TRACK TRIGGERED] 2024-02-26: Price=True, Vol=False
+   [FAST TRACK ADJUSTMENT] Would reduce exposure to 50.0% (event logged)
+   Progress: 41/130 days scanned, 8 weekly rebalances, 3 fast track adj, 0 stop-loss adj
+   [FAST TRACK TRIGGERED] 2024-04-02: Price=True, Vol=False
+   [FAST TRACK ADJUSTMENT] Would reduce exposure to 50.0% (event logged)
+   Progress: 67/130 days scanned, 13 weekly rebalances, 4 fast track adj, 0 stop-loss adj
+   [FAST TRACK TRIGGERED] 2024-04-16: Price=True, Vol=False
+   [FAST TRACK ADJUSTMENT] Would reduce exposure to 50.0% (event logged)
+   Progress: 77/130 days scanned, 15 weekly rebalances, 5 fast track adj, 0 stop-loss adj
+   [FAST TRACK TRIGGERED] 2024-05-06: Price=True, Vol=False
+   [FAST TRACK ADJUSTMENT] Would reduce exposure to 50.0% (event logged)
+   Progress: 91/130 days scanned, 18 weekly rebalances, 6 fast track adj, 0 stop-loss adj
+   Progress: 100/130 days scanned, 20 weekly rebalances, 6 fast track adj, 0 stop-loss adj
+   [FAST TRACK TRIGGERED] 2024-05-20: Price=True, Vol=False
+   [FAST TRACK ADJUSTMENT] Would reduce exposure to 50.0% (event logged)
+   Progress: 101/130 days scanned, 20 weekly rebalances, 7 fast track adj, 0 stop-loss adj
+   [FAST TRACK TRIGGERED] 2024-06-03: Price=True, Vol=False
+   [FAST TRACK ADJUSTMENT] Would reduce exposure to 50.0% (event logged)
+   Progress: 111/130 days scanned, 22 weekly rebalances, 8 fast track adj, 0 stop-loss adj
+   [FAST TRACK TRIGGERED] 2024-06-26: Price=True, Vol=False
+   [FAST TRACK ADJUSTMENT] Would reduce exposure to 50.0% (event logged)
+   Progress: 128/130 days scanned, 25 weekly rebalances, 9 fast track adj, 0 stop-loss adj
+
+============================================================
+Backtest Summary
+============================================================
+
+Decision Points (Daily Monitoring Enabled):
+  Days monitored: 130
+  Weekly rebalances: 26 (Full strategy execution)
+
+Daily Risk Adjustments (No Rebalance):
+  Fast Track adjustments: 9 (Reduce exposure)
+  Stop-Loss exits: 0 (Clear positions)
+
+Average invested: 90.40%
+Average # of assets: 5.4
+
+Regime Distribution:
+  fast_risk_off  :    3 (11.5%)
+  neutral        :    9 (34.6%)
+  risk_off       :    2 (7.7%)
+  risk_on        :   12 (46.2%)
+
+Backtest summary saved to: src\strategies\output\weights\adaptive_rotation\backtest_2024-01-01_to_2024-06-30.csv
+Detailed portfolio weights saved to: src\strategies\output\weights\adaptive_rotation\ars_portfolio_weights_2024-01-01_to_2024-06-30.csv
+Audit logs saved to: src\strategies\output\audit\adaptive_rotation
+
+============================================================
+Performance Analysis
+============================================================
+
+Metric                        Strategy        SPY        QQQ
+--------------------------------------------------------------
+Cumulative Return                1.02x      1.16x      0.89x
+Annualized Return                3.92%     36.11%    -21.94%
+Annualized Volatility            6.53%     14.74%     17.13%
+Sharpe Ratio                      0.60       2.45      -1.28
+Max Drawdown                    -2.56%     -3.66%    -16.34%
+Calmar Ratio                      1.53
+Win Rate                        48.00%
+
+Equity curve saved to: src\strategies\output\weights\adaptive_rotation\backtest_2024-01-01_to_2024-06-30.png
+exit=0
+
+WALL_TIME: started , log finalized 2026-11-19 12:19:48.068768000 +0200 (approx 9-10 min total incl. python+pandas import and preprocessing of 32 synthetic CSVs)

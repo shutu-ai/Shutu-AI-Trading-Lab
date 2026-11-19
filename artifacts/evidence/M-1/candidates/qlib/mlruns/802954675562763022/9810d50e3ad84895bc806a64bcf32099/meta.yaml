@@ -1,5 +1,5 @@
 artifact_uri: file:D:\dev-projects\Shutu-AI-Trading-Lab\artifacts\evidence\M-1\candidates\qlib\mlruns/802954675562763022/9810d50e3ad84895bc806a64bcf32099/artifacts
-end_time: null
+end_time: 1795083806132
 entry_point_name: ''
 experiment_id: '802954675562763022'
 lifecycle_stage: active
@@ -10,6 +10,6 @@ source_name: ''
 source_type: 4
 source_version: ''
 start_time: 1795083197650
-status: 1
+status: 3
 tags: []
 user_id: sWX1536744

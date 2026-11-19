@@ -40,8 +40,8 @@
 |---|---|---|---|---|
 | alpaca-py 0.45.0 | `f8fd955` | Apache-2.0 | 安装+离线契约通过 | **采用**（BrokerAdapter 基座） |
 | FinRL-Trading "FinRL-X" @ `4409abe` | `4409abe` | Apache-2.0 | 安装失败→偏差恢复后冒烟可跑 | **拒绝**（交易用途） |
-| qlib 0.9.8 | `5435523` | MIT | 安装通过；工作流需 `mlflow<3` | 研究侧候选封装（M1 深化） |
-| RD-Agent 1.0.0 | `484776c` | MIT | 安装通过；LLM 循环 `BLOCKED_ENV` | 暂缓（M4 前不承诺） |
+| qlib 0.9.8 | `5435523` | MIT | 安装通过；工作流需 `mlflow<3` 后端到端跑通（10m27s） | 研究侧候选封装（M1 深化） |
+| RD-Agent 1.0.0 | `484776c` | MIT | 安装通过；LLM 循环 `BLOCKED_ENV`；原生 Windows 不可用（需 WSL2） | 暂缓（M4 前不承诺） |
 | nautilus_trader 1.231.0 / 2.0.0rc9 | `8a4ac22` | LGPL-3.0 | 安装+离线回测通过 | **拒绝**（无 Alpaca 适配器） |
 
 各候选完整评估（每项 PASS/FAIL/BLOCKED_ENV/UNVERIFIED + 原始日志）：
@@ -49,12 +49,12 @@
 
 ### 1.1 决定性事实
 
-1. **FinRL-X 不具备订单安全语义的基础**：全仓库 `client_order_id` 0 命中、无对账/崩溃恢复/重试/部分成交处理、无事件循环；旗舰 paper 路径绕过其仅有的风控检查；6 个真实缺陷（含卖出腿 NameError、静默 $100 价格兜底、行情请求打到交易主机）；README 宣称与代码不符；0 测试 0 CI；Python 3.13 按其 requirements 安装即失败（finnhub 死依赖）。→ 方案 A 拒绝。
+1. **FinRL-X 不具备订单安全语义的基础**：全仓库 `client_order_id` 0 命中、无对账/崩溃恢复/重试/部分成交处理、无事件循环；旗舰 paper 路径绕过其仅有的风控检查；6 个真实缺陷（含卖出腿 NameError、静默 $100 价格兜底、行情请求打到交易主机）；`dry_run=True` 仍发起真实 API 调用并把 401 吞成 warning（`candidates/finrl-x/logs/runtime_alpaca_offline.txt`）；README 宣称与代码不符；0 测试 0 CI；Python 3.13 按其 requirements 安装即失败（finnhub 死依赖，且该依赖 0 处被导入）。合成数据回测冒烟可跑（~4m52s，exit=0，仅证明管道运行，不构成任何策略证据）。→ 方案 A 拒绝。
 2. **NautilusTrader 当前无 Alpaca 适配器**：clone、PyPI 稳定版 1.231.0、2.0.0rc9 三处 "alpaca" 均 0 命中（21 个适配器无 Alpaca）；持久化 journal 需 Redis/Postgres 且默认关闭；~49 万行代码（Rust 为主）。→ 方案 C 拒绝（保留重评条件，无自动路径）。
 3. **alpaca-py + 最小 OMS 可行且已验证**：SDK 离线契约全部通过；我方最小 OMS 协议 ~500 行核心代码在 20 个契约用例下全过（§3）。→ 方案 B 采纳，详见 `docs/adr/ADR-001-core-selection.md`。
 4. **alpaca-py 负面发现**：pydantic 模型接受负数量（qty/notional 互斥校验存在但符号校验缺失）→ 参数校验必须由我方 intent/风控层承担。
-5. qlib 的 CN 样本数据存在**快照伪影**（87 个标的同时截止于 2020-09-25，非真实退市史）；公开数据止于 2022-12；PIT 成分格式（csi300 历史成员窗口）真实存在 → 数据必须另建，qlib 只可作引擎。
-6. RD-Agent：安装成功但依赖足迹巨大（langchain/langgraph/prefect/azure/docker/selenium…，导入链实测 91.9s）；Docker 硬依赖实测确认（`docker.errors.DockerException`，无守护进程即不可用，`rdagent/utils/env.py:40-43` 模块级导入）；LLM 循环因无凭证 `BLOCKED_ENV`；另发现其 LiteLLM 后端单次 chat 调用即 `AttributeError: 'LiteLLMAPIBackend' object has no attribute 'build_messages_and_create_conversation'`（1.0.0 内部缺陷/版本耦合，证据 `candidates/rdagent/logs/llm_probe.txt`）。
+5. qlib 的 CN 样本数据存在**快照伪影**（88 个早于日历末端的标的中 87 个同日截止于 2020-09-25，非真实退市史）；公开数据止于 2022-12；PIT 成分格式（csi300 历史成员窗口）真实存在 → 数据必须另建，qlib 只可作引擎。引擎本身端到端可用：mlflow 3.x 会破坏其 recorder（`MlflowException: Run … not found`），在其自声明约束内钉扎 `mlflow<3`（实测 2.22.5）后 LightGBM Alpha158 工作流于 Windows + Py3.13 全程跑通（10m27s；IC 0.0468 / ICIR 0.3816，回测超额年化 +12.6% 不计成本 / +8.07% 计成本，与 qlib 官方参考一致——**此为库能力验证，非本项目策略证据**）。
+6. RD-Agent 1.0.0（=锁定 clone 的 v1.0.0 tag）：安装成功（286 包，导入链实测 91.9s）；**原生 Windows 不可用于研究循环**（代码级 POSIX 假设：`/bin/sh -c` 包裹、`select.poll()`、unix socket 硬编码、`conda … | grep`，`rdagent/utils/env.py`）→ 部署目标须为 Linux/WSL2；Docker 非硬依赖（qlib 场景 `env_type` 默认 conda，docker 路径可选且本机无守护进程 `BLOCKED_ENV`）；LLM 循环因无凭证 `BLOCKED_ENV`（litellm Missing credentials，10 次重试后 RuntimeError，无 dry-run 模式）；默认模型 gpt-4-turbo、每提案 evolving_n=10 → LLM 成本需我方预算门；另发现其 LiteLLM 后端单次 chat 即 `AttributeError`（1.0.0 内部缺陷，`candidates/rdagent/logs/llm_probe.txt`）。
 
 ## 2. 必测项 1：fake broker 契约测试（20/20 PASS）
 

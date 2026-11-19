@@ -78,7 +78,7 @@ Transcript: `logs/install_recovery.txt` (ends `PIP_EXIT=0`).
 | Import smoke (strategies/CLI) | **FAIL** — `src.main` → `ModuleNotFoundError: No module named 'utils.logging_utils'` (module missing from repo); `src.strategies.adaptive_rotation` → `No module named 'yaml'` (undeclared dep, fixed by deviation #2); DRL modules (`rl_model.py`, `fundamental_portfolio_drl.py`) not even importable — they import the undeclared `finrl` package | `logs/runtime_import_smoke.txt` |
 | CLI entry (`python src/main.py config`) | **FAIL** — `Traceback ... File "src\main.py", line 18, in <module> from utils.logging_utils import setup_logging; ModuleNotFoundError: No module named 'utils.logging_utils'`; exit=1 | `logs/runtime_cli_config.txt` |
 | BacktestEngine smoke (offline synthetic data, bt 1.4.1) | **PASS** — 5 synthetic symbols × 500 days, equal weights; wall time 3.5 s; metrics computed (total_return −8.53%, vol 10.53%, maxDD −14.60%, Sharpe −0.43). Note: first run returned all-zero metrics because README's own documented call order `run_backtest(name, weights, prices)` (`README.md:288`) is swapped vs the real signature `run_backtest(strategy_name, price_data, weight_signals)` (`backtest_engine.py:124`) | `logs/runtime_backtest_smoke.txt` |
-| Adaptive-rotation strategy backtest (offline synthetic data, 32 symbols) | see `logs/runtime_rotation.txt` | recorded below |
+| Adaptive-rotation strategy backtest (offline synthetic data, 32 symbols) | **PASS** — flagship strategy runs end-to-end on py3.13 with synthetic CSVs in the repo's own `{SYM}_daily.csv` format: 130 daily decision points, 26 weekly rebalances, 9 Fast-Risk-Off adjustments, regime distribution computed (risk_on 46.2% / neutral 34.6% / fast_risk_off 11.5% / risk_off 7.7%), full performance table + equity-curve PNG + weights/audit CSVs written to gitignored `src/strategies/output/`; wall time **~4m52s** (12:14:56→12:19:48); exit=0. Numbers are meaningless as performance (synthetic prices); the point is the pipeline executes. No live-monitoring equivalent exists (this daily-monitoring logic is backtest-only). | `logs/runtime_rotation.txt`, outputs under `third_party/FinRL-Trading/src/strategies/output/` (gitignored; tracked tree verified clean, `git status --porcelain` = 0 lines) |
 | Alpaca execution smoke | **BLOCKED_ENV** — requires a real Alpaca paper account (API keys); we do not create accounts/keys. Probe with dummy keys: `create_alpaca_account_from_env` → `ValueError: Alpaca API credentials not found in environment variables` (`alpaca_manager.py:889-890`); `execute_portfolio_rebalance(dry_run=True)` → `RuntimeError: Alpaca API error 401: {'message': 'unauthorized.'}` — proving **dry-run still makes live network calls** (/v2/clock, /v2/assets, /v2/positions, /v2/account) and silently swallows auth errors as warnings, returning an empty plan instead of failing loudly | `logs/runtime_alpaca_offline.txt` |
 
 Data note: the repo's own data path is Yahoo/FMP CSVs (`data/fmp_daily/{SYM}_daily.csv`,
@@ -200,17 +200,43 @@ Verdict table for ADR-001 (each row cites code):
 
 ## [Assessment]
 
-(Filled after install/runtime evidence; summary below.)
+Status summary per dimension (details and citations in the sections above):
 
-- Maintenance state: see [Repo state]. Active in 2026 but bursty, much of it direct uploads;
-  zero tests, zero CI.
-- Dependency health on 3.13: install fails as shipped (finnhub unresolvable); core data/execution
-  deps are modern floor-pins and do resolve once finnhub is removed (see `logs/install_recovery.txt`).
-- Alpaca execution maturity vs a thin official SDK: it is a ~940-line hand-rolled REST wrapper
-  (requests) duplicating what `alpaca-py` provides, minus retries, minus idempotency, minus types,
-  with a live/paper guard only at the script level and at least one wrong-endpoint bug and one
-  NameError bug on plausible failure paths.
-- OMS/event-driven acceptance gate: **does not plausibly pass** — no client_order_id, no
-  reconciliation, no partial-fill handling, no crash recovery, no event loop (details in
-  [Code inspection: OMS capabilities]).
-- License: Apache-2.0 — no obstacle.
+1. **Maintenance state** — VERIFIED: active in 2026 (last commit 2026-09-18, PR #95) but bursty
+   (63 commits in 2026-03/04, then 5 in the following five months). A large share of commits are
+   maintainer direct uploads ("Add files via upload") rather than reviewed PRs. **Zero tests and
+   zero CI** — the Contributing section says "add tests" but none exist. Hygiene: committed
+   `.pyc` files, committed 7z binary, non-UTF8 source file, README drift (nonexistent notebook,
+   swapped `run_backtest` signature, "PPO/SAC" DRL modules that cannot even import).
+2. **Install on Python 3.13** — FAIL as shipped (exact error recorded); PASS after removing one
+   dead dependency (finnhub, unimported) plus pyyaml/tzlocal (undeclared). The feared
+   gym/sb3/tensorflow pins do not exist in requirements.txt; instead the RL stack is *undeclared*,
+   which is worse: silent breakage instead of pinned breakage.
+3. **Runtime** — the backtest path genuinely works offline on 3.13 (bt engine smoke 3.5 s;
+   flagship rotation backtest ~4m52s). Any live/paper execution is BLOCKED_ENV without a real
+   Alpaca paper account; the library's `dry_run` is not offline (makes authenticated API calls,
+   swallows 401s as warnings).
+4. **Alpaca execution maturity vs a thin official SDK** — it is a hand-rolled ~940-line `requests`
+   wrapper around REST v2 while the declared `alpaca-py` SDK sits unused in requirements. Against
+   the official SDK it lacks: typed order models, retries/backoff, `client_order_id` idempotency,
+   order reconciliation helpers, and websocket streams. It adds two real defects on plausible
+   paths (NameError in sell leg; quote endpoint called on the trading host → silent $100 price
+   fallback), plus an unsafe cancel-all-then-fire-and-forget rebalance with no fill confirmation.
+5. **OMS / event-driven acceptance gate: DOES NOT PASS.** Present: weight→market-order
+   translation with sell-then-buy ordering and buying-power scaling; post-hoc JSON logs; paper
+   guard in deploy.sh only. Absent (all verified by repo-wide grep + code read): client_order_id
+   (0 hits), reconciliation (0), retry (0), partial-fill handling (fields populated, never acted
+   on), crash recovery/order journal replay (logs are write-only), event loop / streaming (none;
+   external-cron one-shot scripts only). A crash mid-rebalance (e.g., after cancel-all, after
+   sell leg, before buy leg) leaves the account in a partial state with no mechanism to detect
+   or repair it on restart.
+6. **License** — Apache-2.0, no obstacle.
+
+**Verdict input for ADR-001**: FinRL-X's weight-centric contract (target-weights dict →
+`execute_portfolio_rebalance`) matches Shutu's proposed interface shape, and its backtest stack
+runs on py3.13 after minor dependency surgery. But as a *controlled trading module* it provides
+less than `alpaca-py` + a small in-house OMS would: no idempotency, no reconciliation, no
+recovery, no partial-fill logic, no event-driven execution, unguarded live-trading switch, and
+demonstrated defects on failure paths. Recommended treatment: use at most as a *reference design*
+for the weights contract and rebalance math; do not adopt the execution layer (`src/trading/`)
+as the POC execution base.

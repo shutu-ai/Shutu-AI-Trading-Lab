@@ -1,0 +1,13 @@
+2026-11-19 12:21:44.736 +02:00 | WARNING  | rdagent.app.utils.health_check:env_check:96 - We did not find BACKEND in your configuration, please add it to your .env file. You can run a command like this: `dotenv set BACKEND rdagent.oai.backend.LiteLLMAPIBackend`
+2026-11-19 12:21:44.800 +02:00 | INFO     | rdagent.app.utils.health_check:env_check:123 - 🚀 Starting test...
+
+2026-11-19 12:21:44.870 +02:00 | INFO     | rdagent.app.utils.health_check:test_embedding:79 - 🧪 Testing embedding model: None
+2026-11-19 12:21:45.031 +02:00 | ERROR    | rdagent.app.utils.health_check:test_embedding:90 - ❌ Embedding test failed: litellm.BadRequestError: GetLLMProvider Exception - model parameter is required but was None. Please provide a valid model name.
+
+original model: None
+2026-11-19 12:21:45.120 +02:00 | INFO     | rdagent.app.utils.health_check:test_chat:52 - 🧪 Testing chat model: None
+2026-11-19 12:21:45.204 +02:00 | ERROR    | rdagent.app.utils.health_check:test_chat:74 - ❌ Chat test failed: model param not passed in.
+2026-11-19 12:21:45.282 +02:00 | ERROR    | rdagent.app.utils.health_check:env_check:132 -  One or more tests failed. Please check credentials or model support.
+2026-11-19 12:21:45.355 +02:00 | ERROR    | rdagent.app.utils.health_check:check_docker_status:24 - An error occurred: Error while fetching server API version: (2, 'CreateFile', '系统找不到指定的文件。')
+2026-11-19 12:21:45.427 +02:00 | WARNING  | rdagent.app.utils.health_check:check_docker_status:25 - Docker status is exception, please check the docker configuration or reinstall it. Refs: https://docs.docker.com/engine/install/ubuntu/.
+2026-11-19 12:21:47.549 +02:00 | INFO     | rdagent.app.utils.health_check:check_and_list_free_ports:48 - Port 19899 is not occupied, you can run the `rdagent ui/server_ui` command

@@ -14,3 +14,39 @@ SETTINGS_EXIT=0
 EXPECTED FAILURE: AttributeError
 'LiteLLMAPIBackend' object has no attribute 'build_messages_and_create_conversation'
 CHAT_ATTEMPT_EXIT=0
+
+# command 2 retry (correct method): one chat attempt, expect credential failure
+# date: 2026-11-19T12:19:17+02:00
+# method: APIBackend().build_messages_and_create_chat_completion(user_prompt='Say OK.')
+
+LiteLLM.Info: If you need to debug this error, use `litellm.turn_on_debug()'.
+
+[32m2026-11-19 12:20:02.311 +02:00[0m | [33m[1mWARNING [0m | [36mrdagent.oai.backend.base[0m:[36m_try_create_chat_completion_or_embedding[0m:[36m610[0m - [33m[1mlitellm.InternalServerError: InternalServerError: OpenAIException - Missing credentials. Please pass an `api_key`, `workload_identity`, `admin_api_key`, or set the `OPENAI_API_KEY` or `OPENAI_ADMIN_KEY` environment variable.[0m
+[32m2026-11-19 12:20:02.322 +02:00[0m | [33m[1mWARNING [0m | [36mrdagent.oai.backend.base[0m:[36m_try_create_chat_completion_or_embedding[0m:[36m611[0m - [33m[1mRetrying 8th time...[0m
+[95m[1mRole:[0m[96msystem[0m
+[95m[1mContent:[0m [96mYou are an AI assistant who helps to answer user's questions.[0m
+
+[95m[1mRole:[0m[96muser[0m
+[95m[1mContent:[0m [96mSay OK.[0m
+[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm.turn_on_debug()'.
+
+[32m2026-11-19 12:20:03.379 +02:00[0m | [33m[1mWARNING [0m | [36mrdagent.oai.backend.base[0m:[36m_try_create_chat_completion_or_embedding[0m:[36m610[0m - [33m[1mlitellm.InternalServerError: InternalServerError: OpenAIException - Missing credentials. Please pass an `api_key`, `workload_identity`, `admin_api_key`, or set the `OPENAI_API_KEY` or `OPENAI_ADMIN_KEY` environment variable.[0m
+[32m2026-11-19 12:20:03.392 +02:00[0m | [33m[1mWARNING [0m | [36mrdagent.oai.backend.base[0m:[36m_try_create_chat_completion_or_embedding[0m:[36m611[0m - [33m[1mRetrying 9th time...[0m
+[95m[1mRole:[0m[96msystem[0m
+[95m[1mContent:[0m [96mYou are an AI assistant who helps to answer user's questions.[0m
+
+[95m[1mRole:[0m[96muser[0m
+[95m[1mContent:[0m [96mSay OK.[0m
+[0m
+
+[1;31mGive Feedback / Get Help: https://github.com/BerriAI/litellm/issues/new[0m
+LiteLLM.Info: If you need to debug this error, use `litellm.turn_on_debug()'.
+
+[32m2026-11-19 12:20:04.472 +02:00[0m | [33m[1mWARNING [0m | [36mrdagent.oai.backend.base[0m:[36m_try_create_chat_completion_or_embedding[0m:[36m610[0m - [33m[1mlitellm.InternalServerError: InternalServerError: OpenAIException - Missing credentials. Please pass an `api_key`, `workload_identity`, `admin_api_key`, or set the `OPENAI_API_KEY` or `OPENAI_ADMIN_KEY` environment variable.[0m
+[32m2026-11-19 12:20:04.489 +02:00[0m | [33m[1mWARNING [0m | [36mrdagent.oai.backend.base[0m:[36m_try_create_chat_completion_or_embedding[0m:[36m611[0m - [33m[1mRetrying 10th time...[0m
+EXPECTED FAILURE: builtins.RuntimeError
+Failed to create chat completion after 10 retries.
+CHAT_ATTEMPT2_EXIT=0 (124 would mean timeout/hang)
