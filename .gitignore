@@ -1,0 +1,15 @@
+# Cloned upstream repos (evaluated, not forked; SHAs recorded in manifests)
+third_party/
+
+# Virtual environments
+.venv*/
+venv*/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS
+Thumbs.db
+.DS_Store
