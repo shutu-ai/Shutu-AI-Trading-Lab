@@ -1,0 +1,29 @@
+# M1 unified verification â€” 2026-11-20T18:05:00+02:00 â€” HEAD 463838f
+## environment
+python: 3.13.15
+platform: win32
+baseline (3.13): OK
+pydantic: 2.14.3
+cryptography: 50.0.2
+alpaca env vars: absent (expected for M0 ¡ª no broker access)
+CHECK_ENV_EXIT=0
+## pytest (M0 regression + M1 no_lookahead)
+........................................................................ [ 77%]
+...........................................                              [100%]
+PYTEST_EXIT=0
+## check_architecture
+check_architecture: scanned src/trading_lab/data (8 files), 0 violations
+ARCH_EXIT=0
+## scan_secrets
+scan_secrets: scanned 208 tracked files, 0 findings
+SCAN_EXIT=0
+## verify_live_blocked
+verify_live_blocked: paper runtime contains no live artifacts ¡ª PASS
+VLB_EXIT=0
+## smoke_mock (M0 safety regression)
+SMOKE PASS: paper gate + kill switch + mock live verification all behaved fail-closed
+SMOKE_EXIT=0
+## git diff --check
+warning: in the working copy of '.github/workflows/ci.yml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'pyproject.toml', LF will be replaced by CRLF the next time Git touches it
+DIFF_CHECK_EXIT=0

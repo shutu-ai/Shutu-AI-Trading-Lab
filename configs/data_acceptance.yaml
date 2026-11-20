@@ -1,0 +1,70 @@
+# Data acceptance configuration — M1 (task §M1-T3).
+#
+# Every purpose MUST declare every threshold field (non-null, pre-registered):
+# thresholds are declared BEFORE evaluation and must never be lowered after a
+# failure. Verdict vocabulary: ACCEPT / RESTRICT_SCOPE / REJECT /
+# BLOCKED_DATA (on_fail applies to data-quality/coverage failures; unknown
+# license or unknown required coverage is always BLOCKED_DATA).
+
+version: 1
+
+purposes:
+  - purpose_id: pipeline_poc
+    description: "Pipeline/format engineering verification on synthetic or limited-real samples; never enters alpha evidence"
+    data_scope: us_equities_daily_limited
+    requires_daily_bars: true
+    requires_minute_bars: false
+    requires_corporate_actions: false
+    requires_history_membership: false
+    requires_delisting: false
+    available_at_rule: bar_ts_plus_0
+    max_missing_rate: 0.01
+    min_coverage_rate: 0.99
+    max_latency_seconds: 86400
+    required_license_scope: personal_research
+    on_fail: RESTRICT_SCOPE
+
+  - purpose_id: engineering_monitoring
+    description: "Latency/availability probes for operational monitoring (not research evidence)"
+    data_scope: us_equities_daily_bars
+    requires_daily_bars: true
+    requires_minute_bars: false
+    requires_corporate_actions: false
+    requires_history_membership: false
+    requires_delisting: false
+    available_at_rule: bar_ts_plus_15min
+    max_missing_rate: 0.05
+    min_coverage_rate: 0.95
+    max_latency_seconds: 3600
+    required_license_scope: personal_research
+    on_fail: RESTRICT_SCOPE
+
+  - purpose_id: historical_research_daily
+    description: "Full-market daily-bar strategy research: requires membership/delisting/CA/PIT coverage and confirmed license"
+    data_scope: us_equities_daily_fullmarket
+    requires_daily_bars: true
+    requires_minute_bars: false
+    requires_corporate_actions: true
+    requires_history_membership: true
+    requires_delisting: true
+    available_at_rule: announced_or_published_before_use
+    max_missing_rate: 0.001
+    min_coverage_rate: 0.999
+    max_latency_seconds: 7200
+    required_license_scope: personal_research
+    on_fail: BLOCKED_DATA
+
+  - purpose_id: event_research
+    description: "Event/announcement-time research: requires explicit announcement availability times"
+    data_scope: us_equities_events
+    requires_daily_bars: false
+    requires_minute_bars: false
+    requires_corporate_actions: true
+    requires_history_membership: false
+    requires_delisting: true
+    available_at_rule: announced_or_published_before_use
+    max_missing_rate: 0.0
+    min_coverage_rate: 1.0
+    max_latency_seconds: 900
+    required_license_scope: personal_research
+    on_fail: RESTRICT_SCOPE
