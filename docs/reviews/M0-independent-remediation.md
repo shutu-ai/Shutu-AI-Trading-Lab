@@ -86,8 +86,9 @@ git diff --check               干净
 
 ## 8. 门状态
 
-- 本轮整改提交（R2–R4 + 本报告）**尚未推送**（本任务书未含推送授权）：本地全部门禁 EXIT=0。
-- **现行状态：`M0_REMEDIATION_LOCAL_PASS / CI_REMOTE_PENDING / M1_START_APPROVAL_PENDING`**
-  - R1 部分的远端 CI 已实际验证（run `44755451594` 双矩阵 PASS，`5656dc5`）；R2–R4 新提交的远端双矩阵验证待用户授权推送后以新 run 编号确认；
-  - 在取得全部整改提交的双平台远端 PASS 之前，不得宣称 `M0_REMEDIATION_VERIFIED`，更不得据此关闭 M0 阶段门或启动 M1。
-- approver = **USER_PENDING**（M0 阶段门、推送、M1 启动均由用户决定）。
+- 本轮整改提交（`b9c5f7a` R2–R4 + `36c6ffc` 报告）经用户明确授权推送（`b9d08a1..36c6ffc`）后，远端 CI **双矩阵实际 PASS**：
+  - **run `44762931848`：ubuntu-latest ✓（20s）+ windows-latest ✓（27s）**，URL `https://github.com/shutu-ai/Shutu-AI-Trading-Lab/actions/runs/44762931848`；
+  - R1 修复提交的远端验证为 run `44755451594`（见 §R1）。两条 run 均为真实执行（Install/环境检查/pytest/密钥扫描/Paper 纯度门），无跳过或降级。
+- **现行状态（2026-11-20 更新）：`M0_REMEDIATION_VERIFIED / M0_GATE=USER_PENDING / M1_START_APPROVAL_PENDING`**
+- M0 阶段门复核与 M1 启动均由用户决定；本文件与三轨报告不自我签批。
+- approver = **USER_PENDING**。
