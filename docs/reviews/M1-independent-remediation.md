@@ -63,9 +63,11 @@
 
 ## 7. 状态与停止声明
 
-**`M1_REMEDIATION_LOCAL_PASS / CI_REMOTE_PENDING / BLOCKED_DATA(全市场研究) / M1_GATE=USER_PENDING / M2_START_APPROVAL_PENDING`**
+**`M1_REMEDIATION_VERIFIED / BLOCKED_DATA(全市场研究) / M1_GATE=USER_PENDING / M2_START_APPROVAL_PENDING`**（2026-11-20 第二次更新）
 
-- 本地：233 用例全绿（140 M0 + 47 M1 原有 + 46 整改），全部门禁 EXIT=0，工作树 clean（提交后）。
-- 远端：最终整改 SHA 尚未推送（任务书无推送授权）→ CI_REMOTE_PENDING；未取得双矩阵 SUCCESS 前不宣称 `M1_REMEDIATION_VERIFIED`。
+- 整改提交（`288cc50` + `b8d0200`）经用户明确授权推送（`db25064..b8d0200`）后，远端 CI **双矩阵实际 PASS 于最终整改代码 SHA**：
+  - **run `44777967708`：ubuntu-latest ✓（14s）+ windows-latest ✓（41s）**，URL `https://github.com/shutu-ai/Shutu-AI-Trading-Lab/actions/runs/44777967708`——含 233 用例（PIT 矩阵负例、检查器 22 自测）、加固版架构门、密钥扫描、Paper 纯度门的远端实际执行。
+- 本地：233 用例全绿，全部门禁 EXIT=0，工作树 clean。
+- 远端：最终 SHA 双矩阵 SUCCESS 已取得；**BLOCKED_DATA 不解除**（无 API_VERIFIED，供应商凭证/订阅仍缺失）。
 - 未越界：无供应商注册/购买/凭证、无 Paper/Live 调用、无 M2/M3 工作、无阈值下调、无原始日志改写、无 force push。
 - approver = **USER_PENDING**；结束于 M1 阶段门，不自行批准，不进入 M2。
