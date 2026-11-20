@@ -63,11 +63,9 @@
 
 ## 7. 状态与停止声明
 
-**`M1_REMEDIATION_VERIFIED / BLOCKED_DATA(全市场研究) / M1_GATE=USER_PENDING / M2_START_APPROVAL_PENDING`**（2026-11-20 第二次更新）
+**`M1_REMEDIATION_VERIFIED / M1_ENGINEERING_CLOSED_WITH_DATA_BLOCK / M2_IN_PROGRESS`**（2026-11-20 第三次更新）
 
-- 整改提交（`288cc50` + `b8d0200`）经用户明确授权推送（`db25064..b8d0200`）后，远端 CI **双矩阵实际 PASS 于最终整改代码 SHA**：
-  - **run `44777967708`：ubuntu-latest ✓（14s）+ windows-latest ✓（41s）**，URL `https://github.com/shutu-ai/Shutu-AI-Trading-Lab/actions/runs/44777967708`——含 233 用例（PIT 矩阵负例、检查器 22 自测）、加固版架构门、密钥扫描、Paper 纯度门的远端实际执行。
-- 本地：233 用例全绿，全部门禁 EXIT=0，工作树 clean。
-- 远端：最终 SHA 双矩阵 SUCCESS 已取得；**BLOCKED_DATA 不解除**（无 API_VERIFIED，供应商凭证/订阅仍缺失）。
-- 未越界：无供应商注册/购买/凭证、无 Paper/Live 调用、无 M2/M3 工作、无阈值下调、无原始日志改写、无 force push。
-- approver = **USER_PENDING**；结束于 M1 阶段门，不自行批准，不进入 M2。
+- **门记录**：用户于 2026-11-20 经审批核查点明确确认（AskUserQuestion 记录）两项**相互独立**的授权：①批准关闭 M1 工程门（`M1_ENGINEERING_CLOSED_WITH_DATA_BLOCK`，**BLOCKED_DATA 不解除**，全市场研究数据准入维持封锁）；②授权启动 M2（`M2-OMS-RISK-ARCHITECTURE-GATE-001`，范围仅合成数据 + Fake Broker，含 ≥1,000 次故障注入）。M2 结束停在 `M2_GATE=USER_PENDING / M3_START_APPROVAL_PENDING`。
+- 远端 CI 双矩阵 PASS 于最终代码 SHA（run `44777967708`，URL 见上）。本地：233 用例全绿，工作树 clean。
+- **BLOCKED_DATA 不解除**（无 API_VERIFIED，供应商凭证/订阅仍缺失）；S=N_A、R=NOT_STARTED 不变。
+- approver = **USER_APPROVED**（M1 关闭 + M2 启动，2026-11-20，用户直接确认）。
