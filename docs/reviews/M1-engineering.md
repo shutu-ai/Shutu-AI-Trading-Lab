@@ -58,7 +58,7 @@ scripts/smoke_mock.py          EXIT=0（M0 安全回归）
 git diff --check               干净
 ```
 
-全文见 `artifacts/evidence/M1/checks.log`。**远端 CI = PENDING**（M1 提交未推送，未获授权；不得据本地宣称远端已过）。
+全文见 `artifacts/evidence/M1/checks.log`。**远端 CI：已实际执行并双矩阵 PASS**——经用户授权推送（`36c6ffc..db25064`）后，run `44770370359`：windows-latest ✓（39s）+ ubuntu-latest ✓（23s），URL `https://github.com/shutu-ai/Shutu-AI-Trading-Lab/actions/runs/44770370359`；含 187 用例、check_architecture、密钥扫描、Paper 纯度门的远端实际执行（tzdata Windows marker 在 windows runner 上验证有效）。
 
 ## 4. 真实/合成证据界限（任务书 §4 明令区分）
 
