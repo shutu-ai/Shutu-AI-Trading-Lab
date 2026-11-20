@@ -89,6 +89,8 @@ git diff --check               干净
 - 本轮整改提交（`b9c5f7a` R2–R4 + `36c6ffc` 报告）经用户明确授权推送（`b9d08a1..36c6ffc`）后，远端 CI **双矩阵实际 PASS**：
   - **run `44762931848`：ubuntu-latest ✓（20s）+ windows-latest ✓（27s）**，URL `https://github.com/shutu-ai/Shutu-AI-Trading-Lab/actions/runs/44762931848`；
   - R1 修复提交的远端验证为 run `44755451594`（见 §R1）。两条 run 均为真实执行（Install/环境检查/pytest/密钥扫描/Paper 纯度门），无跳过或降级。
-- **现行状态（2026-11-20 更新）：`M0_REMEDIATION_VERIFIED / M0_GATE=USER_PENDING / M1_START_APPROVAL_PENDING`**
+- **现行状态（2026-11-20 第二次更新）：`M0_REMEDIATION_VERIFIED / M0_GATE=CLOSED / M1_IN_PROGRESS`**
+  - 用户于 2026-11-20 经审批核查点明确确认："批准关闭 M0 阶段门并授权启动 M1"（AskUserQuestion 记录）。M0 三轨报告与两次整改记录就此封存（本节状态行除外）。
+  - M1 授权范围见仓库根 `Shutu_AI_Trading_Lab_M1_Data_Foundation_Codex_Task.md`；M1 结束停在 `M1_GATE=USER_PENDING / M2_START_APPROVAL_PENDING`。
 - M0 阶段门复核与 M1 启动均由用户决定；本文件与三轨报告不自我签批。
-- approver = **USER_PENDING**。
+- approver = **USER_APPROVED**（M0 关闭 + M1 启动，2026-11-20，用户直接确认）。

@@ -49,7 +49,7 @@
 
 ---
 
-> **v2.1 文档审查范围**：保留 P0–P4、M-1～M11 原路线，在 M3 后插入 **M3.5 最小前向工程验证**；新增独立运行时、签名签批、持久订单意图与 fencing、Holdout 污染治理及数据供应验收。**当前状态：`M-1_REVIEW_CLOSED / M0_IN_PROGRESS`**（M-1 已完成并通过独立审查整改，用户 2026-11-20 批准关闭 M-1 并授权启动 M0，见 `docs/reviews/M-1-independent-review.md` §6；v2.1 文档修订当时的状态为 `DESIGN_FREEZE_READY / ENGINEERING_START_APPROVAL_PENDING`）。**仅授权 M0 范围：Live 相关一切仅 mock 干运行，完成 M0 后停在阶段门，不自动进入 M1。**
+> **v2.1 文档审查范围**：保留 P0–P4、M-1～M11 原路线，在 M3 后插入 **M3.5 最小前向工程验证**；新增独立运行时、签名签批、持久订单意图与 fencing、Holdout 污染治理及数据供应验收。**当前状态：`M0_GATE_CLOSED / M1_IN_PROGRESS`**（M-1、M0 相继完成并经独立整改验证，用户 2026-11-20 批准关闭 M0 阶段门并授权启动 M1，见 `docs/reviews/M0-independent-remediation.md` §8）。**仅授权 M1 范围：数据供应准入与点时刻可得性；禁止 M2 OMS/Broker/订单与任何 Live 组件；完成 M1 后停在阶段门。**（v2.1 文档修订当时状态为 `DESIGN_FREEZE_READY / ENGINEERING_START_APPROVAL_PENDING`。）
 
 ## 1. 研究假设与设计价值
 
