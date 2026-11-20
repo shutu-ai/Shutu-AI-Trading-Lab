@@ -1,0 +1,46 @@
+# Â§7 unified verification in clean .venv-m0-review â€” 2026-11-20T17:06:56+02:00 â€” HEAD b9d08a1
+## pip install -e .[dev] (build isolation)
+
+Successfully installed PyYAML-6.0.3 annotated-types-0.8.0 cffi-2.1.1 colorama-0.4.6 cryptography-50.0.2 iniconfig-2.3.1 packaging-26.3 pluggy-1.7.0 pycparser-3.12 pydantic-2.14.4 pydantic-core-2.50.5 pygments-2.21.0 pytest-9.2.0 trading-lab-0.1.0 typing-extensions-4.16.0 typing-inspection-0.4.5
+INSTALL_EXIT=0
+## check_environment
+python: 3.13.15
+platform: win32
+baseline (3.13): OK
+pydantic: 2.14.4
+cryptography: 50.0.2
+alpaca env vars: absent (expected for M0 ¡ª no broker access)
+CHECK_ENV_EXIT=0
+## pytest
+........................................................................ [ 51%]
+....................................................................     [100%]
+PYTEST_EXIT=0
+## scan_secrets
+scan_secrets: scanned 200 tracked files, 0 findings
+SCAN_EXIT=0
+## verify_live_blocked
+paper config ok: configs\paper\runtime.example.yaml (PAPER/PAPER_TEST_ACCOUNT)
+verify_live_blocked: paper runtime contains no live artifacts ¡ª PASS
+VLB_EXIT=0
+## smoke_mock
+no trading_lab.brokers module -> no broker execution path (fail-closed by absence)
+SMOKE PASS: paper gate + kill switch + mock live verification all behaved fail-closed
+SMOKE_EXIT=0
+## git diff --check
+warning: in the working copy of 'docs/reviews/M0-engineering.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/trading_lab/contracts/runtime.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/trading_lab/security/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/trading_lab/security/schema_gate.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/security/test_isolation.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/security/test_schema_gate.py', LF will be replaced by CRLF the next time Git touches it
+DIFF_CHECK_EXIT=0
+## git status --short
+ M docs/reviews/M0-engineering.md
+ M src/trading_lab/contracts/runtime.py
+ M src/trading_lab/security/__init__.py
+ M src/trading_lab/security/schema_gate.py
+ M tests/security/test_isolation.py
+ M tests/security/test_schema_gate.py
+?? Shutu_AI_Trading_Lab_M0_Remediation_Codex_Task.md
+?? artifacts/evidence/M0/remediation/
+?? docs/reviews/M0-independent-remediation.md

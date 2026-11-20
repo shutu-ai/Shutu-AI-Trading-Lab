@@ -1,0 +1,64 @@
+Obtaining file:///D:/dev-projects/Shutu-AI-Trading-Lab
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Collecting pydantic>=2.6 (from trading-lab==0.1.0)
+  Using cached pydantic-2.14.4-py3-none-any.whl.metadata (143 kB)
+Collecting PyYAML>=6.0 (from trading-lab==0.1.0)
+  Using cached pyyaml-6.0.3-cp313-cp313-win_amd64.whl.metadata (2.4 kB)
+Collecting cryptography>=42 (from trading-lab==0.1.0)
+  Using cached cryptography-50.0.2-cp311-abi3-win_amd64.whl.metadata (4.4 kB)
+Collecting pytest>=8 (from trading-lab==0.1.0)
+  Using cached pytest-9.2.0-py3-none-any.whl.metadata (7.9 kB)
+Collecting cffi>=2.0.0 (from cryptography>=42->trading-lab==0.1.0)
+  Using cached cffi-2.1.1-cp313-cp313-win_amd64.whl.metadata (2.6 kB)
+Collecting pycparser (from cffi>=2.0.0->cryptography>=42->trading-lab==0.1.0)
+  Using cached pycparser-3.12-py3-none-any.whl.metadata (9.7 kB)
+Collecting annotated-types>=0.6.0 (from pydantic>=2.6->trading-lab==0.1.0)
+  Using cached annotated_types-0.8.0-py3-none-any.whl.metadata (15 kB)
+Collecting pydantic-core==2.50.5 (from pydantic>=2.6->trading-lab==0.1.0)
+  Downloading pydantic_core-2.50.5-cp313-cp313-win_amd64.whl.metadata (6.7 kB)
+Collecting typing-extensions>=4.16.0 (from pydantic>=2.6->trading-lab==0.1.0)
+  Using cached typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+Collecting typing-inspection>=0.4.4 (from pydantic>=2.6->trading-lab==0.1.0)
+  Using cached typing_inspection-0.4.5-py3-none-any.whl.metadata (2.6 kB)
+Collecting colorama>=0.4 (from pytest>=8->trading-lab==0.1.0)
+  Using cached colorama-0.4.6-py2.py3-none-any.whl.metadata (17 kB)
+Collecting iniconfig>=2 (from pytest>=8->trading-lab==0.1.0)
+  Using cached iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+Collecting packaging>=24 (from pytest>=8->trading-lab==0.1.0)
+  Using cached packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+Collecting pluggy<2,>=1.6 (from pytest>=8->trading-lab==0.1.0)
+  Using cached pluggy-1.7.0-py3-none-any.whl.metadata (5.0 kB)
+Collecting pygments>=2.15 (from pytest>=8->trading-lab==0.1.0)
+  Using cached pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+Using cached cryptography-50.0.2-cp311-abi3-win_amd64.whl (3.8 MB)
+Using cached cffi-2.1.1-cp313-cp313-win_amd64.whl (185 kB)
+Using cached pydantic-2.14.4-py3-none-any.whl (494 kB)
+Downloading pydantic_core-2.50.5-cp313-cp313-win_amd64.whl (2.3 MB)
+   ---------------------------------------- 2.3/2.3 MB 42.5 kB/s  0:00:51
+Using cached annotated_types-0.8.0-py3-none-any.whl (13 kB)
+Using cached pytest-9.2.0-py3-none-any.whl (411 kB)
+Using cached pluggy-1.7.0-py3-none-any.whl (27 kB)
+Using cached colorama-0.4.6-py2.py3-none-any.whl (25 kB)
+Using cached iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+Using cached packaging-26.3-py3-none-any.whl (129 kB)
+Using cached pygments-2.21.0-py3-none-any.whl (1.3 MB)
+Using cached pyyaml-6.0.3-cp313-cp313-win_amd64.whl (154 kB)
+Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+Using cached typing_inspection-0.4.5-py3-none-any.whl (14 kB)
+Using cached pycparser-3.12-py3-none-any.whl (62 kB)
+Building wheels for collected packages: trading-lab
+  Building editable for trading-lab (pyproject.toml): started
+  Building editable for trading-lab (pyproject.toml): finished with status 'done'
+  Created wheel for trading-lab: filename=trading_lab-0.1.0-0.editable-py3-none-any.whl size=1416 sha256=9f498ea80a2eea1537eeca3d4ee3a15b24f4def7cee23ae4779ad3edc0cf5199
+  Stored in directory: C:\Users\swx1536744\AppData\Local\Temp\pip-ephem-wheel-cache-s_798jp0\wheels\56\15\58\d4cb056da203e3078bd364b08306b9390fedf358d44c8d9620
+Successfully built trading-lab
+Installing collected packages: typing-extensions, PyYAML, pygments, pycparser, pluggy, packaging, iniconfig, colorama, annotated-types, typing-inspection, pytest, pydantic-core, cffi, pydantic, cryptography, trading-lab
+
+Successfully installed PyYAML-6.0.3 annotated-types-0.8.0 cffi-2.1.1 colorama-0.4.6 cryptography-50.0.2 iniconfig-2.3.1 packaging-26.3 pluggy-1.7.0 pycparser-3.12 pydantic-2.14.4 pydantic-core-2.50.5 pygments-2.21.0 pytest-9.2.0 trading-lab-0.1.0 typing-extensions-4.16.0 typing-inspection-0.4.5

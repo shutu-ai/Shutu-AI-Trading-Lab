@@ -58,7 +58,11 @@
 ```text
 .venv/Scripts/python.exe scripts/check_environment.py     # EXIT=0（3.13.15 基线 OK）
 .venv/Scripts/python.exe -m pytest                        # EXIT=0，123 passed
-.venv/Scripts/python.exe scripts/scan_secrets.py          # EXIT=0，164 文件 0 命中
+.venv/Scripts/python.exe scripts/scan_secrets.py          # EXIT=0，0 命中
+# （计数勘误，M0-REVIEW-REMEDIATION-001 R5：本节初稿写 164 文件为中期快照；
+#   该次最终日志 artifacts/evidence/M0/checks.log 记录 197 tracked files / 0 findings，
+#   以 197 为该次日志事实。整改轮新扫描为 200 tracked files / 0 findings，
+#   见 artifacts/evidence/M0/remediation/，不得与上数混用。）
 .venv/Scripts/python.exe scripts/verify_live_blocked.py   # EXIT=0，Paper 纯度 PASS
 .venv/Scripts/python.exe scripts/smoke_mock.py            # EXIT=0，SMOKE PASS
 .venv/Scripts/python.exe -m pip install -e . --no-deps    # 成功（导入验证通过）
