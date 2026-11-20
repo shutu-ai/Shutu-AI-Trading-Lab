@@ -38,3 +38,12 @@ DIFF_CHECK_EXIT=0
 26 passed in 0.33s
 == tests/fault_injection ==
 12 passed in 193.77s (0:03:13)
+
+## remote CI chronology (authorized push b8d0200..ae3ce12, then fix 708833d)
+run 44790782515: ubuntu PASS / windows FAIL (multiprocess fence: sqlite
+  'database is locked' during WAL-conversion PRAGMA race between two
+  FenceCoordinator constructors)  -- RED kept as evidence
+fix 708833d: FenceCoordinator init/acquire retry-on-locked (fail-closed on
+  exhaustion), test pre-initializes schema+WAL, FenceCoordinator.close()
+run 44792814901: ubuntu PASS (38s) / windows PASS (8m34s) -- GREEN
+URL: https://github.com/shutu-ai/Shutu-AI-Trading-Lab/actions/runs/44792814901

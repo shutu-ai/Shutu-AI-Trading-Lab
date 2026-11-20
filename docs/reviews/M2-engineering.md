@@ -7,7 +7,7 @@
 | code_hash | git tree at `b3a3fee` |
 | protocol_hash | NOT_APPLICABLE（M3 冻结） |
 | environment | Windows 11 Pro，Python 3.13.15（`.venv`），离线；FakeBroker 零网络（smoke 扫描证明）；故障注入种子 `20261120` |
-| test_commands | 见 §3（全部本地 EXIT=0）；远端 CI = **CI_REMOTE_PENDING**（未获推送授权） |
+| test_commands | 见 §3（全部本地 EXIT=0）；远端 CI：最终 SHA `708833d` 双矩阵 **PASS**（run `44792814901`）——首次远端运行（run `44790782515`）Windows 在多进程 fence 测试暴露跨进程构造竞争（database is locked），修复 `708833d` 后双矩阵全绿，先红后绿链条如实保留 |
 | evidence_paths | `artifacts/evidence/M2/{verification.log, fault_matrix_report.txt, architecture-health.md, upstream-data-risks.md}` |
 | findings | 本地工程缺陷 0（TDD 红→绿）；上游 M1 缺陷 1 项确认并登记（VendorFacts 非法字面量，未修——需单独授权）；真实 Alpaca 行为 BROKER_BEHAVIOR_UNVERIFIED 不变 |
 | status | **E = PASS_WITH_SCOPE (MOCK_ONLY)**；全市场研究数据 BLOCKED_DATA 不变 |
@@ -43,7 +43,7 @@
 | INV-5 恢复先对账+操作人解锁 | `test_recovery_*`、late_recovery × 110 |
 | 风控越权/非法信号 100% 拒绝 | tests/risk 19 例（含 kill switch、审计不可用、越权生产者、错账户/环境/标的、过期、超额） |
 
-## 3. 实际运行命令与退出码（HEAD `b3a3fee`）
+## 3. 实际运行命令与退出码（实现 HEAD `b3a3fee`，修复 HEAD `708833d`）
 
 ```text
 python -m pytest -q            EXIT=0（282 passed；分项 140/71/19/14/26/12）
@@ -55,6 +55,11 @@ scripts/smoke_mock.py          EXIT=0（含 M2 语义：brokers 平面零网络�
 scripts/… fault matrix         EXIT=0（1,080 instances, 0 violations, seed=20261120）
 git diff --check               干净
 ```
+
+**远端 CI（经用户授权推送后）**：
+- run `44790782515`：ubuntu ✓ / **windows ✗**——多进程 fence 测试暴露真实缺陷（两 worker 同时构造 FenceCoordinator，WAL 转换 PRAGMA 瞬时独占不受 busy timeout 保护 → database is locked）。
+- 修复 `708833d`：构造/获取重试（5 次退避，耗尽 fail-closed）+ 测试主进程预初始化 + FenceCoordinator.close()；本地多进程测试 5/5 绿、相关 59 用例无回归。
+- run `44792814901`：**ubuntu ✓（38s）+ windows ✓（8m34s）全绿**，URL `https://github.com/shutu-ai/Shutu-AI-Trading-Lab/actions/runs/44792814901`——282 用例含故障矩阵与多进程争写在双平台实际执行。
 
 ## 4. 诚实边界（不冒充）
 
