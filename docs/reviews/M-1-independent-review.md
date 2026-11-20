@@ -7,7 +7,7 @@
 | 审查/整改日期 | 2026-11-19 |
 | 审查性质 | 对已完成 M-1 的定向审查整改；**不是**重做 M-1，不改变 P0–P4 / M-1～M11（含 M3.5）路线 |
 | 三轨报告地位 | `docs/reviews/M-1-{engineering,strategy,real-capital}.md` 仍是三轨验收唯一规范报告；本文件是补充审查记录，不取代也不改写三轨结论 |
-| approver | **USER_PENDING**（Agent 不得代签审查或阶段放行） |
+| approver | **USER_APPROVED**（原 USER_PENDING；用户于 2026-11-20 明确指示："批准关闭 M-1，并授权启动 M0，仅执行 M0 范围，完成后停在 M0 阶段门"。关闭由用户签批，非 Agent 代签） |
 
 ## 1. 审查材料与证据链接
 
@@ -106,6 +106,7 @@ python -m pytest artifacts/poc/M-1/fake_broker_poc/tests -q               # 20 p
 
 ## 6. 正式状态
 
-- 本文件整改全部验证通过后的状态：**`M-1_REVIEW_REMEDIATION_COMPLETE / M0_START_APPROVAL_PENDING`**
-- 该状态**不是 M0 授权**，不产生任何真实交易许可；是否关闭 M-1 审查、是否启动 M0 由用户人工复核批准。
-- approver = **USER_PENDING**（Agent 不代签）。
+- ~~本文件整改全部验证通过后的状态：**`M-1_REVIEW_REMEDIATION_COMPLETE / M0_START_APPROVAL_PENDING`**~~
+- **现行状态（2026-11-20 更新）：`M-1_REVIEW_CLOSED`** —— 用户于 2026-11-20 批准关闭本审查并授权启动 M0（范围仅 M0，完成即停在 M0 阶段门等待人工复核）。M-1 三轨报告与本审查记录就此封存，不再修改（本节状态行除外）。
+- 该关闭**只授权 M0 范围内的工程启动**，不产生任何真实交易许可；Alpaca Paper/Live、真实密钥、资金操作仍全部禁止，Live 相关签批仅可使用 mock 测试密钥。
+- approver = **USER_APPROVED**（2026-11-20，用户直接指示；Agent 不代签）。

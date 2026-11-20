@@ -213,7 +213,7 @@ artifacts/evidence/{stage}/       # logs, fault injection, 账户对账和签批
 
 ## 12. Codex 后续执行提示词（仅供审核通过后使用）
 
-> **审查停止规则**：此处为未来 M-1 可复制任务文本，生成或打开文档不构成启动 M-1 的指令。当前 `DESIGN_FREEZE_READY / ENGINEERING_START_APPROVAL_PENDING`。
+> **审查停止规则**：此处为未来 M-1 可复制任务文本，生成或打开文档不构成启动 M-1 的指令。v2.1 修订时状态为 `DESIGN_FREEZE_READY / ENGINEERING_START_APPROVAL_PENDING`；**当前状态：`M-1_REVIEW_CLOSED / M0_IN_PROGRESS`**（用户 2026-11-20 授权，见 `docs/reviews/M-1-independent-review.md` §6）。
 
 ```text
 你是 Shutu AI Trading Lab 的平台工程与严格验收负责人。
