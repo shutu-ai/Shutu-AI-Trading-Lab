@@ -37,10 +37,36 @@ NowFn = Callable[[], dt.datetime]
 SUPPORTED_SCHEMA_VERSIONS = frozenset({"1"})
 
 
+class SchemaGateAuditUnavailable(RuntimeError):
+    """Raised when the audit sink cannot record a gate decision.
+
+    Fail-closed by design: no decision — least of all an ALLOW_* — may be
+    returned to a caller without its audit record. This is an explicit stop
+    error, not a swallowed one."""
+
+
+@dataclass(frozen=True)
+class TrustedProducerContext:
+    """Runtime-owned trust facts for portfolio admission (R3). Every field
+    comes from configuration independent of the evaluated JSON — a payload
+    can never influence its own producer's trustworthiness.
+
+    ``reviewed_portfolio_producers`` binds each allowed producer identity to
+    its reviewed build hash (config-side); the producer identity itself is
+    established by the calling channel (in M2, the process boundary), never
+    by the payload.
+    """
+
+    runtime_account_id: str
+    allowed_risk_budget_ids: frozenset[str]
+    reviewed_portfolio_producers: dict[str, str]
+    max_portfolio_age_seconds: int
+
+
 @dataclass(frozen=True)
 class GateDecision:
     allow: bool
-    action: str  # "ALLOW_SIGNAL" / "NO_TRADE"
+    action: str  # "ALLOW_SIGNAL" / "ALLOW_PORTFOLIO" / "NO_TRADE"
     reason_codes: tuple[str, ...]
     strategy_id: str  # best-effort echo for audit; "" when unknown
 
@@ -52,14 +78,22 @@ class SchemaGate:
         allowed_symbols: set[str],
         audit: AuditLog,
         now_fn: NowFn,
+        portfolio_context: TrustedProducerContext | None = None,
     ) -> None:
         """``reviewed_builds``: strategy_id -> set of reviewed_build_hash values
         from the environment's release whitelist. Not "whitelist + no
-        prompt-based bans": membership is the only acceptance path."""
+        prompt-based bans": membership is the only acceptance path.
+
+        ``portfolio_context``: required trust facts for
+        :meth:`evaluate_portfolio`. Without it every portfolio is rejected
+        (PORTFOLIO_NO_TRUSTED_CONTEXT) — structural validity alone never
+        admits a portfolio (R3).
+        """
         self._builds = reviewed_builds
         self._symbols = frozenset(allowed_symbols)
         self._audit = audit
         self._now_fn = now_fn
+        self._portfolio_ctx = portfolio_context
 
     # -- public entrypoints --------------------------------------------------
 
@@ -87,11 +121,40 @@ class SchemaGate:
 
         return self._decide(signal.strategy_id, reasons, "ALLOW_SIGNAL")
 
-    def evaluate_portfolio(self, raw: bytes | str) -> GateDecision:
+    def evaluate_portfolio(self, raw: bytes | str, producer_id: str) -> GateDecision:
+        """Data-admission check for a target portfolio.
+
+        ``producer_id`` identifies the calling producer via the trusted
+        channel; it must be a key of the configured reviewed-producer set.
+        ALLOW_PORTFOLIO means *data admission only* — it is not a trade
+        authorization; independent risk and OMS decisions remain downstream
+        (M2)."""
+        ctx = self._portfolio_ctx
+        if ctx is None:
+            return self._decide("", ("PORTFOLIO_NO_TRUSTED_CONTEXT",), "ALLOW_PORTFOLIO")
+        if not producer_id or producer_id not in ctx.reviewed_portfolio_producers:
+            return self._decide("", ("PORTFOLIO_PRODUCER_NOT_REVIEWED",), "ALLOW_PORTFOLIO")
+
         portfolio, reject = self._parse(raw, TargetPortfolio)
         if reject is not None:
             return self._reject(reject)
         reasons: list[str] = []
+
+        # Account binding: the JSON's self-reported account_id is compared
+        # against the runtime's trusted binding, never trusted by itself.
+        if portfolio.account_id != ctx.runtime_account_id:
+            reasons.append(
+                f"PORTFOLIO_ACCOUNT_MISMATCH:json={portfolio.account_id},"
+                f"runtime={ctx.runtime_account_id}"
+            )
+        if portfolio.risk_budget_id not in ctx.allowed_risk_budget_ids:
+            reasons.append(f"PORTFOLIO_RISK_BUDGET_UNKNOWN:{portfolio.risk_budget_id}")
+
+        age = (self._now_fn() - portfolio.timestamp).total_seconds()
+        if age > ctx.max_portfolio_age_seconds:
+            reasons.append(f"PORTFOLIO_STALE:age_seconds={age:.0f}")
+        if age < -60:  # clock-skew tolerance for future stamps
+            reasons.append(f"PORTFOLIO_TIMESTAMP_FUTURE:age_seconds={age:.0f}")
 
         off_pool = sorted({a.symbol for a in portfolio.allocation} - self._symbols)
         if off_pool:
@@ -102,11 +165,21 @@ class SchemaGate:
     # -- internals -----------------------------------------------------------
 
     def _parse(self, raw: bytes | str, model: type) -> tuple[Any, GateDecision | None]:
-        """Strict parse+validate. Returns (model, None) or (None, reject)."""
+        """Strict parse+validate with an explicit type boundary (R4): any
+        input that is not bytes/str, is not valid UTF-8, is not JSON, or does
+        not match the schema yields a NO_TRADE decision — never an
+        exception."""
+        if not isinstance(raw, (bytes, str)):
+            return None, GateDecision(
+                allow=False,
+                action="NO_TRADE",
+                reason_codes=("INPUT_TYPE_INVALID",),
+                strategy_id="",
+            )
         try:
             text = raw.decode("utf-8") if isinstance(raw, bytes) else raw
             data = json.loads(text)  # distinguishes invalid JSON from bad shape
-        except (UnicodeDecodeError, json.JSONDecodeError):
+        except (UnicodeDecodeError, ValueError, TypeError):
             return None, GateDecision(
                 allow=False,
                 action="NO_TRADE",
@@ -135,13 +208,22 @@ class SchemaGate:
             reason_codes=tuple(reasons),
             strategy_id=strategy_id,
         )
-        self._audit.append(
-            decision.action,
-            {
-                "strategy_id": decision.strategy_id,
-                "reason_codes": list(decision.reason_codes),
-            },
-        )
+        # Audit BEFORE returning: an ALLOW_* decision must never reach a
+        # caller unrecorded, and any audit fault is an explicit stop error
+        # (fail-closed) rather than a silently allowed pass-through (R4.3).
+        try:
+            self._audit.append(
+                decision.action,
+                {
+                    "strategy_id": decision.strategy_id,
+                    "reason_codes": list(decision.reason_codes),
+                },
+            )
+        except Exception as exc:
+            raise SchemaGateAuditUnavailable(
+                f"audit sink unavailable; gate decision {decision.action} not delivered "
+                f"(fail-closed): {exc!r}"
+            ) from exc
         return decision
 
 

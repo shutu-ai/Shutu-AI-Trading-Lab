@@ -69,6 +69,65 @@ class TestRuntimeBinding:
         with pytest.raises(Exception):
             load_runtime_config(bad)
 
+    # -- R2 (M0-REVIEW-REMEDIATION-001): endpoint origin whitelist ----------
+    # Policy: exact scheme https + exact hostname, bare origin only (no
+    # path/query/fragment/userinfo/port). Hostname comparison is exact, never
+    # substring containment.
+
+    DISGUISED_LIVE_URLS = [
+        "https://api.alpaca.markets/paper",          # live host + "paper" path
+        "https://api.alpaca.markets/v2?paper=test",  # live host + "paper" query
+        "https://paper-api.alpaca.markets.evil.com",  # suffix confusion
+        "https://evil.com/paper-api.alpaca.markets",  # path confusion
+        "http://paper-api.alpaca.markets",            # wrong scheme
+        "ftp://paper-api.alpaca.markets",             # wrong scheme
+        "https://user:pw@paper-api.alpaca.markets",   # userinfo
+        "https://paper-api.alpaca.markets:8443",      # explicit port
+        "https://paper-api.alpaca.markets/v2",        # non-empty path
+        "https://paper-api.alpaca.markets/",          # trailing slash path
+        "https://paper-api.alpaca.markets?x=1",       # query
+        "not-a-url",                                  # unparseable
+        "",                                           # empty
+        "https://",                                   # no host
+    ]
+
+    def test_disguised_or_invalid_paper_endpoints_rejected(self, tmp_path):
+        """M0-REVIEW-REMEDIATION-001 R2: the old 'paper in URL' containment
+        check accepted live hosts carrying a 'paper' path/query (bypass)."""
+        for url in self.DISGUISED_LIVE_URLS:
+            bad = paper_config(
+                tmp_path,
+                {"https://paper-api.alpaca.markets": url},
+            )
+            with pytest.raises(Exception, match=r"endpoint|scheme|host|port|userinfo"):
+                load_runtime_config(bad)
+
+    def test_paper_hostname_case_insensitive_exact_match(self, tmp_path):
+        ok = paper_config(
+            tmp_path,
+            {"https://paper-api.alpaca.markets": "https://PAPER-API.ALPACA.MARKETS"},
+        )
+        cfg = load_runtime_config(ok)
+        assert cfg.environment is Environment.PAPER
+
+    def test_live_template_host_is_exact_live_origin(self):
+        """LIVE whitelist accepts exactly api.alpaca.markets (resolved
+        template loads with dry_run=true); a paper host in a LIVE config is
+        not the trusted live origin."""
+        resolved = (
+            LIVE_TEMPLATE.read_text(encoding="utf-8")
+            .replace("{{LIVE_ACCOUNT_ID}}", "MOCK_LIVE_DRYRUN_ACCOUNT")
+            .replace("{{OWNER_IDENTITY}}", "OWNER_MOCK")
+            .replace("https://api.alpaca.markets", "https://paper-api.alpaca.markets")
+        )
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "live.yaml"
+            path.write_text(resolved, encoding="utf-8")
+            with pytest.raises(Exception):
+                load_runtime_config(path)
+
     def test_inline_credentials_rejected(self, tmp_path):
         bad = paper_config(
             tmp_path,

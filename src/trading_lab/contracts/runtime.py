@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 from typing import Annotated, Literal
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -26,7 +27,44 @@ from .enums import Environment
 NonEmptyStr = Annotated[str, Field(min_length=1)]
 
 _CREDENTIAL_REF = re.compile(r"^(env:[A-Za-z_][A-Za-z0-9_]*|secret_store:[A-Za-z0-9_.\-/]+)$")
-_LIVE_HOST_MARKERS = ("api.alpaca.markets",)
+
+# Exact-origin whitelists (M0-REVIEW-REMEDIATION-001 R2): scheme https +
+# exact hostname, bare origin only. Containment checks like `"paper" in url`
+# are forbidden — a live host with a /paper path must never pass.
+_PAPER_ORIGINS = {"paper-api.alpaca.markets"}
+_LIVE_ORIGINS = {"api.alpaca.markets"}
+
+
+def _validate_broker_origin(environment: Environment, endpoint: str) -> None:
+    """Strict origin check: https + exact hostname + no path/query/fragment/
+    userinfo/port. Applied to every runtime config regardless of environment;
+    the static scanner in security.isolation is belt-and-suspenders only —
+    runtime configs always fail closed here."""
+    parts = urlsplit(endpoint.strip())
+    if parts.scheme != "https":
+        raise ValueError(
+            f"{environment.value} broker endpoint must use https scheme "
+            f"(got {parts.scheme!r} in {endpoint!r})"
+        )
+    host = (parts.hostname or "").lower()
+    allowed = _PAPER_ORIGINS if environment is Environment.PAPER else _LIVE_ORIGINS
+    if host not in allowed:
+        raise ValueError(
+            f"{environment.value} broker endpoint hostname must be exactly one of "
+            f"{sorted(allowed)} (got {host!r} in {endpoint!r})"
+        )
+    if parts.username is not None or parts.password is not None:
+        raise ValueError(f"userinfo not allowed in broker endpoint: {endpoint!r}")
+    if parts.port is not None:
+        raise ValueError(f"explicit port not allowed in broker endpoint: {endpoint!r}")
+    if parts.path != "":
+        raise ValueError(
+            f"broker endpoint must be a bare origin (no path): {endpoint!r}"
+        )
+    if parts.query or parts.fragment:
+        raise ValueError(
+            f"broker endpoint must be a bare origin (no query/fragment): {endpoint!r}"
+        )
 
 
 class _RuntimeBase(BaseModel):
@@ -83,11 +121,10 @@ class RuntimeConfig(_RuntimeBase):
         ):
             if "{{" in value:
                 raise ValueError(f"unresolved placeholder in {label}: template must be resolved before load")
-        # Paper runtime must never point at the live trading host.
+        # Strict origin whitelist for every environment (R2): exact https
+        # hostname, bare origin; replaces the old substring containment check.
+        _validate_broker_origin(self.environment, self.broker.endpoint)
         if self.environment is Environment.PAPER:
-            live_host = any(m in self.broker.endpoint for m in _LIVE_HOST_MARKERS)
-            if live_host and "paper" not in self.broker.endpoint:
-                raise ValueError("PAPER config endpoint must not reference the live trading host")
             if self.broker.adapter == "gateway_single_writer":
                 raise ValueError(
                     "PAPER config must use the 'fake' adapter in M0 "

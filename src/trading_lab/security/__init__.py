@@ -12,7 +12,7 @@ from .isolation import (
     scan_for_live_artifacts,
 )
 from .kill_switch import KillSwitch, KillSwitchError
-from .schema_gate import GateDecision, SchemaGate
+from .schema_gate import GateDecision, SchemaGate, SchemaGateAuditUnavailable, TrustedProducerContext
 from .signing import (
     SIGNATURE_ALGORITHM,
     TestKeyPair,
@@ -47,6 +47,8 @@ __all__ = [
     "RuntimeContext",
     "SIGNATURE_ALGORITHM",
     "SchemaGate",
+    "SchemaGateAuditUnavailable",
+    "TrustedProducerContext",
     "TrustedKey",
     "TrustedKeyStore",
     "TestKeyPair",
