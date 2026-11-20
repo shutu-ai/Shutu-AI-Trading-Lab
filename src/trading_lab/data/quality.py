@@ -52,8 +52,11 @@ class QualityReport:
     notes: tuple[str, ...] = field(default_factory=tuple)
 
     def failures(self, max_missing_rate: float, max_latency_seconds: float | None) -> list[str]:
-        """Evaluate against pre-declared thresholds. Zero denominators are
-        failures here (the acceptance layer decides BLOCKED vs FAIL)."""
+        """Evaluate against pre-declared thresholds using the single
+        authoritative rate formula (R2): ``missing / denominator``. Zero
+        denominators are INCONCLUSIVE entries, never 100%. The acceptance
+        layer (acceptance.evaluate_purpose) owns verdicts; this method is a
+        reporting view over the same numbers."""
         problems: list[str] = []
         for metric in self.field_coverage:
             if metric.is_inconclusive:
@@ -65,7 +68,7 @@ class QualityReport:
                 )
         if self.bar_completeness.is_inconclusive:
             problems.append("INCONCLUSIVE:bar_completeness:denominator=0")
-        elif self.bar_completeness.missing > 0:
+        elif self.bar_completeness.missing / self.bar_completeness.denominator > max_missing_rate:
             problems.append(
                 f"BARS_MISSING:{self.bar_completeness.missing}/"
                 f"{self.bar_completeness.denominator}"

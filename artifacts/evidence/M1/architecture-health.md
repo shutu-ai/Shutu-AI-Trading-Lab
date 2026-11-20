@@ -86,3 +86,35 @@ tests/
 | (e) 数据→OMS/Broker 违禁依赖 | 无（EXIT=0） |
 | (f) 删除代码未迁移测试 | 无删除 |
 | (g) 检查仅主观 | check_architecture.py 可复现命令，CI 接入 |
+
+---
+
+## C. 整改补遗（M1-REVIEW-REMEDIATION-001，2026-11-20）
+
+> 不覆盖 A/B 节历史基线；本节记录整改后的差异。
+
+### C1. 依赖图变化
+
+方向不变（data → contracts/security.canonical），无新增模块间依赖、零新依赖。
+修改全部发生在既有文件内部：`acceptance.py`（PIT 矩阵+阈值一致性+冻结判定序）、
+`quality.py`（failures 与统一比率公式一致）、`membership.py`（半开区间重叠校验）、
+`snapshot.py`（+`research_admissible` 显式 PIT 门）、`check_architecture.py`
+（包边界匹配/别名成员/相对层级解析/越包 fail-closed）。REUSE=既有全部；
+ADD=仅测试（46 个：整改负例+检查器自测）；REMOVE=无。
+
+### C2. 检查器负例证明（R4）
+
+`tests/architecture/test_check_architecture.py`：12 种违禁形态（绝对/父包成员/
+相对 1–3 级/子路径/POC 片段/常量动态导入）全部被拦截断言；6 种合法形态
+（含 `oms_tools` 前缀相似不误报、`security.canonical` 合法依赖）不误报；
+`main()` 仓库扫描保持 EXIT=0。已知边界如实记录于脚本 docstring：静态字面
+导入与常量动态导入可检；变量化动态导入/exec/扩展不可检（归后续阶段进程隔离）。
+
+### C3. 剩余债务更新
+
+| 债务 | 责任阶段 |
+|---|---|
+| 供应商适配层等真实授权数据源 | M2/M3 按实际 API 建 |
+| 真实假日表接入 | M3 前 |
+| coverage/missing 双阈值的消费者统一（已由 R2 一致性校验缓解：宽松组合加载即拒） | M3 接真实质量报告时复核 |
+| 变量化动态导入的进程级隔离 | M2+ 进程边界 |

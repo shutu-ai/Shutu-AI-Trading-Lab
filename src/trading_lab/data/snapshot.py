@@ -113,4 +113,64 @@ def content_hash_of_rows(rows: list[dict[str, object]]) -> str:
     return sha256_hex(canonical_json_bytes({"rows": payload}))
 
 
-__all__ = ["DatasetEntry", "SnapshotError", "SnapshotManifest", "build_snapshot", "content_hash_of_rows"]
+# ---------------------------------------------------------------------------
+# R5 (M1-REVIEW-REMEDIATION-001): integrity is NOT research admission.
+#
+# ``verify()`` proves the bytes were not altered — an orthogonal property
+# from "this snapshot may drive research". A hash-perfect manifest whose
+# entries carry UNKNOWN availability or availability facts AFTER the
+# knowledge cutoff is intact evidence of unusable data, not usable data.
+# Research admission additionally requires the purpose-level acceptance
+# verdict (acceptance.evaluate_purpose) — this gate covers only the
+# manifest-internal time facts.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PitGateResult:
+    ok: bool
+    reasons: tuple[str, ...]
+
+
+def research_admissible(manifest: SnapshotManifest) -> PitGateResult:
+    """Explicit research-usability gate over a manifest:
+
+    - hash integrity must hold (verify()) — a broken chain is unusable;
+    - every entry's availability fact must be KNOWN (not
+      ``UNKNOWN_AVAILABILITY``);
+    - every entry's ``available_at`` must be <= the manifest's knowledge
+      cutoff.
+
+    Note: passing this gate is necessary, NOT sufficient — purpose-level
+    license/coverage/quality admission is acceptance.evaluate_purpose's
+    verdict, which must also be consulted before research use.
+    """
+    reasons: list[str] = []
+    if not manifest.verify():
+        reasons.append("INTEGRITY_FAILURE:manifest_hash_mismatch")
+    for entry in manifest.entries:
+        rec = entry.source
+        if not rec.availability_known:
+            reasons.append(f"UNKNOWN_AVAILABILITY:{entry.name}")
+            continue
+        available_at = rec.available_at_utc
+        assert isinstance(available_at, dt.datetime)
+        if available_at.tzinfo is None:
+            reasons.append(f"NAIVE_AVAILABILITY:{entry.name}")
+        elif available_at > manifest.knowledge_cutoff_utc:
+            reasons.append(
+                f"AVAILABLE_AFTER_CUTOFF:{entry.name}:"
+                f"{available_at.isoformat()}>{manifest.knowledge_cutoff_utc.isoformat()}"
+            )
+    return PitGateResult(ok=not reasons, reasons=tuple(reasons))
+
+
+__all__ = [
+    "DatasetEntry",
+    "PitGateResult",
+    "SnapshotError",
+    "SnapshotManifest",
+    "build_snapshot",
+    "content_hash_of_rows",
+    "research_admissible",
+]

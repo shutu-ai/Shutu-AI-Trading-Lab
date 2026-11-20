@@ -260,15 +260,23 @@ class TestAcceptanceVerdicts:
         assert decision.verdict == VERDICT_BLOCKED_DATA
         assert any(r.startswith("HISTORY_MEMBERSHIP_COVERAGE_ABSENT") for r in decision.reasons)
 
-    def test_historical_research_accepts_with_full_facts(self):
+    def test_historical_research_accepts_only_with_event_level_pit(self):
+        """R1 修正后的正例语义：event_level PIT + 全部覆盖 + 质量达标 → ACCEPT。"""
         cfg = load_acceptance_config(CONFIG_PATH)
         req = cfg.purpose("historical_research_daily")
         decision = evaluate_purpose(
             req, quality_report(),
             vendor(history_membership_coverage="yes", delisting_coverage="yes",
-                   corporate_actions_coverage="yes"),
+                   corporate_actions_coverage="yes", pit_availability="event_level"),
         )
         assert decision.verdict == VERDICT_ACCEPT
+
+    def test_historical_research_pit_none_no_longer_accepts(self):
+        """整改前缺陷回归锚点：pit=none 曾获得 ACCEPT（M1-REVIEW-REMEDIATION-001 R1）。"""
+        cfg = load_acceptance_config(CONFIG_PATH)
+        req = cfg.purpose("historical_research_daily")
+        decision = evaluate_purpose(req, quality_report(), vendor())
+        assert decision.verdict != VERDICT_ACCEPT
 
     def test_quality_failure_uses_declared_on_fail(self):
         cfg = load_acceptance_config(CONFIG_PATH)

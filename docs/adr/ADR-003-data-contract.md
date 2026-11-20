@@ -63,6 +63,15 @@ SHA-256：同输入同版本必同 hash；单值改动必变 hash（属性测试
 实测复现其必要性）。未建供应商适配层/ETL 框架——等真实授权数据源出现再按
 其 API 实现（无消费者抽象不作预建）。
 
+### D8 — 快照完整性 ⊥ 时间有效性/许可/研究准入（整改补充，M1-REVIEW-REMEDIATION-001 R5）
+
+`SnapshotManifest.verify()` 只证明内容未被篡改（完整性），与"可用于研究"
+是**正交属性**：hash 正确但含 `UNKNOWN_AVAILABILITY` 或 `available_at` 晚于
+knowledge_cutoff 的 manifest 是"不可用数据的完好证据"。研究使用需同时满足：
+① `snapshot.research_admissible()`（完整性 + manifest 内时间事实）；
+② `acceptance.evaluate_purpose()` 的用途级许可/覆盖/质量判定。
+工程日志中的 "snapshot hash PASS" 不得被引述为"研究准入 PASS"。
+
 ## 已知限制
 
 1. **无 API_VERIFIED 供应商行**：三家候选均 BLOCKED_ACCESS（无凭证，任务

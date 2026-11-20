@@ -1,0 +1,16 @@
+
+=================================== ERRORS ====================================
+_______ ERROR collecting tests/no_lookahead/test_remediation_m1rr001.py _______
+ImportError while importing test module 'D:\dev-projects\Shutu-AI-Trading-Lab\tests\no_lookahead\test_remediation_m1rr001.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\swx1536744\AppData\Local\Python\pythoncore-3.13-64\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\no_lookahead\test_remediation_m1rr001.py:30: in <module>
+    from trading_lab.data.snapshot import DatasetEntry, build_snapshot, content_hash_of_rows, research_admissible
+E   ImportError: cannot import name 'research_admissible' from 'trading_lab.data.snapshot' (D:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\snapshot.py)
+=========================== short test summary info ===========================
+ERROR tests/no_lookahead/test_remediation_m1rr001.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.35s

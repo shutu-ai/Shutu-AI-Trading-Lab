@@ -85,15 +85,39 @@ class MembershipTable:
 
     def _validate(self) -> None:
         seen: set[tuple[str, str, dt.datetime]] = set()
+        per_series: dict[tuple[str, str], list[MembershipRecord]] = {}
         for rec in self._membership:
             key = (rec.index_id, rec.symbol, rec.effective_from)
             if key in seen:
                 raise MembershipError(f"duplicate membership interval: {key}")
             seen.add(key)
-        for rec in self._delistings:
-            if rec.delisted_at is None and rec.listed_to is None:
-                continue  # active listing — fine
+            per_series.setdefault((rec.index_id, rec.symbol), []).append(rec)
+        self._check_interval_overlaps(per_series)
         self._reused_tickers = self._detect_ticker_reuse()
+
+    def _check_interval_overlaps(
+        self, per_series: dict[tuple[str, str], list[MembershipRecord]]
+    ) -> None:
+        """Half-open interval rule (R3): membership covers
+        ``[effective_from, effective_to)``. For each (index_id, symbol)
+        series sorted by start: overlaps are rejected, exact boundary
+        continuation (prev end == next start) is allowed, gaps are allowed,
+        and an open-ended record followed by anything is rejected."""
+        for (index_id, symbol), records in per_series.items():
+            ordered = sorted(records, key=lambda r: r.effective_from)
+            for prev, nxt in zip(ordered, ordered[1:]):
+                if prev.effective_to is None:
+                    raise MembershipError(
+                        f"open-ended membership for {index_id}/{symbol} at "
+                        f"{prev.effective_from.isoformat()} followed by another record "
+                        f"at {nxt.effective_from.isoformat()}"
+                    )
+                if nxt.effective_from < prev.effective_to:
+                    raise MembershipError(
+                        f"overlapping membership intervals for {index_id}/{symbol}: "
+                        f"[{prev.effective_from.isoformat()}, {prev.effective_to.isoformat()}) "
+                        f"overlaps start {nxt.effective_from.isoformat()}"
+                    )
 
     def _detect_ticker_reuse(self) -> dict[str, list[DelistingRecord]]:
         by_symbol: dict[str, list[DelistingRecord]] = {}
