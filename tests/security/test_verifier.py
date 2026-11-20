@@ -25,7 +25,7 @@ from trading_lab.security import (
 )
 from trading_lab.security.verifier import _signable_payload  # noqa: SLF001 - test seam
 
-from conftest import FRESH, NOW, ACCOUNT, OWNER_IDENTITY, expected_binding, fixed_now, signed_release
+from helpers_security import FRESH, NOW, ACCOUNT, OWNER_IDENTITY, audit_path, audit_event_types, expected_binding, fixed_now, signed_release
 
 
 def audit_path(tmp_path):

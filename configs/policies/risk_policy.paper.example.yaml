@@ -1,0 +1,26 @@
+# §6.2 risk policy — Paper TEST TEMPLATE (example values, not recommendations).
+# Every mandatory key present; missing/null/non-finite fails validation.
+
+version: 1
+environment: PAPER
+account_id: PAPER_TEST_ACCOUNT
+
+max_gross_exposure_pct: 60
+max_net_exposure_pct: 60
+max_single_symbol_pct: 30
+max_single_order_notional_usd: 100
+max_daily_loss_pct: 2
+max_peak_to_trough_drawdown_pct: 6
+max_abnormal_orders_per_minute: 8
+max_market_bar_age_seconds: 120
+max_account_snapshot_age_seconds: 30
+max_broker_order_ack_wait_seconds: 10
+require_settled_funds: true
+allow_margin: false
+allow_short: false
+allowed_symbols: [SPY, QQQ, IWM]
+recovery_requires:
+  - broker_orders_positions_cash_reconciled
+  - fresh_data_and_market_clock
+  - valid_approval_if_live
+  - operator_release_after_incident

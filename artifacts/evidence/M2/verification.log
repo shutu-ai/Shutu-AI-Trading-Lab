@@ -1,0 +1,40 @@
+# M2 unified verification â€” 2026-11-20T19:58:21+02:00 â€” HEAD d0d81b6
+## environment
+python: 3.13.15
+platform: win32
+CHECK_ENV_EXIT=0
+## pytest full
+..................................................................       [100%]
+282 passed in 200.18s (0:03:20)
+PYTEST_EXIT=0
+## check_architecture
+check_architecture: scanned 3 packages (18 files), 0 violations
+ARCH_EXIT=0
+## scan_secrets
+scan_secrets: scanned 238 tracked files, 0 findings
+SCAN_EXIT=0
+## verify_live_blocked
+verify_live_blocked: paper runtime contains no live artifacts ¡ª PASS
+VLB_EXIT=0
+## smoke_mock
+SMOKE PASS: paper gate + kill switch + mock live verification all behaved fail-closed
+SMOKE_EXIT=0
+## git diff --check
+warning: in the working copy of 'scripts/smoke_mock.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/trading_lab/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/no_lookahead/conftest.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/security/conftest.py', LF will be replaced by CRLF the next time Git touches it
+DIFF_CHECK_EXIT=0
+## suite breakdown
+== tests/contract tests/security ==
+140 passed in 3.14s
+== tests/no_lookahead ==
+71 passed in 0.80s
+== tests/risk ==
+19 passed in 1.44s
+== tests/oms ==
+14 passed in 0.84s
+== tests/architecture ==
+26 passed in 0.33s
+== tests/fault_injection ==
+12 passed in 193.77s (0:03:13)

@@ -1,0 +1,85 @@
+# M2 Architecture Health — 基线与验收记录
+
+> M2-OMS-RISK-ARCHITECTURE-GATE-001 §2/§8。基线（开发前，HEAD `d0d81b6`）；开发后章节随实现追加。
+
+## A. 基线（开发前，T0）
+
+### A1. 现状依赖图（233 用例全绿基线）
+
+```text
+src/trading_lab/
+  contracts/   # §2.2 契约（含 TradeIntent/DurableOrderIntent/ExecutorFence/
+               #  RiskDecision/OrderEvent/LiveRelease）+ RuntimeConfig
+  security/    # canonical/signing/verifier/SchemaGate/KillSwitch/audit/isolation
+  data/        # M1 数据层（BLOCKED_DATA 边界持有者）
+（无 risk/ oms/ brokers/ —— M2 前不存在）
+tests/: contract+security 140 / no_lookahead 71 / architecture 22 = 233
+```
+
+允许依赖方向（M2 后）：risk → contracts/security；oms → contracts/security/brokers(port)；
+brokers → contracts（无外部网络）。**禁止**：risk→oms/brokers；oms→risk（决策以
+RiskDecision 契约数据传递）；任何 src→artifacts/poc；data 不变。
+
+### A2. 复用清单（REUSE，不复制）
+
+| 既有 | M2 用途 |
+|---|---|
+| `TradeIntent`/`DurableOrderIntent`/`ExecutorFence`/`RiskDecision`/`OrderEvent` 契约 | 意图/尝试/fence/决策/回执的唯一 DTO |
+| `security.canonical` | journal/snapshot 唯一字节规范与哈希 |
+| `security.KillSwitch` | HALT 状态唯一权威（不重写 halt） |
+| `security.AuditLog` | 全部风险/OMS 事件的唯一审计链 |
+| `security.SchemaGate` | 策略信号唯一准入（ALLOW 只代表数据准入） |
+| `data.acceptance` | 合成数据边界维持 BLOCKED_DATA 的证据源 |
+
+### A3. POC 处置（DO-NOT-PROMOTE 逐项）
+
+`artifacts/poc/M-1/fake_broker_poc/`：**阅读参考**。
+- `oms.py recover()` 的 `get_order=None → _send_once` 分支：**已知缺陷（M-1 审查 R3），正式实现绝不继承** —— UNKNOWN 一律对账，不补发。
+- `fencing.py valid_fences`（mock 内存集合）：**REPLACE-IDEA** —— 正式保证在可信出口（SQLite epoch/租约），mock 仅是被出口调用的下游。
+- journal 简化模型：**REPLACE** —— SQLite WAL FULL 事务方案（ADR-002-addendum D1）。
+- 正式 `src/trading_lab/oms|brokers/` 零导入 POC（检查器强制）。
+
+### A4. 拟新增（ADD，各自唯一消费者）
+
+| 模块 | 职责 | 消费者 |
+|---|---|---|
+| `brokers/port.py` | Broker 写接口（submit/get/cancel）+ 结果类型 | oms.egress、fake 实现自身 |
+| `brokers/fake.py` | 可重复 FakeBroker：故障注入钩子、`created_orders_by_intent` 计数 | tests/fault_injection、egress 装配 |
+| `risk/policy.py` | §6.2 风控字段模型（Decimal、必填非空） | risk.engine、configs/policies yaml |
+| `risk/engine.py` | 唯一 RiskEngine：冻结检查序 → APPROVE/REJECT/HALT_NEW_RISK | M3+ 交易链、tests/risk |
+| `risk/producer.py` | 不可伪造 TrustedProducer 绑定（MOCK_ONLY） | risk.engine、oms 装配 |
+| `oms/journal.py` | SQLite WAL FULL 意图/尝试/事件持久化 | oms.engine |
+| `oms/states.py` | 订单状态机 + 合法转换表 | oms.engine |
+| `oms/egress.py` | 唯一 Broker 写出口（fence 校验 + port 调用） | oms.engine |
+| `oms/engine.py` | 意图生命周期：journal-before-send、UNKNOWN 语义、恢复对账 | tests/fault_injection、M3+ |
+
+不建：风控策略 DSL、插件系统、通用厂商适配层、第二审计器、第二 Gate、消息队列。
+
+### A5. 先红后绿计划（RED 矩阵）
+
+新增测试先于实现写入并记录红证：journal 持久性（重启后意图仍在）、
+UNKNOWN 不重发、stale fence 拒写、双进程争写、重复回报不双计、越权生产者
+拒绝、≥1,000 故障组合计数断言。依赖缺失类 ImportError 单列，不算安全证明。
+
+### A6. 冻结指标（T4）
+
+≥1,000 次可复现故障/重放组合；累计 0 重复 fake 订单、0 双主写、0 无意图
+发单、0 UNKNOWN 盲重发、0 风控越权；分母/种子/故障类分项报告；失败保留原日志。
+
+---
+
+## B. 开发后验收（2026-11-20，M2 实现完成）
+
+| 分类 | 记录 |
+|---|---|
+| REUSE | 全部 §2.2 交易侧契约（TradeIntent/DurableOrderIntent/ExecutorFence/RiskDecision/OrderEvent/LiveRelease）零复制；`security.canonical`（journal 哈希）、`security.KillSwitch`（HALT 唯一权威，OMS 复用不重写）、`security.AuditLog`（全部风险/OMS 事件唯一审计链）、`security.SchemaGate`（信号准入前置，未复制）、`data.acceptance`（BLOCKED_DATA 边界证据源） |
+| MODIFY | `scripts/smoke_mock.py`：M0 的"brokers 模块不存在"断言更新为 M2 语义"brokers 平面零网络/真实券商导入"（正则扫描）；`scripts/check_architecture.py`：扩展为 3 平面规则（data/risk/oms 各自禁用集 + 包内导入豁免 + 包边界匹配）；CI 步骤沿用（命令不变） |
+| ADD | `risk/`（policy/engine/producer：唯一风控决策点，冻结检查序，Decimal 强制）、`oms/`（journal：SQLite WAL FULL；states：唯一状态机；fence：SQLite 原子 epoch+租约；egress：唯一出口校验 fence 后调 port；engine：journal-before-send+UNKNOWN 语义+恢复对账）、`brokers/`（port+fake：零网络，故障注入钩子，created_orders_by_intent 计数）；`configs/policies/risk_policy.paper.example.yaml`；`tests/fault_injection/`（矩阵 1,080 实例 + 真实双进程争写） |
+| REPLACE | M-1 POC 的 journal 模型 → SQLite WAL FULL 事务方案（旧 POC 文件原样保留于 artifacts/poc，不删除历史工件）；POC `valid_fences` 思路被可信出口 fencing 替代；POC `recover()` 补发分支被 UNKNOWN-对账语义替代（不继承） |
+| REMOVE | 无删除；233 基线用例全数保留并全绿（现 282 = 233 + 19 risk + 14 oms + 12 fault_injection），安全测试零削弱 |
+| POC-ISOLATE | `check_architecture.py` 片段扫描（artifacts/poc）覆盖全部 3 包 EXIT=0；src 布局下 POC 不在导入路径；oms/risk 零 POC 导入 |
+| DEPENDENCIES | **零新增运行依赖**（SQLite=标准库；未引入 Redis/Kafka/分布式锁/消息总线/适配层） |
+| BOUNDARIES | 检查器 3 包 18 文件 0 违规（risk→oms/brokers/data 禁、oms→risk/data 禁、data→全平面禁、oms→brokers 唯一 sanctioned）；brokers 平面零网络导入（smoke 扫描）；检查器 26 自测含 12 违禁形态拦截 + plane 规则正反例；`d0367f4` 等历史提交未触碰 |
+| DEBT | ①生产者跨进程身份（MOCK_ONLY/UNVERIFIED）→ 真实 Paper 阶段；②多宿主 fencing（无消费者不预建）→ Live 前；③smoke 的 brokers 平面零网络扫描是文本级（动态构造导入不可检）→ 进程隔离阶段；④M-1 POC 文件保留原样作为历史参考，其已知缺陷（recover 补发）已在正式实现中被替代语义覆盖 |
+
+### §5 违例自查：(a)-(g) 全部无（对照 §M2-T5 清单，见上表各行依据）；重复出站调用点=1（egress）；额外凭证读取入口=0；循环导入=0（检查器扫描+导入成功）。

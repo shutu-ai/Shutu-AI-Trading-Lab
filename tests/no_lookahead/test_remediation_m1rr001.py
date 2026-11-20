@@ -30,7 +30,7 @@ from trading_lab.data.membership import DelistingRecord, MembershipError, Member
 from trading_lab.data.quality import QualityReport, MetricResult
 from trading_lab.data.snapshot import DatasetEntry, build_snapshot, content_hash_of_rows, research_admissible
 
-from conftest import NOW
+from helpers_no_lookahead import NOW
 from test_quality_snapshot_acceptance import quality_report, vendor, CONFIG_PATH
 
 U = dt.timezone.utc

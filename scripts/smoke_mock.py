@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime as dt
-import importlib
+
 import json
 import sys
 import tempfile
@@ -191,12 +191,24 @@ def main() -> int:
         if vd3.allow or not any(r.startswith("CAPITAL_CAP_EXCEEDED") for r in vd3.reason_codes):
             failures.append("over-quota request against valid release was not rejected")
 
-        # Platform must have no broker execution path at all.
-        try:
-            importlib.import_module("trading_lab.brokers")
-            failures.append("trading_lab.brokers exists — M0 must have no broker module")
-        except ModuleNotFoundError:
-            log("no trading_lab.brokers module -> no broker execution path (fail-closed by absence)")
+        # M2 reality: the brokers plane exists but must be FAKE-ONLY — no
+        # network/real-broker client imports anywhere in the package.
+        import re as _re
+        from pathlib import Path as _Path
+
+        brokers_dir = REPO / "src" / "trading_lab" / "brokers"
+        forbidden_network = _re.compile(
+            r"^\s*(import|from)\s+(socket|ssl|http|httpx|requests|urllib|alpaca|websocket|aiohttp)",
+        )
+        network_hits: list[str] = []
+        for py in sorted(brokers_dir.rglob("*.py")):
+            for i, line in enumerate(py.read_text(encoding="utf-8").splitlines(), start=1):
+                if forbidden_network.match(line):
+                    network_hits.append(f"{py.name}:{i}:{line.strip()}")
+        if network_hits:
+            failures.append(f"network imports in brokers plane: {network_hits}")
+        else:
+            log("brokers plane is fake-only (zero network/real-broker imports)")
 
     log_dir = REPO / "artifacts/evidence/M0"
     log_dir.mkdir(parents=True, exist_ok=True)

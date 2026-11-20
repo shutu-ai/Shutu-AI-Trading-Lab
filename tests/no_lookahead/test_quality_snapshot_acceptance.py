@@ -38,7 +38,7 @@ from trading_lab.data.snapshot import (
     content_hash_of_rows,
 )
 
-from conftest import D, NOW, week_sessions
+from helpers_no_lookahead import D, NOW
 
 CONFIG_PATH = REPO_ROOT / "configs/data_acceptance.yaml"
 U = dt.timezone.utc

@@ -7,4 +7,4 @@ kill switch cleared with authorization -> tradable again
 mock-signed release -> allow=True reasons=()
 attacker-signed release -> allow=False reasons=('SIGNATURE_INVALID_OR_TRUST_ROOT_UNRECOGNIZED',)
 over-quota request on valid release -> allow=False reasons=('NONCE_REPLAY:nonce=11111111111111111111111111111111', 'CAPITAL_CAP_EXCEEDED:requested=5000.00,signed=1000.00')
-no trading_lab.brokers module -> no broker execution path (fail-closed by absence)
+brokers plane is fake-only (zero network/real-broker imports)

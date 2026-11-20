@@ -14,7 +14,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from trading_lab.data.calendar import CalendarError, ET, MarketCalendar, UTC
 
-from conftest import HALF_DAYS, HOLIDAYS, D
+from helpers_no_lookahead import D, HALF_DAYS, HOLIDAYS
 
 
 class TestDstConversion:

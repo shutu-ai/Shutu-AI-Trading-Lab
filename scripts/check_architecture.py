@@ -47,16 +47,58 @@ FORBIDDEN_ROOTS = (
 )
 FORBIDDEN_FRAGMENTS = ("artifacts", "poc")
 
+# M2 plane rules (task §8): each package additionally forbids importing its
+# sibling planes directly — decisions/broker access flow one way only.
+#   data  -> no risk/oms/brokers           (M1 rule, kept)
+#   risk  -> no oms/brokers/data           (risk decides BEFORE the OMS;
+#                                           broker access is oms's job)
+#   oms   -> no risk/data                  (OMS consumes RiskDecision as data;
+#                                           brokers is the sanctioned direction)
+PLANE_RULES: dict[str, tuple[str, ...]] = {
+    "trading_lab.data": (
+        "trading_lab.risk",
+        "trading_lab.oms",
+        "trading_lab.brokers",
+        "trading_lab.strategies",
+        "trading_lab.research",
+        "trading_lab.evolution",
+        "trading_lab.portfolio",
+        "trading_lab.monitoring",
+    ),
+    "trading_lab.risk": (
+        "trading_lab.oms",
+        "trading_lab.brokers",
+        "trading_lab.data",
+        "trading_lab.strategies",
+        "trading_lab.research",
+        "trading_lab.evolution",
+        "trading_lab.portfolio",
+        "trading_lab.monitoring",
+    ),
+    "trading_lab.oms": (
+        "trading_lab.risk",
+        "trading_lab.data",
+        "trading_lab.strategies",
+        "trading_lab.research",
+        "trading_lab.evolution",
+        "trading_lab.portfolio",
+        "trading_lab.monitoring",
+    ),  # brokers is the ONE sanctioned trading-plane dependency of oms
+}
 
-def module_forbidden(module: str | None) -> bool:
+
+def module_forbidden(module: str | None, extra_roots: tuple[str, ...] = ()) -> bool:
     """Package-boundary match: a forbidden root matches the exact module and
     its subpaths only — never prefix-similar names (``oms_tools`` is not
-    ``oms``)."""
+    ``oms``). When the caller provides a plane rule set (extra_roots), that
+    set REPLACES the generic roots — the plane rules are each package's
+    complete cross-package policy, not an additive overlay."""
     if not module:
         return False
-    if module in FORBIDDEN_ROOTS:
+    roots = extra_roots if extra_roots else FORBIDDEN_ROOTS
+    if module in roots:
         return True
-    if any(module.startswith(root + ".") for root in FORBIDDEN_ROOTS):
+    if any(module.startswith(root + ".") for root in roots):
         return True
     lowered = module.lower()
     return any(f in lowered for f in FORBIDDEN_FRAGMENTS)
@@ -96,13 +138,22 @@ def _candidate_modules(node: ast.ImportFrom, package: str) -> list[str] | None:
     return candidates
 
 
+def _intra_package(candidate: str, package: str) -> bool:
+    """A package importing its own submodules is always legal — plane rules
+    only govern CROSS-package dependencies."""
+    return candidate == package or candidate.startswith(package + ".")
+
+
 def check_file(path: Path, package: str = TARGET_PACKAGE_NAME) -> list[str]:
+    extra_roots = PLANE_RULES.get(package, ())
     violations: list[str] = []
     tree = ast.parse(path.read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if module_forbidden(alias.name):
+                if _intra_package(alias.name, package):
+                    continue
+                if module_forbidden(alias.name, extra_roots):
                     violations.append(f"{path}:line {node.lineno}: import {alias.name}")
         elif isinstance(node, ast.ImportFrom):
             candidates = _candidate_modules(node, package)
@@ -114,7 +165,9 @@ def check_file(path: Path, package: str = TARGET_PACKAGE_NAME) -> list[str]:
                 )
                 continue
             for candidate in candidates:
-                if module_forbidden(candidate):
+                if _intra_package(candidate, package):
+                    continue
+                if module_forbidden(candidate, extra_roots):
                     violations.append(
                         f"{path}:line {node.lineno}: from {node.module or '.' * node.level} "
                         f"import {', '.join(a.name for a in node.names)} ({candidate})"
@@ -127,7 +180,8 @@ def check_file(path: Path, package: str = TARGET_PACKAGE_NAME) -> list[str]:
                 or (isinstance(func, ast.Attribute) and func.attr == "import_module")
             )
             if is_dynamic and node.args and isinstance(node.args[0], ast.Constant):
-                if module_forbidden(str(node.args[0].value)):
+                target = str(node.args[0].value)
+                if not _intra_package(target, package) and module_forbidden(target, extra_roots):
                     violations.append(
                         f"{path}:line {node.lineno}: dynamic import of {node.args[0].value!r}"
                     )
@@ -135,14 +189,20 @@ def check_file(path: Path, package: str = TARGET_PACKAGE_NAME) -> list[str]:
 
 
 def main() -> int:
-    pkg_dir = REPO / TARGET_PACKAGE
     violations: list[str] = []
-    files = list(pkg_dir.rglob("*.py"))
-    for py in sorted(files):
-        violations.extend(check_file(py, package=TARGET_PACKAGE_NAME))
+    scanned = 0
+    packages = [TARGET_PACKAGE_NAME] + [p for p in PLANE_RULES if p != TARGET_PACKAGE_NAME]
+    for package in packages:
+        pkg_dir = REPO / "src" / package.replace(".", "/")
+        if not pkg_dir.exists():
+            continue
+        files = list(pkg_dir.rglob("*.py"))
+        scanned += len(files)
+        for py in sorted(files):
+            violations.extend(check_file(py, package=package))
     for v in violations:
         print(f"ARCH_VIOLATION:{v}")
-    print(f"check_architecture: scanned {TARGET_PACKAGE} ({len(files)} files), {len(violations)} violations")
+    print(f"check_architecture: scanned {len(packages)} packages ({scanned} files), {len(violations)} violations")
     return 1 if violations else 0
 
 

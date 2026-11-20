@@ -21,7 +21,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from trading_lab.security import AuditLog, SchemaGate
 from trading_lab.security.schema_gate import SchemaGateAuditUnavailable, TrustedProducerContext
 
-from conftest import NOW
+from helpers_security import NOW
 
 REVIEWED_BUILDS = {"demo_ma": {"a" * 32}}
 ALLOWED_SYMBOLS = {"SPY", "QQQ"}

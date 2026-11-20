@@ -95,5 +95,33 @@ class TestModuleBoundary:
                                        "sх")  # non-ascii lookalike stays unmatched
         assert ca.module_forbidden("artifacts.poc.data_poc")
 
+
+class TestPlaneRulesM2:
+    """M2 plane directions: risk/oms/data each forbid their sibling planes;
+    oms -> brokers is the one sanctioned trading-plane dependency."""
+
+    def test_risk_package_forbidden_imports(self, tmp_path):
+        for code in ("import trading_lab.oms\n",
+                     "from trading_lab.oms.journal import OrderJournal\n",
+                     "from .. import brokers\n",
+                     "from trading_lab.data import MarketCalendar\n"):
+            f = write(tmp_path, Path("risk") / "m.py", code)
+            assert ca.check_file(f, package="trading_lab.risk") != [], code
+
+    def test_oms_package_forbidden_imports(self, tmp_path):
+        for code in ("from trading_lab.risk import RiskEngine\n",
+                     "import trading_lab.data\n"):
+            f = write(tmp_path, Path("oms") / "m.py", code)
+            assert ca.check_file(f, package="trading_lab.oms") != [], code
+
+    def test_oms_to_brokers_is_sanctioned(self, tmp_path):
+        f = write(tmp_path, Path("oms") / "m.py",
+                  "from trading_lab.brokers import BrokerPort\n")
+        assert ca.check_file(f, package="trading_lab.oms") == []
+
+    def test_data_rules_unchanged(self, tmp_path):
+        f = write(tmp_path, Path("data") / "m.py", "from trading_lab.risk import RiskEngine\n")
+        assert ca.check_file(f, package="trading_lab.data") != []
+
     def test_repo_scan_still_clean(self):
         assert ca.main() == 0

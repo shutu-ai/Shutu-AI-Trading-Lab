@@ -28,7 +28,7 @@ from trading_lab.data.membership import (
 )
 from trading_lab.data.records import MARKER_UNKNOWN_AVAILABILITY
 
-from conftest import NOW, bar_day, daily_bars
+from helpers_no_lookahead import NOW, bar_day, daily_bars
 
 U = dt.timezone.utc
 
