@@ -41,6 +41,9 @@ def test_two_process_fence_contention(tmp_path):
     src = str(REPO_ROOT / "src")
     fence_db = tmp_path / "fence.sqlite3"
     account = "PAPER_TEST_ACCOUNT"
+    # Pre-initialize (schema + WAL) with a single process so the two workers
+    # never race the journal-mode conversion on Windows.
+    FenceCoordinator(fence_db, Environment.PAPER, account, lease_seconds=60).close()
     out_a = tmp_path / "worker_a.json"
     out_b = tmp_path / "worker_b.json"
     code = WORKER_CODE.format(src=src)

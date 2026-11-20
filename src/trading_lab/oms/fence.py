@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import datetime as dt
 import sqlite3
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -45,37 +46,67 @@ class FenceCoordinator:
         self._env = environment
         self._account = account_id
         self._lease_seconds = lease_seconds
-        try:
-            self._conn = sqlite3.connect(str(self._path), isolation_level=None, timeout=10)
-            self._conn.execute("PRAGMA journal_mode=WAL")
-            self._conn.execute("PRAGMA synchronous=FULL")
-            self._conn.execute(
-                "CREATE TABLE IF NOT EXISTS fences ("
-                " environment TEXT NOT NULL, account_id TEXT NOT NULL,"
-                " epoch INTEGER NOT NULL DEFAULT 0,"
-                " PRIMARY KEY (environment, account_id))"
-            )
-            self._conn.execute(
-                "INSERT OR IGNORE INTO fences (environment, account_id, epoch) VALUES (?,?,0)",
-                (self._env.value, self._account),
-            )
-        except sqlite3.Error as exc:
-            raise FenceError(f"fence store unavailable: {exc}") from exc
+        # Cross-process construction can collide on the WAL-mode conversion
+        # (PRAGMA journal_mode needs momentary exclusive access and is NOT
+        # covered by the busy timeout) — retry, fail-closed on exhaustion.
+        last_exc: Exception | None = None
+        for attempt in range(5):
+            try:
+                self._conn = sqlite3.connect(str(self._path), isolation_level=None, timeout=10)
+                self._conn.execute("PRAGMA busy_timeout=10000")
+                self._conn.execute("PRAGMA journal_mode=WAL")
+                self._conn.execute("PRAGMA synchronous=FULL")
+                self._conn.execute(
+                    "CREATE TABLE IF NOT EXISTS fences ("
+                    " environment TEXT NOT NULL, account_id TEXT NOT NULL,"
+                    " epoch INTEGER NOT NULL DEFAULT 0,"
+                    " PRIMARY KEY (environment, account_id))"
+                )
+                self._conn.execute(
+                    "INSERT OR IGNORE INTO fences (environment, account_id, epoch) VALUES (?,?,0)",
+                    (self._env.value, self._account),
+                )
+                last_exc = None
+                break
+            except sqlite3.OperationalError as exc:
+                last_exc = exc
+                if "locked" not in str(exc).lower() and "busy" not in str(exc).lower():
+                    raise FenceError(f"fence store unavailable: {exc}") from exc
+                time.sleep(0.3 * (attempt + 1))
+            except sqlite3.Error as exc:
+                raise FenceError(f"fence store unavailable: {exc}") from exc
+        if last_exc is not None:
+            raise FenceError(f"fence store unavailable after retries: {last_exc}") from last_exc
         self._instance_id = uuid.uuid4().hex
 
+    def close(self) -> None:
+        self._conn.close()
+
     def acquire(self, now: dt.datetime) -> FenceToken:
-        """Atomically bump the epoch and take a fresh lease."""
-        try:
-            with self._conn:
-                row = self._conn.execute(
-                    "UPDATE fences SET epoch = epoch + 1"
-                    " WHERE environment=? AND account_id=?"
-                    " RETURNING epoch",
-                    (self._env.value, self._account),
-                ).fetchone()
-                epoch = int(row[0])
-        except sqlite3.Error as exc:
-            raise FenceError(f"epoch bump failed: {exc}") from exc
+        """Atomically bump the epoch and take a fresh lease. Contended
+        writers retry on lock (busy timeout covers most; retries cover the
+        Windows PRAGMA/WAL edge cases)."""
+        last_exc: Exception | None = None
+        for attempt in range(5):
+            try:
+                with self._conn:
+                    row = self._conn.execute(
+                        "UPDATE fences SET epoch = epoch + 1"
+                        " WHERE environment=? AND account_id=?"
+                        " RETURNING epoch",
+                        (self._env.value, self._account),
+                    ).fetchone()
+                    epoch = int(row[0])
+                break
+            except sqlite3.OperationalError as exc:
+                last_exc = exc
+                if "locked" not in str(exc).lower() and "busy" not in str(exc).lower():
+                    raise FenceError(f"epoch bump failed: {exc}") from exc
+                time.sleep(0.2 * (attempt + 1))
+            except sqlite3.Error as exc:
+                raise FenceError(f"epoch bump failed: {exc}") from exc
+        else:
+            raise FenceError(f"epoch bump failed after retries: {last_exc}") from last_exc
         return FenceToken(
             environment=self._env,
             account_id=self._account,
