@@ -1,4 +1,4 @@
-# M0 quality gates â€” 2026-11-20T16:25:15+02:00
+# M0 quality gates â€” 2026-11-20T16:31:54+02:00 (final pass at commit 59ef4698 + hygiene 0ee76f4 + report commit pending)
 ## environment
 python: 3.13.15
 platform: win32
@@ -10,12 +10,16 @@ CHECK_ENV_EXIT=0
 ## pytest
 ........................................................................ [ 58%]
 ...................................................                      [100%]
-123 passed in 2.72s
+123 passed in 4.40s
 PYTEST_EXIT=0
 ## secret scan
-scan_secrets: scanned 164 tracked files, 0 findings
+scan_secrets: scanned 197 tracked files, 0 findings
 SCAN_EXIT=0
 ## verify_live_blocked
 paper config ok: configs\paper\runtime.example.yaml (PAPER/PAPER_TEST_ACCOUNT)
 verify_live_blocked: paper runtime contains no live artifacts ¡ª PASS
 VLB_EXIT=0
+## smoke_mock
+no trading_lab.brokers module -> no broker execution path (fail-closed by absence)
+SMOKE PASS: paper gate + kill switch + mock live verification all behaved fail-closed
+SMOKE_EXIT=0

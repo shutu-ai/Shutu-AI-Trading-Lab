@@ -22,7 +22,7 @@ PEM_BLOCK = "-----BEGIN " + "PRIVATE KEY-----\nAAAA\n-----END PRIVATE KEY-----"
 ALPACA_KEY = "PK" + "DEMO1234567890ABCDEF"          # PK + 18 alphanumerics
 AWS_KEY = "AKIA" + "IOSFODNN7EXAMPLE"                # AKIA + 16 chars
 SECRET_ASSIGN = "API_" + "SECRET = 's3cr3tvalue12345'"
-APCA_ASSIGN = "APCA_API_" + "SECRET_KEY='notarealsecret123'"
+APCA_ASSIGN = "APCA_API_" + "SECRET" + "_KEY" + "='notarealsecret123'"
 
 
 class TestPatterns:

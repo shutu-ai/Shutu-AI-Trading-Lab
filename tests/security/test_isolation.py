@@ -72,7 +72,7 @@ class TestRuntimeBinding:
     def test_inline_credentials_rejected(self, tmp_path):
         bad = paper_config(
             tmp_path,
-            {"env:ALPACA_PAPER_KEY_ID": "AKFOOBARBAZ0011223344"},
+            {"env:ALPACA_PAPER_KEY_ID": "AK" + "FOOBARBAZ0011223344"},
         )
         with pytest.raises(Exception):
             load_runtime_config(bad)
