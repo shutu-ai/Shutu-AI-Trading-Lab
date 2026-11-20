@@ -2,7 +2,7 @@
 M0), LiveRelease verifier, trusted Schema Gate, manual kill switch,
 append-only audit log, and runtime isolation boundaries."""
 
-from .approval import ApprovalSecrets
+from .approval import ApprovalSecrets, build_send_binding, seal_is_valid
 from .audit import AuditLog, GENESIS_HASH
 from .canonical import canonical_digest, canonical_json_bytes, sha256_hex
 from .isolation import (
@@ -34,6 +34,8 @@ from .verifier import (
 
 __all__ = [
     "ApprovalSecrets",
+    "build_send_binding",
+    "seal_is_valid",
     "AuditLog",
     "GENESIS_HASH",
     "GateDecision",

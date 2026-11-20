@@ -37,4 +37,31 @@ class ApprovalSecrets:
             return False
 
 
-__all__ = ["ApprovalSecrets"]
+def build_send_binding(
+    intent_payload: dict,
+    symbol: str,
+    side: str,
+    quantity: str,
+    policy_hash: str,
+    decision_at: str,
+    expires_at: str,
+) -> dict:
+    """The single canonical approval binding, shared by the RiskEngine
+    (sealing), the OMS (validation) and the egress (re-verification) — one
+    construction, never three divergent ones."""
+    return {
+        "intent": intent_payload,
+        "symbol": symbol,
+        "side": side,
+        "quantity": quantity,
+        "policy_hash": policy_hash,
+        "decision_at": decision_at,
+        "expires_at": expires_at,
+    }
+
+
+def seal_is_valid(secrets: ApprovalSecrets, binding: dict, seal: str) -> bool:
+    return secrets.verify(binding, seal)
+
+
+__all__ = ["ApprovalSecrets", "build_send_binding", "seal_is_valid"]

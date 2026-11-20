@@ -295,7 +295,9 @@ class TestR6FenceRace:
         from trading_lab.oms import BrokerEgress as _E
         from trading_lab.security import AuditLog as _A
 
-        stack["egress"] = _E(stack["broker"], stack["fence"], stack["audit"], now_fn=lambda: NOW)
+        stack["egress"] = _E(stack["broker"], stack["fence"], stack["audit"],
+                             now_fn=lambda: NOW, journal=stack["journal"],
+                             approval_secrets=stack["engine"]._approval_secrets)  # noqa: SLF001
         stack["token"] = stack["fence"].acquire(NOW)  # token from THIS coordinator instance
         stack["oms"] = OmsEngine(
             environment=stack["engine"]._policy.environment,  # noqa: SLF001 - test seam

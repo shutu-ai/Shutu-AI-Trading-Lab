@@ -167,9 +167,16 @@ class OrderJournal:
 
     def transition_state(self, intent_id: str, expected: str, target: str,
                          bump_version: bool = False) -> None:
-        """CAS state transition persisted at the storage layer (R4): the
-        update only lands when the current state equals ``expected``, so
-        transitions cannot bypass or race the state machine."""
+        """CAS state transition persisted at the storage layer (R4 + R3):
+        the state machine itself is enforced here (validate_transition) AND
+        the update only lands when the current state equals ``expected`` —
+        so illegal or raced transitions never touch the database."""
+        from .states import IllegalTransition, validate_transition
+
+        try:
+            validate_transition(expected, target)  # illegal shapes never reach SQL
+        except IllegalTransition as exc:
+            raise JournalError(f"illegal transition: {exc}") from exc
         now = dt.datetime.now(dt.timezone.utc).isoformat()
         try:
             self._conn.execute("BEGIN IMMEDIATE")
@@ -200,6 +207,50 @@ class OrderJournal:
                 pass
             raise JournalError(f"state persist failed: {exc}") from exc
 
+    def get_send_eligibility(
+        self,
+        client_order_id: str,
+        fence_epoch: int,
+        symbol: str,
+        side: str,
+        quantity: str,
+        environment: str,
+        account_id: str,
+    ) -> dict[str, Any] | None:
+        """R2: authoritative send-eligibility lookup. Returns the joined
+        intent+attempt row ONLY when a SUBMITTING intent with this exact
+        coid/env/account/symbol/side/quantity carries a SUBMITTING attempt
+        at THIS fence epoch — otherwise None (caller refuses)."""
+        row = self._conn.execute(
+            "SELECT i.intent_id, i.state, i.symbol, i.side, i.quantity, i.environment,"
+            " i.account_id, i.payload_json, i.risk_decision_json"
+            " FROM intents i WHERE i.client_order_id=?", (client_order_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        intent_id, state, sym, side_, qty, env, acct = row[0], row[1], row[2], row[3], row[4], row[5], row[6]
+        if state != "SUBMITTING":
+            return None
+        if (sym, side_, qty, env, acct) != (symbol, side, quantity, environment, account_id):
+            return None
+        attempt = self._conn.execute(
+            "SELECT 1 FROM attempts WHERE intent_id=? AND state='SUBMITTING' AND fence_epoch=?",
+            (intent_id, fence_epoch),
+        ).fetchone()
+        if attempt is None:
+            return None
+        return {
+            "intent_id": intent_id,
+            "state": state, "symbol": sym, "side": side_, "quantity": qty,
+            "payload_json": row[7], "risk_decision_json": row[8],
+        }
+
+    def intent_exists(self, client_order_id: str) -> bool:
+        row = self._conn.execute(
+            "SELECT 1 FROM intents WHERE client_order_id=?", (client_order_id,),
+        ).fetchone()
+        return row is not None
+
     def unresolved_count(self) -> int:
         """Non-terminal, non-reconciled intents — any of them blocks an
         operator unlock (R3)."""
@@ -212,6 +263,12 @@ class OrderJournal:
     def apply_fill(self, intent_id: str, broker_event_id: str, qty: Decimal) -> tuple[bool, str]:
         """Atomic fill application (R5): event dedupe + cumulative quantity +
         state transition in ONE transaction. Returns (recorded, reason)."""
+        # R4: strictly positive, finite Decimal — zero/negative/NaN/Infinity/
+        # float/int/bool are refused before ANY event or state is touched.
+        if isinstance(qty, bool) or not isinstance(qty, Decimal):
+            return False, "INVALID_FILL_TYPE"
+        if not qty.is_finite() or qty <= 0:
+            return False, "INVALID_FILL_VALUE"
         now = dt.datetime.now(dt.timezone.utc).isoformat()
         try:
             self._conn.execute("BEGIN IMMEDIATE")

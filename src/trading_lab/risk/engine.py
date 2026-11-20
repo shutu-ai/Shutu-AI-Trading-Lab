@@ -33,7 +33,7 @@ from ..contracts import (
 from ..security.audit import AuditLog
 from ..security.canonical import canonical_json_bytes, sha256_hex
 from ..security.kill_switch import KillSwitch
-from ..security.approval import ApprovalSecrets
+from ..security.approval import ApprovalSecrets, build_send_binding
 from .policy import RiskPolicy
 from .producer import TrustedProducer
 
@@ -246,15 +246,15 @@ class RiskEngine:
             else:
                 side = "buy" if intent.desired_change > 0 else "sell"
                 expiry = decision_at + dt.timedelta(seconds=RISK_DECISION_TTL_SECONDS)
-                binding = {
-                    "intent": intent.model_dump(mode="json"),
-                    "symbol": symbol,
-                    "side": side,
-                    "quantity": str(abs(intent.desired_change)),
-                    "policy_hash": self._policy.policy_hash,
-                    "decision_at": decision_at.isoformat(),
-                    "expires_at": expiry.isoformat(),
-                }
+                binding = build_send_binding(
+                    intent_payload=intent.model_dump(mode="json"),
+                    symbol=symbol,
+                    side=side,
+                    quantity=str(abs(intent.desired_change)),
+                    policy_hash=self._policy.policy_hash,
+                    decision_at=decision_at.isoformat(),
+                    expires_at=expiry.isoformat(),
+                )
                 limits_snapshot.update(
                     {
                         "bound_symbol": symbol,

@@ -1,0 +1,348 @@
+FF..FF.F..F..FFFFFFF..F.                                                 [100%]
+================================== FAILURES ===================================
+___________ TestR1GlobalHalt.test_fence_loss_blocks_next_new_intent ___________
+
+self = <test_residual_safety.TestR1GlobalHalt object at 0x00000217DC3E79D0>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x00000217DC46D6A0>, 'audit': <trading_lab.security.audit.Au...nal object at 0x00000217DC46DA90>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x00000217DC46DBE0>, ...}
+
+    def test_fence_loss_blocks_next_new_intent(self, stack):
+        """A 失去 fence 后，新的合法密封意图 B 必须 0 发送 + KillSwitch 持久 HALT。"""
+        a = make_intent(800)
+        stack["fence"].acquire(NOW)  # B bumps epoch — A loses its fence
+        from trading_lab.oms import BrokerEgress as _E
+    
+        stack["egress"] = _E(stack["broker"], stack["fence"], stack["audit"], now_fn=lambda: NOW)
+        stack["token"] = stack["fence"].acquire(NOW)
+        stack["oms"] = OmsEngine(
+            environment=Environment.PAPER, account_id=ACCOUNT,
+            journal=stack["journal"], egress=stack["egress"], fence=stack["fence"],
+            audit=stack["audit"], kill_switch=stack["ks"], now_fn=lambda: NOW,
+            expected_policy_hash=stack["policy"].policy_hash,
+            approval_secrets=stack["engine"]._approval_secrets,  # noqa: SLF001
+        )
+        outcome_a = stack["oms"].submit(a, sealed(stack, a), SYMBOL, "buy", Decimal("50"), stack["token"])
+>       assert outcome_a.state == "HALT_NEW_RISK"
+E       AssertionError: assert 'ACKED' == 'HALT_NEW_RISK'
+E         
+E         - HALT_NEW_RISK
+E         + ACKED
+
+tests\m2_remediation\test_residual_safety.py:48: AssertionError
+___________ TestR1GlobalHalt.test_unknown_outcome_trips_global_halt ___________
+
+self = <test_residual_safety.TestR1GlobalHalt object at 0x00000217DC3E7D90>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x00000217DC5E9450>, 'audit': <trading_lab.security.audit.Au...nal object at 0x00000217DC5E96D0>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x00000217DC5E9810>, ...}
+
+    def test_unknown_outcome_trips_global_halt(self, stack):
+        """acknowledged=None（送达未知）→ KillSwitch 必须激活，下一意图 0 发送。"""
+        intent = make_intent(810)
+        original = stack["broker"].submit_order
+    
+        def unknown_submit(coid_, symbol, qty, side, epoch):
+            from trading_lab.brokers import SubmitReceipt
+    
+            return SubmitReceipt(delivered=True, acknowledged=None, broker_order_id=None)
+    
+        stack["broker"].submit_order = unknown_submit  # type: ignore[method-assign]
+        outcome = stack["oms"].submit(intent, sealed(stack, intent), SYMBOL, "buy",
+                                      Decimal("50"), stack["token"])
+        assert outcome.state == "UNKNOWN"
+        assert not stack["ks"].is_halted()  # <- RED
+    
+        nxt = make_intent(811)
+        outcome2 = stack["oms"].submit(nxt, sealed(stack, nxt), SYMBOL, "buy",
+                                       Decimal("30"), stack["token"])
+>       assert stack["ks"].is_halted()  # GREEN
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       assert False
+E        +  where False = is_halted()
+E        +    where is_halted = <trading_lab.security.kill_switch.KillSwitch object at 0x00000217DC5E9A90>.is_halted
+
+tests\m2_remediation\test_residual_safety.py:76: AssertionError
+___ TestR2EgressEligibility.test_replayed_egress_submit_never_second_order ____
+
+self = <test_residual_safety.TestR2EgressEligibility object at 0x00000217DC3E7ED0>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x00000217DC5B4E90>, 'audit': <trading_lab.security.audit.Au...nal object at 0x00000217DC5B49D0>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x00000217DC5B4510>, ...}
+
+    def test_replayed_egress_submit_never_second_order(self, stack):
+        """同一意图合法提交后，直接重放 egress submit 不得第二次到达 FakeBroker。"""
+        intent = make_intent(820)
+        outcome = stack["oms"].submit(intent, sealed(stack, intent), SYMBOL, "buy",
+                                      Decimal("50"), stack["token"])
+        assert outcome.state == "ACKED"
+        coid = intent.deterministic_client_order_id
+        try:
+            stack["egress"].submit(stack["token"], coid, SYMBOL, Decimal("50"), "buy")
+        except Exception:
+            pass
+>       assert stack["broker"].created_orders_by_intent(coid) == 1  # <- RED: 会变 2
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert 2 == 1
+E        +  where 2 = created_orders_by_intent('PAPER:PAPER_TEST_ACCOUNT:00000820')
+E        +    where created_orders_by_intent = <trading_lab.brokers.fake.FakeBroker object at 0x00000217DC5B4E90>.created_orders_by_intent
+
+tests\m2_remediation\test_residual_safety.py:124: AssertionError
+____ TestR2EgressEligibility.test_journal_unavailable_refuses_before_port _____
+
+self = <test_residual_safety.TestR2EgressEligibility object at 0x00000217DC3F6D70>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x00000217DC4A4050>, 'audit': <trading_lab.security.audit.Au...nal object at 0x00000217DC4A43B0>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x00000217DC4A44D0>, ...}
+
+    def test_journal_unavailable_refuses_before_port(self, stack):
+        """Journal/资格校验不可用必须在调用 Port 之前拒绝，created 保持 0。"""
+        intent = make_intent(821)
+        stack["journal"].close()
+>       with pytest.raises(Exception):
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE Exception
+
+tests\m2_remediation\test_residual_safety.py:130: Failed
+_ TestR3CasStateMachine.test_illegal_cas_transitions_rejected[ACKED-NEW_INTENT] _
+
+self = <test_residual_safety.TestR3CasStateMachine object at 0x00000217DC5E8410>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x00000217DC47E580>, 'audit': <trading_lab.security.audit.Au...nal object at 0x00000217DC47E140>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x00000217DC47DD00>, ...}
+expected = 'ACKED', target = 'NEW_INTENT'
+
+    @pytest.mark.parametrize("expected,target", [
+        ("ACKED", "NEW_INTENT"),
+        ("UNKNOWN", "SUBMITTING"),
+        ("FILLED", "ACKED"),
+        ("ACKED", "RECONCILED"),  # ACKED 不可直达 RECONCILED
+        ("BOGUS_STATE", "ACKED"),
+    ])
+    def test_illegal_cas_transitions_rejected(self, stack, expected, target):
+        intent = self._acked_intent(stack, 830)
+>       with pytest.raises(Exception):
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE Exception
+
+tests\m2_remediation\test_residual_safety.py:170: Failed
+_ TestR3CasStateMachine.test_illegal_cas_transitions_rejected[ACKED-RECONCILED] _
+
+self = <test_residual_safety.TestR3CasStateMachine object at 0x00000217DC3F7BB0>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x00000217DC49B2F0>, 'audit': <trading_lab.security.audit.Au...nal object at 0x00000217DC49B6B0>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x00000217DC49B890>, ...}
+expected = 'ACKED', target = 'RECONCILED'
+
+    @pytest.mark.parametrize("expected,target", [
+        ("ACKED", "NEW_INTENT"),
+        ("UNKNOWN", "SUBMITTING"),
+        ("FILLED", "ACKED"),
+        ("ACKED", "RECONCILED"),  # ACKED 不可直达 RECONCILED
+        ("BOGUS_STATE", "ACKED"),
+    ])
+    def test_illegal_cas_transitions_rejected(self, stack, expected, target):
+        intent = self._acked_intent(stack, 830)
+>       with pytest.raises(Exception):
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE Exception
+
+tests\m2_remediation\test_residual_safety.py:170: Failed
+__________ TestR4FillQuantity.test_invalid_quantities_refused[bad0] ___________
+
+self = <test_residual_safety.TestR4FillQuantity object at 0x00000217DC5E87D0>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x00000217DC50E350>, 'audit': <trading_lab.security.audit.Au...nal object at 0x00000217DC50DEF0>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x00000217DC50E190>, ...}
+bad = Decimal('0')
+
+    @pytest.mark.parametrize("bad", [
+        Decimal("0"), Decimal("-5"), Decimal("-Infinity"), Decimal("NaN"), 5.0, 5, True,
+    ])
+    def test_invalid_quantities_refused(self, stack, bad):
+        intent = self._acked(stack, 840)
+        ok, reason = stack["journal"].apply_fill(intent.intent_id, f"EVT-{abs(hash(str(bad)))}", bad)
+>       assert not ok
+E       assert not True
+
+tests\m2_remediation\test_residual_safety.py:199: AssertionError
+__________ TestR4FillQuantity.test_invalid_quantities_refused[bad1] ___________
+
+self = <test_residual_safety.TestR4FillQuantity object at 0x00000217DC5E8910>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x00000217DC4C9A50>, 'audit': <trading_lab.security.audit.Au...nal object at 0x00000217DC4CA270>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x00000217DC4CA340>, ...}
+bad = Decimal('-5')
+
+    @pytest.mark.parametrize("bad", [
+        Decimal("0"), Decimal("-5"), Decimal("-Infinity"), Decimal("NaN"), 5.0, 5, True,
+    ])
+    def test_invalid_quantities_refused(self, stack, bad):
+        intent = self._acked(stack, 840)
+        ok, reason = stack["journal"].apply_fill(intent.intent_id, f"EVT-{abs(hash(str(bad)))}", bad)
+>       assert not ok
+E       assert not True
+
+tests\m2_remediation\test_residual_safety.py:199: AssertionError
+__________ TestR4FillQuantity.test_invalid_quantities_refused[bad2] ___________
+
+self = <test_residual_safety.TestR4FillQuantity object at 0x00000217DC3F7CE0>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x00000217DC568290>, 'audit': <trading_lab.security.audit.Au...nal object at 0x00000217DC568410>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x00000217DC5684D0>, ...}
+bad = Decimal('-Infinity')
+
+    @pytest.mark.parametrize("bad", [
+        Decimal("0"), Decimal("-5"), Decimal("-Infinity"), Decimal("NaN"), 5.0, 5, True,
+    ])
+    def test_invalid_quantities_refused(self, stack, bad):
+        intent = self._acked(stack, 840)
+        ok, reason = stack["journal"].apply_fill(intent.intent_id, f"EVT-{abs(hash(str(bad)))}", bad)
+>       assert not ok
+E       assert not True
+
+tests\m2_remediation\test_residual_safety.py:199: AssertionError
+__________ TestR4FillQuantity.test_invalid_quantities_refused[bad3] ___________
+
+self = <test_residual_safety.TestR4FillQuantity object at 0x00000217DC3F7E10>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x00000217DC568A10>, 'audit': <trading_lab.security.audit.Au...nal object at 0x00000217DC568F50>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x00000217DC569010>, ...}
+bad = Decimal('NaN')
+
+    @pytest.mark.parametrize("bad", [
+        Decimal("0"), Decimal("-5"), Decimal("-Infinity"), Decimal("NaN"), 5.0, 5, True,
+    ])
+    def test_invalid_quantities_refused(self, stack, bad):
+        intent = self._acked(stack, 840)
+>       ok, reason = stack["journal"].apply_fill(intent.intent_id, f"EVT-{abs(hash(str(bad)))}", bad)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\m2_remediation\test_residual_safety.py:198: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <trading_lab.oms.journal.OrderJournal object at 0x00000217DC568F50>
+intent_id = 'int-000840', broker_event_id = 'EVT-4396304105169247496'
+qty = Decimal('NaN')
+
+    def apply_fill(self, intent_id: str, broker_event_id: str, qty: Decimal) -> tuple[bool, str]:
+        """Atomic fill application (R5): event dedupe + cumulative quantity +
+        state transition in ONE transaction. Returns (recorded, reason)."""
+        now = dt.datetime.now(dt.timezone.utc).isoformat()
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
+            cur = self._conn.execute(
+                "INSERT OR IGNORE INTO events (intent_id, broker_event_id, kind,"
+                " payload_json, received_at) VALUES (?,?,?,?,?)",
+                (intent_id, broker_event_id, "FILL", json.dumps({"qty": str(qty)}), now),
+            )
+            if cur.rowcount == 0:
+                self._conn.execute("ROLLBACK")
+                return False, "DUPLICATE_EVENT"
+            row = self._conn.execute(
+                "SELECT state, quantity, filled_qty FROM intents WHERE intent_id=?",
+                (intent_id,),
+            ).fetchone()
+            if row is None:
+                self._conn.execute("ROLLBACK")
+                return False, "UNKNOWN_INTENT"
+            state, quantity, filled = row[0], Decimal(row[1]), Decimal(row[2])
+            if state not in ("ACKED", "PARTIALLY_FILLED"):
+                self._conn.execute("ROLLBACK")
+                return False, f"FILL_REJECTED_STATE:{state}"
+            new_filled = filled + qty
+>           if new_filled > quantity:
+               ^^^^^^^^^^^^^^^^^^^^^
+E           decimal.InvalidOperation: [<class 'decimal.InvalidOperation'>]
+
+src\trading_lab\oms\journal.py:238: InvalidOperation
+___________ TestR4FillQuantity.test_invalid_quantities_refused[5.0] ___________
+
+self = <test_residual_safety.TestR4FillQuantity object at 0x00000217DC4A7770>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x00000217DC560940>, 'audit': <trading_lab.security.audit.Au...nal object at 0x00000217DC560AA0>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x00000217DC560CB0>, ...}
+bad = 5.0
+
+    @pytest.mark.parametrize("bad", [
+        Decimal("0"), Decimal("-5"), Decimal("-Infinity"), Decimal("NaN"), 5.0, 5, True,
+    ])
+    def test_invalid_quantities_refused(self, stack, bad):
+        intent = self._acked(stack, 840)
+>       ok, reason = stack["journal"].apply_fill(intent.intent_id, f"EVT-{abs(hash(str(bad)))}", bad)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\m2_remediation\test_residual_safety.py:198: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <trading_lab.oms.journal.OrderJournal object at 0x00000217DC560AA0>
+intent_id = 'int-000840', broker_event_id = 'EVT-6640878451953557038', qty = 5.0
+
+    def apply_fill(self, intent_id: str, broker_event_id: str, qty: Decimal) -> tuple[bool, str]:
+        """Atomic fill application (R5): event dedupe + cumulative quantity +
+        state transition in ONE transaction. Returns (recorded, reason)."""
+        now = dt.datetime.now(dt.timezone.utc).isoformat()
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
+            cur = self._conn.execute(
+                "INSERT OR IGNORE INTO events (intent_id, broker_event_id, kind,"
+                " payload_json, received_at) VALUES (?,?,?,?,?)",
+                (intent_id, broker_event_id, "FILL", json.dumps({"qty": str(qty)}), now),
+            )
+            if cur.rowcount == 0:
+                self._conn.execute("ROLLBACK")
+                return False, "DUPLICATE_EVENT"
+            row = self._conn.execute(
+                "SELECT state, quantity, filled_qty FROM intents WHERE intent_id=?",
+                (intent_id,),
+            ).fetchone()
+            if row is None:
+                self._conn.execute("ROLLBACK")
+                return False, "UNKNOWN_INTENT"
+            state, quantity, filled = row[0], Decimal(row[1]), Decimal(row[2])
+            if state not in ("ACKED", "PARTIALLY_FILLED"):
+                self._conn.execute("ROLLBACK")
+                return False, f"FILL_REJECTED_STATE:{state}"
+>           new_filled = filled + qty
+                         ^^^^^^^^^^^^
+E           TypeError: unsupported operand type(s) for +: 'decimal.Decimal' and 'float'
+
+src\trading_lab\oms\journal.py:237: TypeError
+____________ TestR4FillQuantity.test_invalid_quantities_refused[5] ____________
+
+self = <test_residual_safety.TestR4FillQuantity object at 0x00000217DC47D040>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x00000217DC561390>, 'audit': <trading_lab.security.audit.Au...nal object at 0x00000217DC5614F0>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x00000217DC561700>, ...}
+bad = 5
+
+    @pytest.mark.parametrize("bad", [
+        Decimal("0"), Decimal("-5"), Decimal("-Infinity"), Decimal("NaN"), 5.0, 5, True,
+    ])
+    def test_invalid_quantities_refused(self, stack, bad):
+        intent = self._acked(stack, 840)
+        ok, reason = stack["journal"].apply_fill(intent.intent_id, f"EVT-{abs(hash(str(bad)))}", bad)
+>       assert not ok
+E       assert not True
+
+tests\m2_remediation\test_residual_safety.py:199: AssertionError
+__________ TestR4FillQuantity.test_invalid_quantities_refused[True] ___________
+
+self = <test_residual_safety.TestR4FillQuantity object at 0x00000217DC47D260>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x00000217DC50B610>, 'audit': <trading_lab.security.audit.Au...nal object at 0x00000217DC50B750>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x00000217DC50B890>, ...}
+bad = True
+
+    @pytest.mark.parametrize("bad", [
+        Decimal("0"), Decimal("-5"), Decimal("-Infinity"), Decimal("NaN"), 5.0, 5, True,
+    ])
+    def test_invalid_quantities_refused(self, stack, bad):
+        intent = self._acked(stack, 840)
+        ok, reason = stack["journal"].apply_fill(intent.intent_id, f"EVT-{abs(hash(str(bad)))}", bad)
+>       assert not ok
+E       assert not True
+
+tests\m2_remediation\test_residual_safety.py:199: AssertionError
+_______ TestR5OmsBinding.test_unpinned_policy_hash_constructor_refused ________
+
+self = <test_residual_safety.TestR5OmsBinding object at 0x00000217DC5E8B90>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x00000217DC5A7CD0>, 'audit': <trading_lab.security.audit.Au...nal object at 0x00000217DC5A4F50>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x00000217DC5A74D0>, ...}
+
+    def test_unpinned_policy_hash_constructor_refused(self, stack):
+        """缺省 expected_policy_hash 的构造必须被拒绝（fail-closed pin）。"""
+>       with pytest.raises(Exception):
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE Exception
+
+tests\m2_remediation\test_residual_safety.py:229: Failed
+=========================== short test summary info ===========================
+FAILED tests/m2_remediation/test_residual_safety.py::TestR1GlobalHalt::test_fence_loss_blocks_next_new_intent
+FAILED tests/m2_remediation/test_residual_safety.py::TestR1GlobalHalt::test_unknown_outcome_trips_global_halt
+FAILED tests/m2_remediation/test_residual_safety.py::TestR2EgressEligibility::test_replayed_egress_submit_never_second_order
+FAILED tests/m2_remediation/test_residual_safety.py::TestR2EgressEligibility::test_journal_unavailable_refuses_before_port
+FAILED tests/m2_remediation/test_residual_safety.py::TestR3CasStateMachine::test_illegal_cas_transitions_rejected[ACKED-NEW_INTENT]
+FAILED tests/m2_remediation/test_residual_safety.py::TestR3CasStateMachine::test_illegal_cas_transitions_rejected[ACKED-RECONCILED]
+FAILED tests/m2_remediation/test_residual_safety.py::TestR4FillQuantity::test_invalid_quantities_refused[bad0]
+FAILED tests/m2_remediation/test_residual_safety.py::TestR4FillQuantity::test_invalid_quantities_refused[bad1]
+FAILED tests/m2_remediation/test_residual_safety.py::TestR4FillQuantity::test_invalid_quantities_refused[bad2]
+FAILED tests/m2_remediation/test_residual_safety.py::TestR4FillQuantity::test_invalid_quantities_refused[bad3]
+FAILED tests/m2_remediation/test_residual_safety.py::TestR4FillQuantity::test_invalid_quantities_refused[5.0]
+FAILED tests/m2_remediation/test_residual_safety.py::TestR4FillQuantity::test_invalid_quantities_refused[5]
+FAILED tests/m2_remediation/test_residual_safety.py::TestR4FillQuantity::test_invalid_quantities_refused[True]
+FAILED tests/m2_remediation/test_residual_safety.py::TestR5OmsBinding::test_unpinned_policy_hash_constructor_refused
+14 failed, 10 passed in 1.50s

@@ -35,8 +35,8 @@ from ..brokers.port import BrokerError
 from ..contracts import Environment, RiskDecision, TradeIntent
 from ..security.audit import AuditLog
 from ..security.kill_switch import KillSwitch
-from ..security.approval import ApprovalSecrets
-from .egress import BrokerEgress
+from ..security.approval import ApprovalSecrets, build_send_binding, seal_is_valid
+from .egress import BrokerEgress, EgressRefusalError
 from .fence import FenceCoordinator, FenceError, FenceToken
 from .journal import JournalError, OrderJournal
 from .states import validate_transition
@@ -75,9 +75,13 @@ class OmsEngine:
         audit: AuditLog,
         kill_switch: KillSwitch,
         now_fn: NowFn,
-        expected_policy_hash: str = "",
-        approval_secrets: ApprovalSecrets | None = None,
+        expected_policy_hash: str,
+        approval_secrets: ApprovalSecrets,
     ) -> None:
+        if not expected_policy_hash.strip():
+            raise OmsError("OmsEngine requires a pinned expected_policy_hash (fail-closed)")
+        if approval_secrets is None:
+            raise OmsError("OmsEngine requires approval_secrets (fail-closed)")
         self._env = environment
         self._account = account_id
         self._journal = journal
@@ -129,16 +133,16 @@ class OmsEngine:
             return "DECISION_BINDING_MISMATCH:quantity"
         if self._approval_secrets is None:
             return "DECISION_UNSEALED"
-        binding = {
-            "intent": intent.model_dump(mode="json"),
-            "symbol": symbol,
-            "side": side,
-            "quantity": str(quantity),
-            "policy_hash": decision.policy_hash,
-            "decision_at": decision.decision_at.isoformat(),
-            "expires_at": snap["decision_expires_at"],
-        }
-        if not self._approval_secrets.verify(binding, snap["approval_seal"]):
+        binding = build_send_binding(
+            intent_payload=intent.model_dump(mode="json"),
+            symbol=symbol,
+            side=side,
+            quantity=str(quantity),
+            policy_hash=decision.policy_hash,
+            decision_at=decision.decision_at.isoformat(),
+            expires_at=snap["decision_expires_at"],
+        )
+        if not seal_is_valid(self._approval_secrets, binding, snap["approval_seal"]):
             return "DECISION_SEAL_INVALID"
         return None
 
@@ -165,6 +169,23 @@ class OmsEngine:
                 {"intent_id": intent_id, "client_order_id": coid},
             )
             return SubmitOutcome(intent_id, "HALT_NEW_RISK", False, None, halted=True)
+
+        # R5: the intent must belong to THIS OMS's assembled environment and
+        # account — mis-wired assemblies refuse instead of trusting callers.
+        if intent.environment is not self._env:
+            self._audit.append(
+                "OMS_ENVIRONMENT_MISMATCH",
+                {"intent_id": intent_id, "intent_env": str(intent.environment),
+                 "oms_env": str(self._env)},
+            )
+            return SubmitOutcome(intent_id, "REJECTED", False, None, halted=False)
+        if intent.account_id != self._account:
+            self._audit.append(
+                "OMS_ACCOUNT_MISMATCH",
+                {"intent_id": intent_id, "intent_account": intent.account_id,
+                 "oms_account": self._account},
+            )
+            return SubmitOutcome(intent_id, "REJECTED", False, None, halted=False)
 
         # INV-6 (R1): an invalid/forged/mismatched approval is refused BEFORE
         # any journal write or broker call — zero sends, audited.
@@ -205,7 +226,27 @@ class OmsEngine:
         try:
             receipt = self._egress.submit(token, coid, symbol, quantity, side)
         except FenceError:
+            # R1: fence loss is an ACCOUNT-GLOBAL event, not intent-level —
+            # trip the persistent KillSwitch so no further sealed intent can
+            # be sent until recovery + operator unlock.
+            self._ks.set(reason=f"fence lost during submit of {coid}",
+                         operator_id="oms-engine")
             self._journal.transition_state(intent_id, "SUBMITTING", "HALT_NEW_RISK")
+            self._audit.append(
+                "OMS_FENCE_LOSS_GLOBAL_HALT",
+                {"intent_id": intent_id, "client_order_id": coid},
+            )
+            return SubmitOutcome(intent_id, "HALT_NEW_RISK", False, None, halted=True)
+        except EgressRefusalError as exc:
+            # R2: egress refused for missing/invalid journal eligibility —
+            # internal inconsistency => fail closed.
+            self._ks.set(reason=f"egress eligibility refused for {coid}",
+                         operator_id="oms-engine")
+            self._journal.transition_state(intent_id, "SUBMITTING", "HALT_NEW_RISK")
+            self._audit.append(
+                "OMS_EGRESS_REFUSAL_HALT",
+                {"intent_id": intent_id, "client_order_id": coid, "reason": str(exc)},
+            )
             return SubmitOutcome(intent_id, "HALT_NEW_RISK", False, None, halted=True)
         except BrokerError:
             # INV-2: answer lost / timeout / delivery unknown => UNKNOWN,
@@ -233,8 +274,14 @@ class OmsEngine:
             self._journal.finish_attempt(attempt_id, "SENT", {"rejected": True})
             return SubmitOutcome(intent_id, "REJECTED", True, False, halted=False)
         # acknowledged None with delivered True is not produced by the fake
-        # port; treat defensively as UNKNOWN.
+        # port; treat defensively as UNKNOWN — and R1: a globally unknown
+        # outcome trips the persistent KillSwitch like any other uncertainty.
         self._journal.transition_state(intent_id, "SUBMITTING", "UNKNOWN")
+        self._ks.set(reason=f"acknowledgment unknown for {coid}", operator_id="oms-engine")
+        self._audit.append(
+            "OMS_UNKNOWN_HALT",
+            {"intent_id": intent_id, "client_order_id": coid, "variant": "ack_none"},
+        )
         return SubmitOutcome(intent_id, "UNKNOWN", True, None, halted=True)
 
     # ------------------------------------------------------------------

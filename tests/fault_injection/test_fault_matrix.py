@@ -210,11 +210,12 @@ def _run_class(fault_class: str, count: int) -> dict:
             audit = _A(tmp / "audit.jsonl", "PAPER")
             journal = _J(tmp / "journal.sqlite3")
             fence = _F(tmp / "fence.sqlite3", _Env.PAPER, ACCOUNT)
-            egress = _E(broker, fence, audit, now_fn=lambda: NOW)
+            approval_secrets = _AS.mint()
+            egress = _E(broker, fence, audit, now_fn=lambda: NOW,
+                        journal=journal, approval_secrets=approval_secrets)
             ks = _K(_Env.PAPER, ACCOUNT, tmp / "ks", audit)
             policy = _P.model_validate(dict(POLICY_DICT))
             producer = _T.mint("portfolio_agg_v1", "a" * 32)
-            approval_secrets = _AS.mint()
             risk = _R(policy=policy, kill_switch=ks, audit=audit, trusted_producer=producer,
                       now_fn=lambda: NOW, snapshot_provider=fresh_snapshot,
                       exposure_provider=lambda: _Ex(

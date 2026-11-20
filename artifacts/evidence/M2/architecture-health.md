@@ -113,3 +113,21 @@ UNKNOWN 不重发、stale fence 拒写、双进程争写、重复回报不双计
 ### D3. 检查器负例
 
 `tests/architecture/` 26 项保留全绿；本整改未新增违禁方向（oms→security 合法已验证）。
+
+---
+
+## E. 残余安全门整改补遗（M2-RESIDUAL-SAFETY-GATE-001，2026-11-20）
+
+> 不覆盖 A–D 历史。R1–R5 全部 RED→GREEN；新增测试 24 个单列计分（总量 330 = 306 + 24）；原 1,080 故障矩阵在**新不变量**（全局 HALT、出口资格校验）下重跑全绿。
+
+| 分类 | 记录 |
+|---|---|
+| REUSE | KillSwitch（全局 HALT 唯一权威——R1 直接复用 set()，未造第二 halt）、journal/egress 既有结构、ApprovalSecrets/seal（R2 复用 seal_is_valid/build_send_binding 共享构造器——一处绑定定义，引擎/OMS/出口三方一致） |
+| MODIFY | `oms/engine.py`（R1：FenceError 与 acknowledged=None 分支触发全局持久 KillSwitch + R5 环境/账户绑定拒绝）；`oms/egress.py`（R2：journal 资格校验 + 密封重验 + EgressRefusalError；cancel 同样校验持久意图）；`oms/journal.py`（R3：transition_state 内联 validate_transition——非法转换永不触 SQL；R4：apply_fill 入口类型/数值校验；+get_send_eligibility/intent_exists） |
+| ADD | `journal.get_send_eligibility/intent_exists`、egress `EgressRefusalError`、`security/approval.build_send_binding`（唯一绑定构造器：引擎/OMS/出口共用，消除三处重复字典构建） |
+| REPLACE | egress"仅凭 fence 发送"入口 → "fence + journal 资格 + 密封重验"（旧无保护路径不复存在——journal 缺省装配直接全拒） |
+| REMOVE | 无删除；306 基线全数保留 |
+| POC-ISOLATE | 零 POC 导入（检查器不变） |
+| DEPENDENCIES | 零新增 |
+| BOUNDARIES | oms↔risk 禁方向保持（ApprovalSecrets 在 security）；合法 BrokerPort 写调用唯一入口=BrokerEgress.submit（journal 资格必经）；3 包 18 文件 0 违规 |
+| DEBT | R1 全局 HALT 的解除仍走恢复+操作人解锁（无自动解除——设计如此）；egress 资格校验为单 journal 读（多进程下由 SQLite 事务串行化）；真实 broker 侧 fencing 归 Paper 专项（不变） |

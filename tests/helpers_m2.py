@@ -85,11 +85,12 @@ def stack(tmp_path):
     audit = AuditLog(tmp_path / "audit.jsonl", "PAPER")
     journal = OrderJournal(tmp_path / "journal.sqlite3")
     fence = FenceCoordinator(tmp_path / "fence.sqlite3", Environment.PAPER, ACCOUNT)
-    egress = BrokerEgress(broker, fence, audit, now_fn=lambda: NOW)
+    approval_secrets = ApprovalSecrets.mint()
+    egress = BrokerEgress(broker, fence, audit, now_fn=lambda: NOW,
+                      journal=journal, approval_secrets=approval_secrets)
     ks = KillSwitch(Environment.PAPER, ACCOUNT, tmp_path / "ks", audit)
     policy = RiskPolicy.model_validate(dict(POLICY_DICT))
     producer = TrustedProducer.mint("portfolio_agg_v1", BUILD)
-    approval_secrets = ApprovalSecrets.mint()
     engine = RiskEngine(
         policy=policy,
         kill_switch=ks,
