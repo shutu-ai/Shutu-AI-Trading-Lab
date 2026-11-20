@@ -1,0 +1,10 @@
+== 1. PAPER runtime: bind, gate, kill switch ==
+paper context bound: PAPER/PAPER_TEST_ACCOUNT
+valid signal -> ALLOW_SIGNAL allow=True
+kill switch set -> require_tradable blocked (expected)
+kill switch cleared with authorization -> tradable again
+== 2. LIVE dry-run: mock release verification ==
+mock-signed release -> allow=True reasons=()
+attacker-signed release -> allow=False reasons=('SIGNATURE_INVALID_OR_TRUST_ROOT_UNRECOGNIZED',)
+over-quota request on valid release -> allow=False reasons=('NONCE_REPLAY:nonce=11111111111111111111111111111111', 'CAPITAL_CAP_EXCEEDED:requested=5000.00,signed=1000.00')
+no trading_lab.brokers module -> no broker execution path (fail-closed by absence)

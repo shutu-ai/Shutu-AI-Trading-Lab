@@ -17,3 +17,8 @@ Thumbs.db
 # Large third-party datasets (audit via SHA256 in evidence manifests, re-downloadable)
 artifacts/evidence/M-1/candidates/qlib/data/
 artifacts/evidence/M-1/candidates/qlib/mlruns/
+
+# Runtime state (journals, audit logs, kill-switch halts, nonce/revocation ledgers)
+# Never committed: per-environment runtime state stays local by design.
+artifacts/state/
+

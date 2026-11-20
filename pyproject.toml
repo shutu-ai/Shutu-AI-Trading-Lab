@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trading-lab"
+version = "0.1.0"
+description = "Shutu AI Trading Lab — staged research & trading platform (M0 scope)"
+requires-python = ">=3.13"
+license = "Proprietary"
+dependencies = [
+    "pydantic>=2.6",
+    "PyYAML>=6.0",
+    "cryptography>=42",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"

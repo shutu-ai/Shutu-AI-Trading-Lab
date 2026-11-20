@@ -1,0 +1,26 @@
+# Paper runtime configuration — M0.
+#
+# Rules enforced by trading_lab.contracts.RuntimeConfig:
+#   * PAPER endpoint must never reference the live trading host
+#   * broker adapter is 'fake' in M0 (no real broker I/O anywhere in M0)
+#   * credentials are references (env:NAME), never literal key material
+#   * this file contains no secrets; key values come from the process env
+#     and never enter Git, logs, or test snapshots
+
+environment: PAPER
+account_id: PAPER_TEST_ACCOUNT
+dry_run: false              # Paper may run its pipeline against the fake adapter
+
+broker:
+  adapter: fake
+  endpoint: https://paper-api.alpaca.markets
+  key_id_ref: env:ALPACA_PAPER_KEY_ID
+  secret_ref: env:ALPACA_PAPER_SECRET
+
+journal_dir: artifacts/state/paper/journal
+audit_log_path: artifacts/state/paper/audit.jsonl
+kill_switch_dir: artifacts/state/paper/kill_switch
+
+# Paper does not verify LiveRelease documents; release verification belongs
+# to the LIVE runtime only (kept null to make the boundary explicit).
+release_verification: null

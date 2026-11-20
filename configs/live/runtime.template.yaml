@@ -1,0 +1,38 @@
+# LIVE runtime configuration — TEMPLATE ONLY (M0).
+#
+# This file is a template, not an active config:
+#   * it contains no credentials, no account ids, no keys — placeholders only;
+#   * LIVE requires dry_run=true until a human-signed LiveRelease is verified
+#     by trading_lab.security.verifier (no such release exists in M0; all M0
+#     signing uses mock test keys and fictional accounts);
+#   * credentials are injected at runtime from an external secret store, by
+#     the owner — never committed, never logged, never agent-accessible;
+#   * trusted approval public keys are deployed out-of-band (key_id pinned);
+#     the runtime refuses to start if the trust root is missing or invalid.
+#
+# Design contract (M-1 review remediation R3/R4, frozen for M2):
+#   * adapter 'gateway_single_writer' marks the unique broker-write egress;
+#     one trusted executor per (environment, account_id); local fencing
+#     tokens are not a broker-side guarantee.
+
+environment: LIVE
+account_id: "{{LIVE_ACCOUNT_ID}}"        # placeholder — injected at deploy time
+dry_run: true                             # mandatory in M0; flips only with a verified release
+
+broker:
+  adapter: gateway_single_writer
+  endpoint: https://api.alpaca.markets
+  key_id_ref: secret_store:trading/live/alpaca_key_id
+  secret_ref: secret_store:trading/live/alpaca_secret
+
+journal_dir: artifacts/state/live/journal
+audit_log_path: artifacts/state/live/audit.jsonl
+kill_switch_dir: artifacts/state/live/kill_switch
+
+release_verification:
+  trusted_keys_path: configs/live/trusted_public_keys.json      # out-of-band deployed
+  nonce_ledger_path: artifacts/state/live/nonces.jsonl
+  revocation_ledger_path: artifacts/state/live/revocations.jsonl
+  revocation_freshness_path: artifacts/state/live/revocation_freshness.json
+  max_revocation_staleness_seconds: 300
+  expected_approval_identity: "{{OWNER_IDENTITY}}"              # placeholder
