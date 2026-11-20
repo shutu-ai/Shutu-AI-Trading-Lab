@@ -35,3 +35,8 @@ DIFF_CHECK_EXIT=0
 
 
 
+## test count breakdown (corrected)
+tests/contract + tests/security: 140 passed  (M-1/M0 regression, untouched)
+tests/no_lookahead: 71 passed  (47 original M1 + 24 remediation)
+tests/architecture: 22 passed  (new checker self-tests)
+TOTAL: 233 passed
