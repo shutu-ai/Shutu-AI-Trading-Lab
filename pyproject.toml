@@ -7,7 +7,7 @@ name = "trading-lab"
 version = "0.1.0"
 description = "Shutu AI Trading Lab — staged research & trading platform (M0 scope)"
 requires-python = ">=3.13"
-license = "Proprietary"
+license = "LicenseRef-Proprietary"
 dependencies = [
     "pydantic>=2.6",
     "PyYAML>=6.0",
