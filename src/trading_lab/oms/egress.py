@@ -97,14 +97,14 @@ class BrokerEgress:
         env_value = str(self._fence._env)  # noqa: SLF001 - own coordinator
         account_value = self._fence._account  # noqa: SLF001 - own coordinator
         try:
-            row = self._journal.get_send_eligibility(
+            row = self._journal.claim_send_attempt(
                 coid, token.epoch, symbol, side, str(quantity),
                 env_value, account_value,
             )
         except Exception as exc:  # journal unavailable => refuse, never bypass
             self._refuse(coid, f"JOURNAL_UNAVAILABLE:{type(exc).__name__}")
         if row is None:
-            self._refuse(coid, "NO_ELIGIBLE_INTENT")
+            self._refuse(coid, "NO_ELIGIBLE_OR_ALREADY_CLAIMED")
         decision = json.loads(row["risk_decision_json"])
         snap = decision.get("limits_snapshot", {})
         for key in ("approval_seal", "decision_expires_at"):

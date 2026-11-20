@@ -1,11 +1,17 @@
 """Durable order journal — SQLite WAL with synchronous=FULL.
 
-Crash-consistency contract (ADR-002-addendum D1): an intent plus its
+Crash-consistency contract (ADR-002-addendum D1 + R4): an intent plus its
 SUBMITTING attempt record commit in ONE transaction before any egress call;
 a committed transaction survives process crash (SQLite WAL + full sync).
 The journal is the single source of truth for recovery — the egress call is
 only ever *attempted after* this commit succeeds, and a journal failure
 means zero sends.
+
+Write transactions run under an explicit in-process lock + BEGIN IMMEDIATE
+(isolation_level=None makes ``with conn`` a no-op — M2 residual-safety R4
+proved the naive form committed each statement separately). The in-process
+lock serializes threads sharing this object; BEGIN IMMEDIATE serializes
+separate processes. Every transaction releases the lock in ``finally``.
 """
 
 from __future__ import annotations
@@ -13,9 +19,11 @@ from __future__ import annotations
 import datetime as dt
 import json
 import sqlite3
-from pathlib import Path
+import threading
+from contextlib import contextmanager
 from decimal import Decimal
-from typing import Any
+from pathlib import Path
+from typing import Any, Iterator
 
 from trading_lab.security.canonical import sha256_hex
 
@@ -42,7 +50,7 @@ CREATE TABLE IF NOT EXISTS attempts (
     attempt_id TEXT PRIMARY KEY,
     intent_id TEXT NOT NULL REFERENCES intents(intent_id),
     fence_epoch INTEGER NOT NULL,
-    state TEXT NOT NULL,                 -- SUBMITTING / SENT / FAILED_UNREACHED
+    state TEXT NOT NULL,                 -- SUBMITTING / SEND_CLAIMED / SENT / UNKNOWN
     started_at TEXT NOT NULL,
     finished_at TEXT,
     result_json TEXT);
@@ -73,9 +81,15 @@ class OrderJournal:
         # process and never need this.
         self._path = Path(path)
         self._path.parent.mkdir(parents=True, exist_ok=True)
+        # In-process write serialization: threads sharing this journal object
+        # must not interleave BEGIN IMMEDIATE on one connection ("cannot
+        # start a transaction within a transaction" is not retriable). The
+        # cross-process guarantee still comes from SQLite itself.
+        self._write_lock = threading.Lock()
         try:
             self._conn = sqlite3.connect(str(self._path), isolation_level=None,
-                                         check_same_thread=check_same_thread)
+                                         check_same_thread=check_same_thread,
+                                         timeout=10)
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.execute("PRAGMA synchronous=FULL")
             self._conn.execute("PRAGMA foreign_keys=ON")
@@ -89,6 +103,23 @@ class OrderJournal:
     @property
     def path(self) -> Path:
         return self._path
+
+    @contextmanager
+    def _transaction(self) -> Iterator[sqlite3.Connection]:
+        """One durable write transaction: in-process lock + BEGIN IMMEDIATE
+        + COMMIT, with ROLLBACK on any failure. The lock is ALWAYS released."""
+        with self._write_lock:
+            self._conn.execute("BEGIN IMMEDIATE")
+            try:
+                yield self._conn
+            except Exception:
+                try:
+                    self._conn.execute("ROLLBACK")
+                except sqlite3.Error:
+                    pass
+                raise
+            else:
+                self._conn.execute("COMMIT")
 
     # -- writes (each is one atomic transaction) ------------------------------
 
@@ -117,8 +148,7 @@ class OrderJournal:
         attempt_id = uuid.uuid4().hex
         payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         decision_json = json.dumps(risk_decision, sort_keys=True, separators=(",", ":"))
-        try:
-            self._conn.execute("BEGIN IMMEDIATE")
+        with self._transaction():
             self._conn.execute(
                 "INSERT INTO intents (intent_id, client_order_id, environment, account_id,"
                 " symbol, side, quantity, payload_json, payload_hash, risk_decision_json,"
@@ -137,33 +167,15 @@ class OrderJournal:
             )
             if simulate_crash_before_commit:
                 raise _SimulatedCrash("simulated crash before commit")
-            self._conn.execute("COMMIT")
-        except _SimulatedCrash:
-            self._conn.execute("ROLLBACK")
-            raise  # crash simulation propagates; nothing was committed
-        except sqlite3.Error as exc:
-            try:
-                self._conn.execute("ROLLBACK")
-            except sqlite3.Error:
-                pass
-            raise JournalError(f"intent+attempt persist failed: {exc}") from exc
         return attempt_id
 
     def finish_attempt(self, attempt_id: str, state: str, result: dict[str, Any]) -> None:
         now = dt.datetime.now(dt.timezone.utc).isoformat()
-        try:
-            self._conn.execute("BEGIN IMMEDIATE")
+        with self._transaction():
             self._conn.execute(
                 "UPDATE attempts SET state=?, finished_at=?, result_json=? WHERE attempt_id=?",
                 (state, now, json.dumps(result, sort_keys=True), attempt_id),
             )
-            self._conn.execute("COMMIT")
-        except sqlite3.Error as exc:
-            try:
-                self._conn.execute("ROLLBACK")
-            except sqlite3.Error:
-                pass
-            raise JournalError(f"attempt finish persist failed: {exc}") from exc
 
     def transition_state(self, intent_id: str, expected: str, target: str,
                          bump_version: bool = False) -> None:
@@ -178,8 +190,7 @@ class OrderJournal:
         except IllegalTransition as exc:
             raise JournalError(f"illegal transition: {exc}") from exc
         now = dt.datetime.now(dt.timezone.utc).isoformat()
-        try:
-            self._conn.execute("BEGIN IMMEDIATE")
+        with self._transaction():
             if bump_version:
                 cur = self._conn.execute(
                     "UPDATE intents SET state=?, version=version+1, updated_at=?"
@@ -193,21 +204,11 @@ class OrderJournal:
                     (target, now, intent_id, expected),
                 )
             if cur.rowcount == 0:
-                self._conn.execute("ROLLBACK")
                 raise JournalError(
                     f"CAS transition failed: {intent_id} expected state {expected!r}"
                 )
-            self._conn.execute("COMMIT")
-        except JournalError:
-            raise
-        except sqlite3.Error as exc:
-            try:
-                self._conn.execute("ROLLBACK")
-            except sqlite3.Error:
-                pass
-            raise JournalError(f"state persist failed: {exc}") from exc
 
-    def get_send_eligibility(
+    def claim_send_attempt(
         self,
         client_order_id: str,
         fence_epoch: int,
@@ -217,33 +218,42 @@ class OrderJournal:
         environment: str,
         account_id: str,
     ) -> dict[str, Any] | None:
-        """R2: authoritative send-eligibility lookup. Returns the joined
-        intent+attempt row ONLY when a SUBMITTING intent with this exact
-        coid/env/account/symbol/side/quantity carries a SUBMITTING attempt
-        at THIS fence epoch — otherwise None (caller refuses)."""
-        row = self._conn.execute(
-            "SELECT i.intent_id, i.state, i.symbol, i.side, i.quantity, i.environment,"
-            " i.account_id, i.payload_json, i.risk_decision_json"
-            " FROM intents i WHERE i.client_order_id=?", (client_order_id,),
-        ).fetchone()
-        if row is None:
-            return None
-        intent_id, state, sym, side_, qty, env, acct = row[0], row[1], row[2], row[3], row[4], row[5], row[6]
-        if state != "SUBMITTING":
-            return None
-        if (sym, side_, qty, env, acct) != (symbol, side, quantity, environment, account_id):
-            return None
-        attempt = self._conn.execute(
-            "SELECT 1 FROM attempts WHERE intent_id=? AND state='SUBMITTING' AND fence_epoch=?",
-            (intent_id, fence_epoch),
-        ).fetchone()
-        if attempt is None:
-            return None
-        return {
-            "intent_id": intent_id,
-            "state": state, "symbol": sym, "side": side_, "quantity": qty,
-            "payload_json": row[7], "risk_decision_json": row[8],
-        }
+        """M2-FINAL-SEND-CLAIM (A): atomic one-time send claim.
+
+        ONE SQLite write transaction (BEGIN IMMEDIATE serializes competing
+        writers across processes; the in-process lock serializes threads):
+        verify the SUBMITTING intent's exact bindings, then flip its
+        SUBMITTING attempt to SEND_CLAIMED. Exactly one concurrent caller
+        can win; every loser gets None and must NOT call the port. The
+        claim commits BEFORE the port call — a crash after the claim leaves
+        a conservative in-flight fact that recovery reconciles; the claim
+        is never re-granted or rolled back into a resendable state. Returns
+        the joined row (for seal re-verification) or None.
+        """
+        with self._transaction():
+            row = self._conn.execute(
+                "SELECT i.intent_id, i.symbol, i.side, i.quantity, i.environment,"
+                " i.account_id, i.payload_json, i.risk_decision_json"
+                " FROM intents i WHERE i.client_order_id=? AND i.state='SUBMITTING'"
+                " AND i.symbol=? AND i.side=? AND i.quantity=? AND i.environment=?"
+                " AND i.account_id=?",
+                (client_order_id, symbol, side, quantity, environment, account_id),
+            ).fetchone()
+            if row is None:
+                return None  # 不可发送：无匹配意图（非锁冲突，终态拒绝）
+            intent_id = row[0]
+            cur = self._conn.execute(
+                "UPDATE attempts SET state='SEND_CLAIMED' WHERE intent_id=?"
+                " AND state='SUBMITTING' AND fence_epoch=?",
+                (intent_id, fence_epoch),
+            )
+            if cur.rowcount == 0:
+                return None  # 另一个调用者已取得 claim（或 epoch 不匹配）——绝不重发
+            return {
+                "intent_id": intent_id,
+                "symbol": symbol, "side": side, "quantity": quantity,
+                "payload_json": row[6], "risk_decision_json": row[7],
+            }
 
     def intent_exists(self, client_order_id: str) -> bool:
         row = self._conn.execute(
@@ -270,44 +280,32 @@ class OrderJournal:
         if not qty.is_finite() or qty <= 0:
             return False, "INVALID_FILL_VALUE"
         now = dt.datetime.now(dt.timezone.utc).isoformat()
-        try:
-            self._conn.execute("BEGIN IMMEDIATE")
+        with self._transaction():
             cur = self._conn.execute(
                 "INSERT OR IGNORE INTO events (intent_id, broker_event_id, kind,"
                 " payload_json, received_at) VALUES (?,?,?,?,?)",
                 (intent_id, broker_event_id, "FILL", json.dumps({"qty": str(qty)}), now),
             )
             if cur.rowcount == 0:
-                self._conn.execute("ROLLBACK")
                 return False, "DUPLICATE_EVENT"
             row = self._conn.execute(
                 "SELECT state, quantity, filled_qty FROM intents WHERE intent_id=?",
                 (intent_id,),
             ).fetchone()
             if row is None:
-                self._conn.execute("ROLLBACK")
                 return False, "UNKNOWN_INTENT"
             state, quantity, filled = row[0], Decimal(row[1]), Decimal(row[2])
             if state not in ("ACKED", "PARTIALLY_FILLED"):
-                self._conn.execute("ROLLBACK")
                 return False, f"FILL_REJECTED_STATE:{state}"
             new_filled = filled + qty
             if new_filled > quantity:
-                self._conn.execute("ROLLBACK")
                 return False, "OVERFILL"
             target = "FILLED" if new_filled == quantity else "PARTIALLY_FILLED"
             self._conn.execute(
                 "UPDATE intents SET state=?, filled_qty=?, updated_at=? WHERE intent_id=?",
                 (target, str(new_filled), now, intent_id),
             )
-            self._conn.execute("COMMIT")
             return True, target
-        except sqlite3.Error as exc:
-            try:
-                self._conn.execute("ROLLBACK")
-            except sqlite3.Error:
-                pass
-            raise JournalError(f"fill persist failed: {exc}") from exc
 
     def state_of(self, intent_id: str) -> str | None:
         row = self._conn.execute(
@@ -339,21 +337,13 @@ class OrderJournal:
     def record_broker_event(self, intent_id: str, broker_event_id: str, kind: str, payload: dict[str, Any]) -> bool:
         """Idempotent by broker_event_id; returns True when newly recorded."""
         now = dt.datetime.now(dt.timezone.utc).isoformat()
-        try:
-            self._conn.execute("BEGIN IMMEDIATE")
+        with self._transaction():
             cur = self._conn.execute(
                 "INSERT OR IGNORE INTO events (intent_id, broker_event_id, kind,"
                 " payload_json, received_at) VALUES (?,?,?,?,?)",
                 (intent_id, broker_event_id, kind, json.dumps(payload, sort_keys=True), now),
             )
-            self._conn.execute("COMMIT")
             return cur.rowcount > 0
-        except sqlite3.Error as exc:
-            try:
-                self._conn.execute("ROLLBACK")
-            except sqlite3.Error:
-                pass
-            raise JournalError(f"event persist failed: {exc}") from exc
 
     def seen_broker_event(self, broker_event_id: str) -> bool:
         row = self._conn.execute(

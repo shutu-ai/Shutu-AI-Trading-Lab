@@ -3,7 +3,7 @@ ack_lost: instances=130 attempts=130 violations=0 outcomes={'UNKNOWN': 130}
 double_submit_same_intent: instances=120 attempts=240 violations=0 outcomes={'UNKNOWN->HALT_NEW_RISK': 120}
 duplicate_fill: instances=110 attempts=220 violations=0 outcomes={'fill+dup': 110}
 late_recovery: instances=110 attempts=220 violations=0 outcomes={'recovered': 110}
-no_journal: instances=120 attempts=120 violations=0 outcomes={'FAILED_PERSISTENCE': 120}
+no_journal: instances=120 attempts=120 violations=0 outcomes={'EXCEPTION': 120}
 reject: instances=100 attempts=100 violations=0 outcomes={'REJECTED': 100}
 stale_writer: instances=140 attempts=140 violations=0 outcomes={'HALT_NEW_RISK': 140}
 submit_timeout: instances=130 attempts=130 violations=0 outcomes={'UNKNOWN': 130}

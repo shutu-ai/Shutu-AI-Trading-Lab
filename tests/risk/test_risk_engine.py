@@ -134,10 +134,8 @@ class TestKillSwitchAndAudit:
     def test_kill_switch_halts(self, stack):
         stack["ks"].set(reason="incident", operator_id="op")
         d = evaluate(stack, make_intent(16))
-        assert d.reason_codes[0] == "KILL_SWITCH_ENGAGED"
-        assert "HALT_NEW_RISK" == d.reason_codes[0] or True
         assert not d.allow
-        assert any(r == "KILL_SWITCH_ENGAGED" for r in d.reason_codes)
+        assert d.reason_codes[0] == "KILL_SWITCH_ENGAGED"
 
     def test_audit_unavailable_fails_closed(self, stack):
         import json

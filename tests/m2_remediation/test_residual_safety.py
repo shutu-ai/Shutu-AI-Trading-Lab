@@ -100,15 +100,16 @@ class TestR1GlobalHalt:
 
 class TestR2EgressEligibility:
     def test_direct_egress_without_intent_zero_created(self, stack):
-        """有效 fence 直接调公开 egress.submit，无对应 journal 意图 → 0 创建。"""
-        outcome_or_exc = None
-        try:
+        """有效 fence 直接调公开 egress.submit，无对应 journal 意图 → 精确
+        拒绝（EgressRefusalError）且 0 创建（A-RED5：禁止宽泛 except 掩盖）。"""
+        from trading_lab.oms import EgressRefusalError
+
+        with pytest.raises(EgressRefusalError,
+                      match=r"NO_ELIGIBLE_OR_ALREADY_CLAIMED|NO_ELIGIBLE_INTENT"):
             stack["egress"].submit(stack["token"], "PAPER:PAPER_TEST_ACCOUNT:99999999",
                                    SYMBOL, Decimal("50"), "buy")
-            created = stack["broker"].created_orders_by_intent("PAPER:PAPER_TEST_ACCOUNT:99999999")
-            assert created == 0  # <- RED: 整改前会创建
-        except Exception:
-            pass  # GREEN: 拒绝也算通过
+        assert stack["broker"].created_orders_by_intent(
+            "PAPER:PAPER_TEST_ACCOUNT:99999999") == 0
 
     def test_replayed_egress_submit_never_second_order(self, stack):
         """同一意图合法提交后，直接重放 egress submit 不得第二次到达 FakeBroker。"""

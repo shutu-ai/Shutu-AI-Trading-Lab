@@ -1,0 +1,161 @@
+FFF.                                                                     [100%]
+================================== FAILURES ===================================
+_ TestARed1ThreadRace.test_barrier_synced_eligibility_two_port_entries_max_one _
+
+self = <test_send_claim_race.TestARed1ThreadRace object at 0x0000029F428774D0>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000029F42901550>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000029F429017F0>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000029F42901940>, ...}
+
+    def test_barrier_synced_eligibility_two_port_entries_max_one(self, stack):
+        """受控竞争：Barrier 使两次资格检查同时完成。整改前 SELECT-only 检查
+        双双通过 → 两次真实 port 进入（RED）；修复后原子 claim → 至多 1 次。"""
+        import threading
+    
+        from trading_lab.oms import BrokerEgress as _E
+    
+        # Cross-thread sqlite connections: the racers run on worker threads,
+        # so the journal/fence must opt out of thread locking — otherwise the
+        # test would vacuously pass on unrelated ProgrammingErrors.
+        journal = OrderJournal(stack["journal"].path, check_same_thread=False)
+        fence = FenceCoordinator(stack["fence"].path, Environment.PAPER, ACCOUNT,
+                                 check_same_thread=False)
+        stack["egress"] = _E(stack["broker"], fence, stack["audit"], now_fn=lambda: NOW,
+                             journal=journal,
+                             approval_secrets=stack["engine"]._approval_secrets)  # noqa: SLF001
+        token = fence.acquire(NOW)
+        intent = persist_claimable_intent(stack, fence_epoch=token.epoch)
+        coid = intent.deterministic_client_order_id
+    
+        entry_count = {"n": 0}
+        lock = threading.Lock()
+        original = stack["broker"].submit_order
+    
+        def counting_submit(*args):
+            with lock:
+                entry_count["n"] += 1
+            return original(*args)
+    
+        stack["broker"].submit_order = counting_submit  # type: ignore[method-assign]
+    
+        barrier = threading.Barrier(2, timeout=10)
+        # The eligibility gate: claim_send_attempt when available (post-fix),
+        # otherwise the legacy SELECT-only check (pre-fix RED target).
+        elig_fn = getattr(journal, "claim_send_attempt", None) or journal.get_send_eligibility
+    
+        def barrier_gate(*args, **kwargs):
+            barrier.wait()  # 两个调用者同时到达资格检查点
+            return elig_fn(*args, **kwargs)
+    
+        gate_name = "claim_send_attempt" if hasattr(journal, "claim_send_attempt") \
+            else "get_send_eligibility"
+        setattr(journal, gate_name, barrier_gate)
+    
+        errors: list = []
+    
+        def racer():
+            try:
+                stack["egress"].submit(token, coid, SYMBOL,
+                                       Decimal("50"), "buy")
+            except Exception as exc:
+                errors.append(repr(exc))
+    
+        threads = [threading.Thread(target=racer), threading.Thread(target=racer)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=30)
+    
+        # The race must be REAL: at least one racer must have reached the
+        # port (a vacuous pass on unrelated errors proves nothing).
+        assert entry_count["n"] >= 1, (
+            f"test setup invalid: entries={entry_count['n']} errors={errors}"
+        )
+>       assert entry_count["n"] <= 1, (
+            f"concurrent send window reproduced: {entry_count['n']} real port "
+            f"entries for one intent (errors={errors})"
+        )
+E       AssertionError: concurrent send window reproduced: 2 real port entries for one intent (errors=[])
+E       assert 2 <= 1
+
+tests\fault_injection\test_send_claim_race.py:123: AssertionError
+_______ TestARed2ProcessRace.test_two_process_claim_exactly_one_winner ________
+
+self = <test_send_claim_race.TestARed2ProcessRace object at 0x0000029F42877C50>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000029F4295CE10>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000029F4295D090>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000029F4295D1D0>, ...}
+tmp_path = WindowsPath('C:/Users/swx1536744/AppData/Local/Temp/pytest-of-sWX1536744/pytest-967/test_two_process_claim_exactly0')
+
+        def test_two_process_claim_exactly_one_winner(self, stack, tmp_path):
+            """两个真实 OS 进程竞争同一 journal send claim；各进程结果落独立文件。
+            整改前 SELECT-only 检查双双通过（claimed 标记 true）；修复后恰有一个
+            进程取得原子 claim。"""
+            intent = persist_claimable_intent(stack)
+            stack["journal"].close()
+    
+            worker_code = """
+    import sys, json
+    sys.path.insert(0, r'{src}')
+    from trading_lab.oms import OrderJournal
+    
+    journal_path, coid, out_path, symbol = (
+        sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+    journal = OrderJournal(journal_path, check_same_thread=False)
+    # claim when available (post-fix); legacy SELECT-only check pre-fix
+    claim = getattr(journal, "claim_send_attempt", None)
+    if claim is not None:
+        row = claim(coid, 1, symbol, "buy", "50", "PAPER", "PAPER_TEST_ACCOUNT")
+        result = {{"claimed": row is not None, "mode": "atomic_claim"}}
+    else:
+        row = journal.get_send_eligibility(
+            coid, 1, symbol, "buy", "50", "PAPER", "PAPER_TEST_ACCOUNT")
+        result = {{"claimed": row is not None, "mode": "select_only"}}
+    with open(out_path, "w", encoding="utf-8") as fh:
+        json.dump(result, fh)
+    """
+            code = worker_code.format(src=str(REPO_ROOT / "src"))
+            out_a = tmp_path / "worker_a.json"
+            out_b = tmp_path / "worker_b.json"
+            procs = [
+                subprocess.Popen(
+                    [sys.executable, "-c", code, str(tmp_path / "journal.sqlite3"),
+                     intent.deterministic_client_order_id, str(out), SYMBOL],
+                    cwd=str(REPO_ROOT),
+                )
+                for out in (out_a, out_b)
+            ]
+            for p in procs:
+                assert p.wait(timeout=120) == 0
+    
+            results = [json.loads(p.read_text(encoding="utf-8"))
+                       for p in (out_a, out_b)]
+            claimed = [r["claimed"] for r in results]
+            modes = {r["mode"] for r in results}
+            # 不变量（两模式一致）：恰有一个进程取得发送资格。
+>           assert sum(claimed) == 1, (
+                f"claim race reproduced: {claimed} modes={modes} — exactly one "
+                f"winner required"
+            )
+E           AssertionError: claim race reproduced: [True, True] modes={'select_only'} — exactly one winner required
+E           assert 2 == 1
+E            +  where 2 = sum([True, True])
+
+tests\fault_injection\test_send_claim_race.py:176: AssertionError
+__ TestARed3CrashAfterClaim.test_claimed_then_crash_is_conservative_unknown ___
+
+self = <test_send_claim_race.TestARed3CrashAfterClaim object at 0x0000029F42877D90>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000029F4295E5D0>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000029F4288BE10>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000029F429AC050>, ...}
+
+    def test_claimed_then_crash_is_conservative_unknown(self, stack):
+        """claim 提交后、port 调用前崩溃：恢复按保守 UNKNOWN 处理，claim 不再授予。"""
+        journal = stack["journal"]
+        intent = persist_claimable_intent(stack)
+        coid = intent.deterministic_client_order_id
+>       row = journal.claim_send_attempt(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+            coid, 1, SYMBOL, "buy", "50", "PAPER", ACCOUNT)
+E       AttributeError: 'OrderJournal' object has no attribute 'claim_send_attempt'
+
+tests\fault_injection\test_send_claim_race.py:188: AttributeError
+=========================== short test summary info ===========================
+FAILED tests/fault_injection/test_send_claim_race.py::TestARed1ThreadRace::test_barrier_synced_eligibility_two_port_entries_max_one
+FAILED tests/fault_injection/test_send_claim_race.py::TestARed2ProcessRace::test_two_process_claim_exactly_one_winner
+FAILED tests/fault_injection/test_send_claim_race.py::TestARed3CrashAfterClaim::test_claimed_then_crash_is_conservative_unknown
+3 failed, 1 passed in 1.38s

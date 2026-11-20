@@ -131,3 +131,30 @@ UNKNOWN 不重发、stale fence 拒写、双进程争写、重复回报不双计
 | DEPENDENCIES | 零新增 |
 | BOUNDARIES | oms↔risk 禁方向保持（ApprovalSecrets 在 security）；合法 BrokerPort 写调用唯一入口=BrokerEgress.submit（journal 资格必经）；3 包 18 文件 0 违规 |
 | DEBT | R1 全局 HALT 的解除仍走恢复+操作人解锁（无自动解除——设计如此）；egress 资格校验为单 journal 读（多进程下由 SQLite 事务串行化）；真实 broker 侧 fencing 归 Paper 专项（不变） |
+
+---
+
+## F. 并发 Send Claim 收口补遗（M2-FINAL-SEND-CLAIM-AND-M3-GATED-001 A 段，2026-11-21）
+
+> 不覆盖 A–E 历史。A0 竞争窗口 RED 复现 → 原子 claim 修复 → 稳定性验证。
+
+### F1. RED 证据（final-send-claim/red-tests.log）
+
+- **A-RED1（确定性双发复现）**：Barrier 同步两次资格检查（cross-thread sqlite 连接，修复了首版测试被跨线程 ProgrammingError 掩盖的空过缺陷）→ "2 real port entries for one intent (errors=[])" —— 真实 port 入口计数（非 FakeBroker 去重）。
+- **A-RED2（双进程）**：两个真实 OS 进程 SELECT-only 资格检查双双通过（`[True, True] modes={'select_only'}`）。
+- **A-RED3**：claim API 缺席（AttributeError，属新能力 spec，非缺陷证明——如实标注）。
+- **A-RED4**：非 SUBMITTING 状态/过期 fence 直接 egress → 已被上轮 R2 拒绝（ALREADY_SAFE，本轮回归锁定）。
+- **A-RED5**：`test_direct_egress_without_intent_zero_created` 的宽泛 `except Exception: pass` 改为精确 `EgressRefusalError` + created 计数断言；`test_risk_engine` 的 `or True` 残迹清除。
+
+### F2. GREEN（journal 原子 Send Claim）
+
+- `journal.claim_send_attempt()`：**单事务**（BEGIN IMMEDIATE）内完成 绑定匹配 + `attempts.state SUBMITTING→SEND_CLAIMED` CAS——并发竞争者恰好一人成功（rowcount 仲裁），其余得到 None 且绝不重发；claim 在 port 调用前 durable commit；崩溃后保守 UNKNOWN 由恢复对账处理。
+- journal 写事务统一经 `_transaction()` 上下文管理器：进程内锁 + BEGIN IMMEDIATE + COMMIT/ROLLBACK（修复了 autocommit 模式下 `with conn` 不生效的**真实原子性缺陷**——同 R4 RED 发现的根因，全部 6 个写方法收口）。
+- egress 迁移至 claim 入口；`get_send_eligibility`（SELECT-only）删除——无消费者残留。
+- 依赖图不变；零新增依赖；3 包 0 违规。
+
+### F3. 验证
+
+- 334 passed（330 基线 + 4 竞争测试，新增单列）；原 1,080 故障矩阵在新 claim 语义下重跑全绿（`fault_matrix_final.log`，EXIT=0）。
+- 稳定性：A-RED1 修复后连续 5 次全绿；修 journal 事务管理器后全量套件绿。
+- 边界：claim 的跨进程仲裁由 SQLite BEGIN IMMEDIATE 事务承担（同机多进程已验证）；真实 broker 侧 fencing 仍归 Paper 专项（BROKER_BEHAVIOR_UNVERIFIED 不变）。
