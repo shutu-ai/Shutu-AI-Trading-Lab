@@ -33,6 +33,7 @@ from ..contracts import (
 from ..security.audit import AuditLog
 from ..security.canonical import canonical_json_bytes, sha256_hex
 from ..security.kill_switch import KillSwitch
+from ..security.approval import ApprovalSecrets
 from .policy import RiskPolicy
 from .producer import TrustedProducer
 
@@ -47,16 +48,37 @@ DECISION_CHECK_ORDER = (
     "NOTIONAL", "EXPOSURE", "FRESHNESS", "APPROVAL",
 )
 
+# §6.2 fields with no trusted M2 input source (no P&L history, no order-rate
+# window, no account-snapshot timestamps, synchronous fake acks). These are
+# audited as MOCK_ONLY-unenforced on every decision — and any LIVE-policy
+# decision is REJECTED outright while they remain unenforced (R7).
+MOCK_ONLY_UNENFORCED_FIELDS = (
+    "max_daily_loss_pct",
+    "max_peak_to_trough_drawdown_pct",
+    "max_abnormal_orders_per_minute",
+    "max_account_snapshot_age_seconds",
+    "max_broker_order_ack_wait_seconds",
+    "allow_margin",
+)
+
+RISK_DECISION_TTL_SECONDS = 60
+
 
 @dataclass(frozen=True)
 class ExposureState:
     """What the engine is told about current exposure (provided by the OMS /
-    account state, never invented here)."""
+    account state, never invented here). ``symbol_exposure_usd`` carries
+    per-symbol exposure for concentration checks; absent symbols count 0."""
 
     gross_exposure_usd: Decimal
     net_exposure_usd: Decimal
     equity_usd: Decimal
     settled_cash_usd: Decimal
+    symbol_exposure_usd: dict[str, Decimal] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.symbol_exposure_usd is None:
+            object.__setattr__(self, "symbol_exposure_usd", {})
 
 
 class RiskEngine:
@@ -70,6 +92,7 @@ class RiskEngine:
         snapshot_provider: Callable[[], MarketSnapshot | None],
         exposure_provider: Callable[[], ExposureState],
         approval_verifier: Callable[[TradeIntent], tuple[bool, str]] | None = None,
+        approval_secrets: ApprovalSecrets | None = None,
     ) -> None:
         self._policy = policy
         self._ks = kill_switch
@@ -79,6 +102,7 @@ class RiskEngine:
         self._snapshot_provider = snapshot_provider
         self._exposure_provider = exposure_provider
         self._approval_verifier = approval_verifier  # LIVE: LiveRelease chain (mock in M2)
+        self._approval_secrets = approval_secrets
 
     # ------------------------------------------------------------------ #
 
@@ -137,6 +161,10 @@ class RiskEngine:
             fail("REJECT", "INTENT_EXPIRED")
         if intent.desired_change == 0:
             fail("REJECT", "ZERO_QUANTITY")
+        if intent.desired_change < 0 and not self._policy.allow_short:
+            fail("REJECT", f"SHORT_NOT_ALLOWED:{intent.desired_change}")
+        if not intent.desired_change.is_finite():
+            fail("REJECT", "NON_FINFINITE_QUANTITY")
 
         # 7. notional & exposure — need a price; the engine takes the
         #    notional as |desired_change| * reference price via the snapshot
@@ -147,16 +175,35 @@ class RiskEngine:
             fail("REJECT", f"ORDER_NOTIONAL_EXCEEDED:{notional}>{self._policy.max_single_order_notional_usd}")
 
         exposure = self._exposure_provider()
+        equity = exposure.equity_usd
+        if equity <= 0 or not equity.is_finite():
+            fail("REJECT", "ACCOUNT_STATE_UNUSABLE")
+            equity = Decimal(0)
         if exposure.gross_exposure_usd + notional > (
-            self._policy.max_gross_exposure_pct / Decimal(100) * exposure.equity_usd
+            self._policy.max_gross_exposure_pct / Decimal(100) * equity
         ):
             fail("REJECT", "GROSS_EXPOSURE_EXCEEDED")
+        if exposure.net_exposure_usd + intent.desired_change > (
+            self._policy.max_net_exposure_pct / Decimal(100) * equity
+        ):
+            fail("REJECT", "NET_EXPOSURE_EXCEEDED")
+        symbol_exposure = exposure.symbol_exposure_usd.get(symbol, Decimal(0))
+        if symbol_exposure + notional > (
+            self._policy.max_single_symbol_pct / Decimal(100) * equity
+        ):
+            fail("REJECT", f"SINGLE_SYMBOL_CONCENTRATION:{symbol}")
         if self._policy.require_settled_funds and notional > exposure.settled_cash_usd:
             fail("REJECT", "INSUFFICIENT_SETTLED_FUNDS")
 
-        # 8. freshness — snapshot must exist and be recent (PIT data gate)
+        # 8. freshness — snapshot must exist and be recent (PIT data gate).
+        # R7: an EXPLICIT 0 must never be shadowed by the policy default
+        # (`or` would do exactly that).
         snapshot = self._snapshot_provider()
-        max_age = max_bar_age_seconds or self._policy.max_market_bar_age_seconds
+        max_age = (
+            max_bar_age_seconds
+            if max_bar_age_seconds is not None
+            else self._policy.max_market_bar_age_seconds
+        )
         if snapshot is None:
             fail("REJECT", "NO_DATA_SNAPSHOT")
         else:
@@ -166,24 +213,64 @@ class RiskEngine:
             if snapshot.knowledge_cutoff_utc > self._now_fn():
                 fail("REJECT", "SNAPSHOT_FROM_THE_FUTURE")
 
-        # 9. approval artifact (LIVE only; Paper uses the test template)
-        if self._policy.environment is Environment.LIVE and self._approval_verifier is not None:
-            ok, reason = self._approval_verifier(intent)
-            if not ok:
-                fail("REJECT", f"APPROVAL_INVALID:{reason}")
+        # 9. approval artifact (LIVE): a missing verifier is a HARD reject
+        # (R2) — M2 must not offer any executable Live path. Mock-only
+        # unenforced mandatory fields also hard-reject any LIVE decision.
+        if self._policy.environment is Environment.LIVE:
+            if self._approval_verifier is None:
+                fail("REJECT", "LIVE_APPROVAL_VERIFIER_MISSING")
+            if MOCK_ONLY_UNENFORCED_FIELDS:
+                fail("REJECT",
+                     f"LIVE_MOCK_ONLY_UNENFORCED:{','.join(MOCK_ONLY_UNENFORCED_FIELDS)}")
+            if self._approval_verifier is not None:
+                try:
+                    ok, reason = self._approval_verifier(intent)
+                except Exception as exc:
+                    ok, reason = False, f"VERIFIER_FAULT:{type(exc).__name__}"
+                if not ok:
+                    fail("REJECT", f"APPROVAL_INVALID:{reason}")
 
+        limits_snapshot: dict[str, str] = {
+            "max_single_order_notional_usd": str(self._policy.max_single_order_notional_usd),
+            "max_gross_exposure_pct": str(self._policy.max_gross_exposure_pct),
+            "allowed_symbols": ",".join(self._policy.allowed_symbols),
+            "check_order": ",".join(DECISION_CHECK_ORDER),
+        }
+        decision_at = self._now_fn()
+        if verdict == VERDICT_APPROVE:
+            # R1: bind the approval to the exact intent+symbol+side+quantity
+            # with an HMAC seal (runtime-minted secret shared only with the
+            # OMS assembly). Forged/substituted decisions cannot recompute it.
+            if self._approval_secrets is None:
+                fail("REJECT", "APPROVAL_SECRETS_MISSING")
+            else:
+                side = "buy" if intent.desired_change > 0 else "sell"
+                expiry = decision_at + dt.timedelta(seconds=RISK_DECISION_TTL_SECONDS)
+                binding = {
+                    "intent": intent.model_dump(mode="json"),
+                    "symbol": symbol,
+                    "side": side,
+                    "quantity": str(abs(intent.desired_change)),
+                    "policy_hash": self._policy.policy_hash,
+                    "decision_at": decision_at.isoformat(),
+                    "expires_at": expiry.isoformat(),
+                }
+                limits_snapshot.update(
+                    {
+                        "bound_symbol": symbol,
+                        "bound_side": side,
+                        "bound_quantity": str(abs(intent.desired_change)),
+                        "decision_expires_at": expiry.isoformat(),
+                        "approval_seal": self._approval_secrets.seal(binding),
+                    }
+                )
         decision = RiskDecision(
             intent_id=intent.intent_id,
             policy_hash=self._policy.policy_hash,
             allow=(verdict == VERDICT_APPROVE),
             reason_codes=tuple(reasons) if reasons else ("POLICY_SATISFIED",),
-            limits_snapshot={
-                "max_single_order_notional_usd": str(self._policy.max_single_order_notional_usd),
-                "max_gross_exposure_pct": str(self._policy.max_gross_exposure_pct),
-                "allowed_symbols": ",".join(self._policy.allowed_symbols),
-                "check_order": ",".join(DECISION_CHECK_ORDER),
-            },
-            decision_at=self._now_fn(),
+            limits_snapshot=limits_snapshot,
+            decision_at=decision_at,
         )
         self._audit.append(
             "RISK_DECISION",

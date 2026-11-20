@@ -40,7 +40,8 @@ class FenceCoordinator:
     account). Cross-process safe: the epoch bump is a single transaction."""
 
     def __init__(self, path: str | Path, environment: Environment, account_id: str,
-                 lease_seconds: int = 30) -> None:
+                 lease_seconds: int = 30, check_same_thread: bool = True) -> None:
+        self._check_same_thread = check_same_thread
         self._path = Path(path)
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._env = environment
@@ -52,7 +53,8 @@ class FenceCoordinator:
         last_exc: Exception | None = None
         for attempt in range(5):
             try:
-                self._conn = sqlite3.connect(str(self._path), isolation_level=None, timeout=10)
+                self._conn = sqlite3.connect(str(self._path), isolation_level=None, timeout=10,
+                                             check_same_thread=self._check_same_thread)
                 self._conn.execute("PRAGMA busy_timeout=10000")
                 self._conn.execute("PRAGMA journal_mode=WAL")
                 self._conn.execute("PRAGMA synchronous=FULL")
@@ -81,6 +83,10 @@ class FenceCoordinator:
 
     def close(self) -> None:
         self._conn.close()
+
+    @property
+    def path(self) -> Path:
+        return self._path
 
     def acquire(self, now: dt.datetime) -> FenceToken:
         """Atomically bump the epoch and take a fresh lease. Contended

@@ -36,13 +36,6 @@ SEED = 20261120
 TOTAL_REQUIRED = 1000
 
 
-def decision_for(intent) -> RiskDecision:
-    return RiskDecision(
-        intent_id=intent.intent_id, policy_hash="b" * 32, allow=True,
-        reason_codes=("POLICY_SATISFIED",), limits_snapshot={}, decision_at=NOW,
-    )
-
-
 def run_scenario(rnd: random.Random, fault_class: str, stack) -> dict:
     """One independent fault/replay instance on a fresh stack."""
     broker, oms, fence, ks = stack["broker"], stack["oms"], stack["fence"], stack["ks"]
@@ -60,7 +53,7 @@ def run_scenario(rnd: random.Random, fault_class: str, stack) -> dict:
     if fault_class == "stale_writer":
         old_token = stack["token"]
         stack["fence"].acquire(NOW)  # another instance bumps the epoch
-        outcome = oms.submit(intent, decision_for(intent), SYMBOL, "buy", Decimal("50"), old_token)
+        outcome = oms.submit(intent, stack["engine"].evaluate(intent, stack["producer"], symbol=SYMBOL), SYMBOL, "buy", Decimal("50"), old_token)
         if outcome.state != "HALT_NEW_RISK":
             violations["stale_write"] += 1
         if broker.created_orders_by_intent(coid) > 0:
@@ -74,7 +67,7 @@ def run_scenario(rnd: random.Random, fault_class: str, stack) -> dict:
         stack["journal"].close()
         journal_path.unlink(missing_ok=True)
         try:
-            outcome = oms.submit(intent, decision_for(intent), SYMBOL, "buy", Decimal("50"), stack["token"])
+            outcome = oms.submit(intent, stack["engine"].evaluate(intent, stack["producer"], symbol=SYMBOL), SYMBOL, "buy", Decimal("50"), stack["token"])
         except Exception:
             outcome = None
             violations["no_intent_send"] += 0  # zero-send invariant holds via failure
@@ -90,7 +83,7 @@ def run_scenario(rnd: random.Random, fault_class: str, stack) -> dict:
 
     if fault_class in {"ack_lost", "submit_timeout", "reject"}:
         broker.schedule_fault(fault_class, coid)
-        outcome = oms.submit(intent, decision_for(intent), SYMBOL, "buy", Decimal("50"), stack["token"])
+        outcome = oms.submit(intent, stack["engine"].evaluate(intent, stack["producer"], symbol=SYMBOL), SYMBOL, "buy", Decimal("50"), stack["token"])
         created = broker.created_orders_by_intent(coid)
         if created > 1:
             violations["double_created"] += 1
@@ -109,9 +102,9 @@ def run_scenario(rnd: random.Random, fault_class: str, stack) -> dict:
         """Hostile retry attempt after UNKNOWN: call submit again with the
         same intent — the OMS must not create a second broker order."""
         broker.schedule_fault("ack_lost", coid)
-        first = oms.submit(intent, decision_for(intent), SYMBOL, "buy", Decimal("50"), stack["token"])
+        first = oms.submit(intent, stack["engine"].evaluate(intent, stack["producer"], symbol=SYMBOL), SYMBOL, "buy", Decimal("50"), stack["token"])
         assert first.state == "UNKNOWN"
-        second = oms.submit(intent, decision_for(intent), SYMBOL, "buy", Decimal("50"), stack["token"])
+        second = oms.submit(intent, stack["engine"].evaluate(intent, stack["producer"], symbol=SYMBOL), SYMBOL, "buy", Decimal("50"), stack["token"])
         # second submit must NOT reach the broker as a new order
         created = broker.created_orders_by_intent(coid)
         if created > 1:
@@ -120,7 +113,7 @@ def run_scenario(rnd: random.Random, fault_class: str, stack) -> dict:
                 "attempts": 2, "outcome": f"{first.state}->{second.state}"}
 
     if fault_class == "duplicate_fill":
-        outcome = oms.submit(intent, decision_for(intent), SYMBOL, "buy", Decimal("50"), stack["token"])
+        outcome = oms.submit(intent, stack["engine"].evaluate(intent, stack["producer"], symbol=SYMBOL), SYMBOL, "buy", Decimal("50"), stack["token"])
         assert outcome.state == "ACKED"
         evt = broker.apply_fill(coid, Decimal("50"))
         first_ok = oms.process_fill(intent.intent_id, evt, Decimal("50"))
@@ -134,8 +127,8 @@ def run_scenario(rnd: random.Random, fault_class: str, stack) -> dict:
         """Two concurrent-looking submits of the same persisted intent: the
         second must be refused (duplicate coid in journal / no double order)."""
         broker.schedule_fault("ack_lost", coid)  # first lands UNKNOWN/HALT
-        first = oms.submit(intent, decision_for(intent), SYMBOL, "buy", Decimal("50"), stack["token"])
-        second = oms.submit(intent, decision_for(intent), SYMBOL, "buy", Decimal("50"), stack["token"])
+        first = oms.submit(intent, stack["engine"].evaluate(intent, stack["producer"], symbol=SYMBOL), SYMBOL, "buy", Decimal("50"), stack["token"])
+        second = oms.submit(intent, stack["engine"].evaluate(intent, stack["producer"], symbol=SYMBOL), SYMBOL, "buy", Decimal("50"), stack["token"])
         created = broker.created_orders_by_intent(coid)
         if created > 1:
             violations["double_created"] += 1
@@ -144,7 +137,7 @@ def run_scenario(rnd: random.Random, fault_class: str, stack) -> dict:
 
     if fault_class == "late_recovery":
         broker.schedule_fault("ack_lost", coid)
-        oms.submit(intent, decision_for(intent), SYMBOL, "buy", Decimal("50"), stack["token"])
+        oms.submit(intent, stack["engine"].evaluate(intent, stack["producer"], symbol=SYMBOL), SYMBOL, "buy", Decimal("50"), stack["token"])
         broker.late_order_appears(coid, SYMBOL, Decimal("50"), "buy")
         report = oms.recover(NOW)
         if intent.intent_id not in report.reconciled:
@@ -207,6 +200,7 @@ def _run_class(fault_class: str, count: int) -> dict:
         from trading_lab.risk import RiskEngine as _R
         from trading_lab.risk import RiskPolicy as _P
         from trading_lab.risk import TrustedProducer as _T
+        from trading_lab.security import ApprovalSecrets as _AS
         from trading_lab.security import AuditLog as _A
         from trading_lab.security import KillSwitch as _K
 
@@ -220,14 +214,18 @@ def _run_class(fault_class: str, count: int) -> dict:
             ks = _K(_Env.PAPER, ACCOUNT, tmp / "ks", audit)
             policy = _P.model_validate(dict(POLICY_DICT))
             producer = _T.mint("portfolio_agg_v1", "a" * 32)
+            approval_secrets = _AS.mint()
             risk = _R(policy=policy, kill_switch=ks, audit=audit, trusted_producer=producer,
                       now_fn=lambda: NOW, snapshot_provider=fresh_snapshot,
                       exposure_provider=lambda: _Ex(
                           gross_exposure_usd=Decimal("0"), net_exposure_usd=Decimal("0"),
-                          equity_usd=Decimal("1000"), settled_cash_usd=Decimal("1000")))
+                          equity_usd=Decimal("1000"), settled_cash_usd=Decimal("1000")),
+                      approval_secrets=approval_secrets)
             oms = _O(environment=_Env.PAPER, account_id=ACCOUNT, journal=journal,
                      egress=egress, fence=fence, audit=audit, kill_switch=ks,
-                     now_fn=lambda: NOW)
+                     now_fn=lambda: NOW,
+                     expected_policy_hash=policy.policy_hash,
+                     approval_secrets=approval_secrets)
             stack = {"broker": broker, "audit": audit, "journal": journal, "fence": fence,
                      "egress": egress, "ks": ks, "policy": policy, "producer": producer,
                      "engine": risk, "oms": oms, "token": fence.acquire(NOW), "tmp": tmp}

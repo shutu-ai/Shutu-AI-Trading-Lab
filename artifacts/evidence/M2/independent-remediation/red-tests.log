@@ -1,0 +1,431 @@
+FFFFFF.FFFF.F.FFFFFFFFFF                                                 [100%]
+================================== FAILURES ===================================
+________ TestR1ApprovalEnforcement.test_disallowed_decision_zero_sends ________
+
+self = <test_m2_independent_remediation.TestR1ApprovalEnforcement object at 0x00000170059E7890>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005A81160>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005A816A0>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005A817F0>, ...}
+
+    def test_disallowed_decision_zero_sends(self, stack):
+        """allow=False 决策：整改前 OMS 不检查 allow，照常发单（缺陷）。"""
+        intent = make_intent(700)
+        outcome = stack["oms"].submit(
+            intent, decision_for(intent, allow=False), SYMBOL, "buy", Decimal("50"), stack["token"]
+        )
+>       assert stack["broker"].created_orders_by_intent(intent.deterministic_client_order_id) == 0
+E       AssertionError: assert 1 == 0
+E        +  where 1 = created_orders_by_intent('PAPER:PAPER_TEST_ACCOUNT:00000700')
+E        +    where created_orders_by_intent = <trading_lab.brokers.fake.FakeBroker object at 0x0000017005A81160>.created_orders_by_intent
+E        +    and   'PAPER:PAPER_TEST_ACCOUNT:00000700' = TradeIntent(intent_id='int-000700', release_id='rel-mock-0001', account_id='PAPER_TEST_ACCOUNT', environment=<Environm...(2026, 11, 20, 21, 5, tzinfo=datetime.timezone.utc), deterministic_client_order_id='PAPER:PAPER_TEST_ACCOUNT:00000700').deterministic_client_order_id
+
+tests\m2_remediation\test_m2_independent_remediation.py:60: AssertionError
+__________ TestR1ApprovalEnforcement.test_forged_decision_zero_sends __________
+
+self = <test_m2_independent_remediation.TestR1ApprovalEnforcement object at 0x00000170059E7D90>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005C29090>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005C29310>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005C29450>, ...}
+
+    def test_forged_decision_zero_sends(self, stack):
+        """伪造 allow=True 决策（非引擎签发、无密封）→ 0 发送。"""
+        intent = make_intent(701)
+        outcome = stack["oms"].submit(
+            intent, decision_for(intent, allow=True), SYMBOL, "buy", Decimal("50"), stack["token"]
+        )
+>       assert stack["broker"].created_orders_by_intent(intent.deterministic_client_order_id) == 0
+E       AssertionError: assert 1 == 0
+E        +  where 1 = created_orders_by_intent('PAPER:PAPER_TEST_ACCOUNT:00000701')
+E        +    where created_orders_by_intent = <trading_lab.brokers.fake.FakeBroker object at 0x0000017005C29090>.created_orders_by_intent
+E        +    and   'PAPER:PAPER_TEST_ACCOUNT:00000701' = TradeIntent(intent_id='int-000701', release_id='rel-mock-0001', account_id='PAPER_TEST_ACCOUNT', environment=<Environm...(2026, 11, 20, 21, 5, tzinfo=datetime.timezone.utc), deterministic_client_order_id='PAPER:PAPER_TEST_ACCOUNT:00000701').deterministic_client_order_id
+
+tests\m2_remediation\test_m2_independent_remediation.py:69: AssertionError
+________ TestR1ApprovalEnforcement.test_intent_id_mismatch_zero_sends _________
+
+self = <test_m2_independent_remediation.TestR1ApprovalEnforcement object at 0x00000170059F75C0>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005C2A710>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005C2A990>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005C2AAD0>, ...}
+
+    def test_intent_id_mismatch_zero_sends(self, stack):
+        intent = make_intent(702)
+        decision = decision_for(intent)
+        other = make_intent(703)
+        mismatched = decision.model_copy(update={"intent_id": other.intent_id})
+        outcome = stack["oms"].submit(intent, mismatched, SYMBOL, "buy", Decimal("50"), stack["token"])
+>       assert stack["broker"].created_orders_by_intent(intent.deterministic_client_order_id) == 0
+E       AssertionError: assert 1 == 0
+E        +  where 1 = created_orders_by_intent('PAPER:PAPER_TEST_ACCOUNT:00000702')
+E        +    where created_orders_by_intent = <trading_lab.brokers.fake.FakeBroker object at 0x0000017005C2A710>.created_orders_by_intent
+E        +    and   'PAPER:PAPER_TEST_ACCOUNT:00000702' = TradeIntent(intent_id='int-000702', release_id='rel-mock-0001', account_id='PAPER_TEST_ACCOUNT', environment=<Environm...(2026, 11, 20, 21, 5, tzinfo=datetime.timezone.utc), deterministic_client_order_id='PAPER:PAPER_TEST_ACCOUNT:00000702').deterministic_client_order_id
+
+tests\m2_remediation\test_m2_independent_remediation.py:77: AssertionError
+______ TestR1ApprovalEnforcement.test_parameter_substitution_zero_sends _______
+
+self = <test_m2_independent_remediation.TestR1ApprovalEnforcement object at 0x00000170059F7820>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005C183E0>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005C18640>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005C18770>, ...}
+
+    def test_parameter_substitution_zero_sends(self, stack):
+        """参数替换：批准 buy SPY 50，提交时换成 QQQ / sell / 5000 → 0 发送。"""
+        intent = make_intent(704)
+        decision = stack["engine"].evaluate(intent, stack["producer"], symbol=SYMBOL)
+        assert decision.allow
+        for sym, side, qty in (("QQQ", "buy", Decimal("50")),
+                               (SYMBOL, "sell", Decimal("50")),
+                               (SYMBOL, "buy", Decimal("5000"))):
+            outcome = stack["oms"].submit(intent, decision, sym, side, qty, stack["token"])
+            coid = intent.deterministic_client_order_id
+>           assert stack["broker"].created_orders_by_intent(coid) == 0, (sym, side, qty)
+E           AssertionError: ('QQQ', 'buy', Decimal('50'))
+E           assert 1 == 0
+E            +  where 1 = created_orders_by_intent('PAPER:PAPER_TEST_ACCOUNT:00000704')
+E            +    where created_orders_by_intent = <trading_lab.brokers.fake.FakeBroker object at 0x0000017005C183E0>.created_orders_by_intent
+
+tests\m2_remediation\test_m2_independent_remediation.py:89: AssertionError
+____ TestR1ApprovalEnforcement.test_expired_or_future_decision_zero_sends _____
+
+self = <test_m2_independent_remediation.TestR1ApprovalEnforcement object at 0x0000017005A9DC70>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005C19480>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005C19BA0>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005C19CD0>, ...}
+
+    def test_expired_or_future_decision_zero_sends(self, stack):
+        intent = make_intent(705)
+        expired = decision_for(intent, decision_at=NOW - dt.timedelta(minutes=10))
+        outcome = stack["oms"].submit(intent, expired, SYMBOL, "buy", Decimal("50"), stack["token"])
+>       assert stack["broker"].created_orders_by_intent(intent.deterministic_client_order_id) == 0
+E       AssertionError: assert 1 == 0
+E        +  where 1 = created_orders_by_intent('PAPER:PAPER_TEST_ACCOUNT:00000705')
+E        +    where created_orders_by_intent = <trading_lab.brokers.fake.FakeBroker object at 0x0000017005C19480>.created_orders_by_intent
+E        +    and   'PAPER:PAPER_TEST_ACCOUNT:00000705' = TradeIntent(intent_id='int-000705', release_id='rel-mock-0001', account_id='PAPER_TEST_ACCOUNT', environment=<Environm...(2026, 11, 20, 21, 5, tzinfo=datetime.timezone.utc), deterministic_client_order_id='PAPER:PAPER_TEST_ACCOUNT:00000705').deterministic_client_order_id
+
+tests\m2_remediation\test_m2_independent_remediation.py:95: AssertionError
+__________ TestR1ApprovalEnforcement.test_policy_mismatch_zero_sends __________
+
+self = <test_m2_independent_remediation.TestR1ApprovalEnforcement object at 0x0000017005A69370>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005A9D130>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005C74830>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005C745F0>, ...}
+
+    def test_policy_mismatch_zero_sends(self, stack):
+        intent = make_intent(706)
+        outcome = stack["oms"].submit(
+            intent, decision_for(intent, policy_hash="9" * 32), SYMBOL, "buy", Decimal("50"), stack["token"]
+        )
+>       assert stack["broker"].created_orders_by_intent(intent.deterministic_client_order_id) == 0
+E       AssertionError: assert 1 == 0
+E        +  where 1 = created_orders_by_intent('PAPER:PAPER_TEST_ACCOUNT:00000706')
+E        +    where created_orders_by_intent = <trading_lab.brokers.fake.FakeBroker object at 0x0000017005A9D130>.created_orders_by_intent
+E        +    and   'PAPER:PAPER_TEST_ACCOUNT:00000706' = TradeIntent(intent_id='int-000706', release_id='rel-mock-0001', account_id='PAPER_TEST_ACCOUNT', environment=<Environm...(2026, 11, 20, 21, 5, tzinfo=datetime.timezone.utc), deterministic_client_order_id='PAPER:PAPER_TEST_ACCOUNT:00000706').deterministic_client_order_id
+
+tests\m2_remediation\test_m2_independent_remediation.py:105: AssertionError
+__________ TestR2LiveFailClosed.test_live_without_verifier_rejected ___________
+
+self = <test_m2_independent_remediation.TestR2LiveFailClosed object at 0x00000170059E7C50>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005A6A8B0>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005A6A470>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005A6A030>, ...}
+
+    def test_live_without_verifier_rejected(self, stack):
+        stack = live_stack(stack)
+        intent = make_intent(710, env=Environment.LIVE)
+        d = stack["engine"].evaluate(intent, stack["producer"], symbol=SYMBOL)
+>       assert not d.allow
+E       AssertionError: assert not True
+E        +  where True = RiskDecision(intent_id='int-000710', policy_hash='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', allow=True, reason_codes=('POLICY...TIONAL,EXPOSURE,FRESHNESS,APPROVAL'}, decision_at=datetime.datetime(2026, 11, 20, 21, 0, tzinfo=datetime.timezone.utc)).allow
+
+tests\m2_remediation\test_m2_independent_remediation.py:146: AssertionError
+________ TestR2LiveFailClosed.test_live_verifier_exception_fail_closed ________
+
+self = <test_m2_independent_remediation.TestR2LiveFailClosed object at 0x00000170059E7ED0>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005AD8950>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005AD8B50>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005AD8C50>, ...}
+
+    def test_live_verifier_exception_fail_closed(self, stack):
+        stack = live_stack(stack)
+        stack["engine"]._approval_verifier = lambda i: (_ for _ in ()).throw(
+            RuntimeError("verifier crash")
+        )
+        intent = make_intent(711, env=Environment.LIVE)
+>       d = stack["engine"].evaluate(intent, stack["producer"], symbol=SYMBOL)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\m2_remediation\test_m2_independent_remediation.py:155: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\trading_lab\risk\engine.py:171: in evaluate
+    ok, reason = self._approval_verifier(intent)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\m2_remediation\test_m2_independent_remediation.py:151: in <lambda>
+    stack["engine"]._approval_verifier = lambda i: (_ for _ in ()).throw(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+.0 = <tuple_iterator object at 0x0000017005AD1DE0>
+
+>   stack["engine"]._approval_verifier = lambda i: (_ for _ in ()).throw(
+        RuntimeError("verifier crash")
+    )
+E   RuntimeError: verifier crash
+
+tests\m2_remediation\test_m2_independent_remediation.py:151: RuntimeError
+_____ TestR2LiveFailClosed.test_live_unenforced_mandatory_fields_rejected _____
+
+self = <test_m2_independent_remediation.TestR2LiveFailClosed object at 0x00000170059F76F0>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005AD9850>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005AD9A50>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005AD9B50>, ...}
+
+    def test_live_unenforced_mandatory_fields_rejected(self, stack):
+        """LIVE + MOCK_ONLY 不可执行字段存在 → 不得放行。"""
+        stack = live_stack(stack)
+        stack["engine"]._approval_verifier = lambda i: (True, "mock")
+        intent = make_intent(712, env=Environment.LIVE)
+        d = stack["engine"].evaluate(intent, stack["producer"], symbol=SYMBOL)
+>       assert not d.allow
+E       AssertionError: assert not True
+E        +  where True = RiskDecision(intent_id='int-000712', policy_hash='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', allow=True, reason_codes=('POLICY...TIONAL,EXPOSURE,FRESHNESS,APPROVAL'}, decision_at=datetime.datetime(2026, 11, 20, 21, 0, tzinfo=datetime.timezone.utc)).allow
+
+tests\m2_remediation\test_m2_independent_remediation.py:164: AssertionError
+________ TestR3UnlockGate.test_unlock_refused_with_unresolved_unknown _________
+
+self = <test_m2_independent_remediation.TestR3UnlockGate object at 0x0000017005C28050>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005BDDD60>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005BDDF40>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005BDE120>, ...}
+
+    def test_unlock_refused_with_unresolved_unknown(self, stack):
+        intent = make_intent(720)
+        stack["broker"].schedule_fault("submit_timeout", intent.deterministic_client_order_id)
+        from trading_lab.contracts import RiskDecision
+    
+        stack["oms"].submit(intent, RiskDecision(
+            intent_id=intent.intent_id, policy_hash="b" * 32, allow=True,
+            reason_codes=("POLICY_SATISFIED",), limits_snapshot={}, decision_at=NOW,
+        ), SYMBOL, "buy", Decimal("50"), stack["token"])
+        report = stack["oms"].recover(NOW)
+        assert intent.intent_id in report.still_unknown
+        # 仅凭授权文本不得解除新增风险锁
+>       with pytest.raises(Exception):
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE Exception
+
+tests\m2_remediation\test_m2_independent_remediation.py:186: Failed
+__________ TestR4AtomicBoundary.test_single_transaction_entry_exists __________
+
+self = <test_m2_independent_remediation.TestR4AtomicBoundary object at 0x0000017005C282D0>
+
+    def test_single_transaction_entry_exists(self):
+        from trading_lab.oms import OrderJournal
+    
+>       assert hasattr(OrderJournal, "record_intent_and_submitting"), (
+            "journal must expose one atomic intent+attempt entry"
+        )
+E       AssertionError: journal must expose one atomic intent+attempt entry
+E       assert False
+E        +  where False = hasattr(<class 'trading_lab.oms.journal.OrderJournal'>, 'record_intent_and_submitting')
+
+tests\m2_remediation\test_m2_independent_remediation.py:216: AssertionError
+______________ TestR5FillAtomicity.test_fill_persists_new_state _______________
+
+self = <test_m2_independent_remediation.TestR5FillAtomicity object at 0x0000017005C28550>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005C260B0>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005C25EF0>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005C25FD0>, ...}
+
+    def test_fill_persists_new_state(self, stack):
+        intent = self._acked(stack, 740)
+        assert stack["oms"].process_fill(intent.intent_id, "EVT-F1", Decimal("50"))
+>       assert stack["journal"].state_of(intent.intent_id) == "FILLED"
+E       AssertionError: assert 'ACKED' == 'FILLED'
+E         
+E         - FILLED
+E         + ACKED
+
+tests\m2_remediation\test_m2_independent_remediation.py:260: AssertionError
+_______________ TestR5FillAtomicity.test_partial_fill_persists ________________
+
+self = <test_m2_independent_remediation.TestR5FillAtomicity object at 0x0000017005C28690>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005AC5710>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005AC7D40>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005AC6DD0>, ...}
+
+    def test_partial_fill_persists(self, stack):
+        intent = self._acked(stack, 741)
+        assert stack["oms"].process_fill(intent.intent_id, "EVT-F2", Decimal("20"))
+>       assert stack["journal"].state_of(intent.intent_id) == "PARTIALLY_FILLED"
+E       AssertionError: assert 'ACKED' == 'PARTIALLY_FILLED'
+E         
+E         - PARTIALLY_FILLED
+E         + ACKED
+
+tests\m2_remediation\test_m2_independent_remediation.py:265: AssertionError
+__________________ TestR5FillAtomicity.test_overfill_refused __________________
+
+self = <test_m2_independent_remediation.TestR5FillAtomicity object at 0x00000170059F7950>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005A0B410>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005A0B290>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005A0B350>, ...}
+
+    def test_overfill_refused(self, stack):
+        intent = self._acked(stack, 742)
+        assert stack["oms"].process_fill(intent.intent_id, "EVT-F3", Decimal("60"))
+        ok = stack["oms"].process_fill(intent.intent_id, "EVT-F4", Decimal("10"))
+>       assert not ok  # 超量成交拒绝
+        ^^^^^^^^^^^^^
+E       assert not True
+
+tests\m2_remediation\test_m2_independent_remediation.py:271: AssertionError
+_____________ TestR5FillAtomicity.test_fill_on_cancelled_refused ______________
+
+self = <test_m2_independent_remediation.TestR5FillAtomicity object at 0x00000170059F7A80>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005A0AED0>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005A09850>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005BFCC50>, ...}
+
+    def test_fill_on_cancelled_refused(self, stack):
+        intent = self._acked(stack, 743)
+        stack["journal"].set_state(intent.intent_id, "CANCEL_PENDING")
+        stack["journal"].set_state(intent.intent_id, "CANCELLED")
+        ok = stack["oms"].process_fill(intent.intent_id, "EVT-F5", Decimal("10"))
+>       assert not ok  # 撤单后成交 fail-closed
+        ^^^^^^^^^^^^^
+E       assert not True
+
+tests\m2_remediation\test_m2_independent_remediation.py:279: AssertionError
+__________ TestR5FillAtomicity.test_replay_of_any_event_id_once_only __________
+
+self = <test_m2_independent_remediation.TestR5FillAtomicity object at 0x0000017005C74050>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005CC89F0>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005CC8520>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005CC8E10>, ...}
+
+    def test_replay_of_any_event_id_once_only(self, stack):
+        intent = self._acked(stack, 744)
+        assert stack["oms"].process_fill(intent.intent_id, "EVT-F6", Decimal("25"))
+        assert not stack["oms"].process_fill(intent.intent_id, "EVT-F6", Decimal("25"))
+>       assert stack["journal"].state_of(intent.intent_id) == "PARTIALLY_FILLED"
+E       AssertionError: assert 'ACKED' == 'PARTIALLY_FILLED'
+E         
+E         - PARTIALLY_FILLED
+E         + ACKED
+
+tests\m2_remediation\test_m2_independent_remediation.py:285: AssertionError
+_______ TestR6FenceRace.test_epoch_bump_during_call_yields_halt_not_ack _______
+
+self = <test_m2_independent_remediation.TestR6FenceRace object at 0x0000017005C287D0>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005CC94F0>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005CC97B0>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005CC9910>, ...}
+
+    def test_epoch_bump_during_call_yields_halt_not_ack(self, stack):
+        """A 校验通过后在 port 内阻塞；B 提升 epoch；A 继续 → 结果不得 ACK。"""
+        import threading
+    
+        intent = make_intent(750)
+        coid = intent.deterministic_client_order_id
+        entered = threading.Event()
+        release = threading.Event()
+    
+        original = stack["broker"].submit_order
+    
+        def blocking_submit(coid_, symbol, qty, side, epoch):
+            entered.set()
+            release.wait(timeout=30)
+            return original(coid_, symbol, qty, side, epoch)
+    
+        stack["broker"].submit_order = blocking_submit  # type: ignore[method-assign]
+        from trading_lab.contracts import RiskDecision
+    
+        result: dict = {}
+    
+        def worker():
+            try:
+                result["outcome"] = stack["oms"].submit(
+                    intent, RiskDecision(
+                        intent_id=intent.intent_id, policy_hash="b" * 32, allow=True,
+                        reason_codes=("POLICY_SATISFIED",), limits_snapshot={}, decision_at=NOW,
+                    ), SYMBOL, "buy", Decimal("50"), stack["token"]
+                )
+            except Exception as exc:  # post-validation refusal surfaces here
+                result["exception"] = exc
+    
+        t = threading.Thread(target=worker)
+        t.start()
+>       assert entered.wait(timeout=10)
+E       assert False
+E        +  where False = wait(timeout=10)
+E        +    where wait = <threading.Event at 0x17005c2bb10: unset>.wait
+
+tests\m2_remediation\test_m2_independent_remediation.py:328: AssertionError
+__ TestR7MandatoryFields.test_explicit_zero_bar_age_not_shadowed_by_default ___
+
+self = <test_m2_independent_remediation.TestR7MandatoryFields object at 0x0000017005C28910>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005AB9C70>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005AB8D70>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005AB9310>, ...}
+
+    def test_explicit_zero_bar_age_not_shadowed_by_default(self, stack):
+        """`or` 缺陷：显式 0 容忍被策略默认 120 秒遮蔽（整改前放行）。"""
+        intent = make_intent(760)
+        d = stack["engine"].evaluate(intent, stack["producer"], symbol=SYMBOL,
+                                     max_bar_age_seconds=0)
+>       assert not d.allow  # 10 秒前的快照对 0 容忍即过期
+        ^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert not True
+E        +  where True = RiskDecision(intent_id='int-000760', policy_hash='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', allow=True, reason_codes=('POLICY...TIONAL,EXPOSURE,FRESHNESS,APPROVAL'}, decision_at=datetime.datetime(2026, 11, 20, 21, 0, tzinfo=datetime.timezone.utc)).allow
+
+tests\m2_remediation\test_m2_independent_remediation.py:354: AssertionError
+______________ TestR7MandatoryFields.test_net_exposure_enforced _______________
+
+self = <test_m2_independent_remediation.TestR7MandatoryFields object at 0x0000017005C28A50>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005CC54F0>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005CC5EF0>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005CC5F90>, ...}
+
+    def test_net_exposure_enforced(self, stack):
+        from trading_lab.risk import ExposureState
+    
+        stack["engine"]._exposure_provider = lambda: ExposureState(
+            gross_exposure_usd=Decimal("0"), net_exposure_usd=Decimal("570"),
+            equity_usd=Decimal("1000"), settled_cash_usd=Decimal("1000"),
+        )
+        d = stack["engine"].evaluate(make_intent(761), stack["producer"], symbol=SYMBOL)
+>       assert any(r.startswith("NET_EXPOSURE_EXCEEDED") for r in d.reason_codes)
+E       assert False
+E        +  where False = any(<generator object TestR7MandatoryFields.test_net_exposure_enforced.<locals>.<genexpr> at 0x0000017005B05F20>)
+
+tests\m2_remediation\test_m2_independent_remediation.py:364: AssertionError
+__________ TestR7MandatoryFields.test_short_rejected_when_disallowed __________
+
+self = <test_m2_independent_remediation.TestR7MandatoryFields object at 0x00000170059F7BB0>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005C1D2E0>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005C1D490>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005C1D0A0>, ...}
+
+    def test_short_rejected_when_disallowed(self, stack):
+        d = stack["engine"].evaluate(
+            make_intent(762, desired="-50"), stack["producer"], symbol=SYMBOL
+        )
+>       assert any(r.startswith("SHORT_NOT_ALLOWED") for r in d.reason_codes)
+E       assert False
+E        +  where False = any(<generator object TestR7MandatoryFields.test_short_rejected_when_disallowed.<locals>.<genexpr> at 0x0000017005AC7850>)
+
+tests\m2_remediation\test_m2_independent_remediation.py:370: AssertionError
+_______ TestR7MandatoryFields.test_single_symbol_concentration_enforced _______
+
+self = <test_m2_independent_remediation.TestR7MandatoryFields object at 0x00000170059F7CE0>
+stack = {'broker': <trading_lab.brokers.fake.FakeBroker object at 0x0000017005C2E150>, 'audit': <trading_lab.security.audit.Au...nal object at 0x0000017005C2D6D0>, 'fence': <trading_lab.oms.fence.FenceCoordinator object at 0x0000017005C2D250>, ...}
+
+    def test_single_symbol_concentration_enforced(self, stack):
+        from trading_lab.risk import ExposureState
+    
+        stack["engine"]._exposure_provider = lambda: ExposureState(
+            gross_exposure_usd=Decimal("0"), net_exposure_usd=Decimal("0"),
+            equity_usd=Decimal("1000"), settled_cash_usd=Decimal("1000"),
+            symbol_exposure_usd={SYMBOL: Decimal("280")},
+        )
+>       d = stack["engine"].evaluate(make_intent(763), stack["producer"], symbol=SYMBOL)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\m2_remediation\test_m2_independent_remediation.py:380: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\trading_lab\risk\engine.py:149: in evaluate
+    exposure = self._exposure_provider()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+>   stack["engine"]._exposure_provider = lambda: ExposureState(
+        gross_exposure_usd=Decimal("0"), net_exposure_usd=Decimal("0"),
+        equity_usd=Decimal("1000"), settled_cash_usd=Decimal("1000"),
+        symbol_exposure_usd={SYMBOL: Decimal("280")},
+    )
+E   TypeError: ExposureState.__init__() got an unexpected keyword argument 'symbol_exposure_usd'. Did you mean 'gross_exposure_usd'?
+
+tests\m2_remediation\test_m2_independent_remediation.py:375: TypeError
+=========================== short test summary info ===========================
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR1ApprovalEnforcement::test_disallowed_decision_zero_sends
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR1ApprovalEnforcement::test_forged_decision_zero_sends
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR1ApprovalEnforcement::test_intent_id_mismatch_zero_sends
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR1ApprovalEnforcement::test_parameter_substitution_zero_sends
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR1ApprovalEnforcement::test_expired_or_future_decision_zero_sends
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR1ApprovalEnforcement::test_policy_mismatch_zero_sends
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR2LiveFailClosed::test_live_without_verifier_rejected
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR2LiveFailClosed::test_live_verifier_exception_fail_closed
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR2LiveFailClosed::test_live_unenforced_mandatory_fields_rejected
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR3UnlockGate::test_unlock_refused_with_unresolved_unknown
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR4AtomicBoundary::test_single_transaction_entry_exists
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR5FillAtomicity::test_fill_persists_new_state
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR5FillAtomicity::test_partial_fill_persists
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR5FillAtomicity::test_overfill_refused
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR5FillAtomicity::test_fill_on_cancelled_refused
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR5FillAtomicity::test_replay_of_any_event_id_once_only
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR6FenceRace::test_epoch_bump_during_call_yields_halt_not_ack
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR7MandatoryFields::test_explicit_zero_bar_age_not_shadowed_by_default
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR7MandatoryFields::test_net_exposure_enforced
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR7MandatoryFields::test_short_rejected_when_disallowed
+FAILED tests/m2_remediation/test_m2_independent_remediation.py::TestR7MandatoryFields::test_single_symbol_concentration_enforced
+21 failed, 3 passed in 11.63s

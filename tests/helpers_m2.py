@@ -16,7 +16,7 @@ from trading_lab.brokers import FakeBroker  # noqa: E402
 from trading_lab.contracts import Environment, MarketSnapshot, TradeIntent  # noqa: E402
 from trading_lab.oms import BrokerEgress, FenceCoordinator, OmsEngine, OrderJournal  # noqa: E402
 from trading_lab.risk import ExposureState, RiskEngine, RiskPolicy, TrustedProducer  # noqa: E402
-from trading_lab.security import AuditLog, KillSwitch  # noqa: E402
+from trading_lab.security import ApprovalSecrets, AuditLog, KillSwitch  # noqa: E402
 
 NOW = dt.datetime(2026, 11, 20, 21, 0, 0, tzinfo=dt.timezone.utc)
 ACCOUNT = "PAPER_TEST_ACCOUNT"
@@ -89,6 +89,7 @@ def stack(tmp_path):
     ks = KillSwitch(Environment.PAPER, ACCOUNT, tmp_path / "ks", audit)
     policy = RiskPolicy.model_validate(dict(POLICY_DICT))
     producer = TrustedProducer.mint("portfolio_agg_v1", BUILD)
+    approval_secrets = ApprovalSecrets.mint()
     engine = RiskEngine(
         policy=policy,
         kill_switch=ks,
@@ -102,6 +103,7 @@ def stack(tmp_path):
             equity_usd=Decimal("1000"),
             settled_cash_usd=Decimal("1000"),
         ),
+        approval_secrets=approval_secrets,
     )
     oms = OmsEngine(
         environment=Environment.PAPER,
@@ -112,6 +114,8 @@ def stack(tmp_path):
         audit=audit,
         kill_switch=ks,
         now_fn=lambda: NOW,
+        expected_policy_hash=policy.policy_hash,
+        approval_secrets=approval_secrets,
     )
     token = fence.acquire(NOW)
     return {

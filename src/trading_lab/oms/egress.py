@@ -41,6 +41,22 @@ class BrokerEgress:
             )
             raise
 
+    def _assert_still_current(self, token: FenceToken, action: str, coid: str) -> None:
+        """R6 TOCTOU: re-validate AFTER the port call returns. Another
+        process acquiring a higher epoch during the call means this writer
+        was superseded in flight — its result must not be adopted (the OMS
+        maps the raised FenceError to HALT_NEW_RISK). This narrows the
+        window to the port-call itself; a mock-scope residual is documented
+        in ADR-002-addendum and must never be read as broker-side fencing."""
+        try:
+            self._fence.validate(token, self._now_fn())
+        except FenceError as exc:
+            self._audit.append(
+                "EGRESS_FENCE_SUPERSEDED_DURING_CALL",
+                {"action": action, "client_order_id": coid, "reason": str(exc)},
+            )
+            raise
+
     def submit(
         self,
         token: FenceToken,
@@ -52,6 +68,7 @@ class BrokerEgress:
         self._validated(token, "submit", client_order_id)
         try:
             receipt = self._port.submit_order(client_order_id, symbol, quantity, side, token.epoch)
+            self._assert_still_current(token, "submit", client_order_id)
         except BrokerError as exc:
             self._audit.append(
                 "EGRESS_SUBMIT_FAULT",
@@ -73,6 +90,7 @@ class BrokerEgress:
         self._validated(token, "cancel", client_order_id)
         try:
             receipt = self._port.cancel_order(client_order_id, token.epoch)
+            self._assert_still_current(token, "cancel", client_order_id)
         except BrokerError as exc:
             self._audit.append(
                 "EGRESS_CANCEL_FAULT",

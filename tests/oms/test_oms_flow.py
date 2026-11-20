@@ -45,16 +45,16 @@ class TestStateMachine:
                 validate_transition(cur, nxt)
 
 
+def sealed_decision(stack, intent):
+    """M2-R1: decisions must come from the RiskEngine (HMAC-sealed)."""
+    return stack["engine"].evaluate(intent, stack["producer"], symbol=SYMBOL)
+
+
 class TestJournalPersistence:
     def test_intent_survives_reopen(self, stack):
         oms = stack["oms"]
         intent = make_intent(100)
-        from trading_lab.contracts import RiskDecision
-
-        decision = RiskDecision(
-            intent_id=intent.intent_id, policy_hash="b" * 32, allow=True,
-            reason_codes=("POLICY_SATISFIED",), limits_snapshot={}, decision_at=NOW,
-        )
+        decision = sealed_decision(stack, intent)
         outcome = oms.submit(intent, decision, SYMBOL, "buy", Decimal("50"), stack["token"])
         assert outcome.state == "ACKED"
         # Simulated restart: a brand-new journal object sees the same rows —
@@ -72,34 +72,23 @@ class TestJournalPersistence:
         验证：出口炸掉后 journal 里仍有完整意图与尝试记录。"""
         stack["broker"].schedule_fault("submit_timeout", make_intent(101).deterministic_client_order_id)
         intent = make_intent(101)
-        from trading_lab.contracts import RiskDecision
-
-        decision = RiskDecision(intent_id=intent.intent_id, policy_hash="b" * 32,
-                                allow=True, reason_codes=("POLICY_SATISFIED",),
-                                limits_snapshot={}, decision_at=NOW)
+        decision = sealed_decision(stack, intent)
         outcome = stack["oms"].submit(intent, decision, SYMBOL, "buy", Decimal("50"), stack["token"])
         assert outcome.state == "UNKNOWN"
         assert stack["journal"].state_of(intent.intent_id) == "HALT_NEW_RISK"
 
 
 class TestSubmitFlows:
-    def _decision(self, intent):
-        from trading_lab.contracts import RiskDecision
-
-        return RiskDecision(intent_id=intent.intent_id, policy_hash="b" * 32,
-                            allow=True, reason_codes=("POLICY_SATISFIED",),
-                            limits_snapshot={}, decision_at=NOW)
-
     def test_happy_path_acked_once(self, stack):
         intent = make_intent(200)
-        outcome = stack["oms"].submit(intent, self._decision(intent), SYMBOL, "buy", Decimal("50"), stack["token"])
+        outcome = stack["oms"].submit(intent, sealed_decision(stack, intent), SYMBOL, "buy", Decimal("50"), stack["token"])
         assert outcome.state == "ACKED" and outcome.delivered and outcome.acknowledged
         assert stack["broker"].created_orders_by_intent(intent.deterministic_client_order_id) == 1
 
     def test_broker_reject_is_terminal_no_retry(self, stack):
         intent = make_intent(201)
         stack["broker"].schedule_fault("reject", intent.deterministic_client_order_id)
-        outcome = stack["oms"].submit(intent, self._decision(intent), SYMBOL, "buy", Decimal("50"), stack["token"])
+        outcome = stack["oms"].submit(intent, sealed_decision(stack, intent), SYMBOL, "buy", Decimal("50"), stack["token"])
         assert outcome.state == "REJECTED"
         assert stack["broker"].created_orders_by_intent(intent.deterministic_client_order_id) == 0
 
@@ -111,7 +100,7 @@ class TestSubmitFlows:
         intent = make_intent(202)
         coid = intent.deterministic_client_order_id
         stack["broker"].schedule_fault(fault, coid)
-        outcome = stack["oms"].submit(intent, self._decision(intent), SYMBOL, "buy", Decimal("50"), stack["token"])
+        outcome = stack["oms"].submit(intent, sealed_decision(stack, intent), SYMBOL, "buy", Decimal("50"), stack["token"])
         assert outcome.state == "UNKNOWN" and outcome.halted
         created = stack["broker"].created_orders_by_intent(coid)
         assert created <= 1
@@ -122,25 +111,18 @@ class TestSubmitFlows:
 
     def test_duplicate_fill_ignored(self, stack):
         intent = make_intent(203)
-        outcome = stack["oms"].submit(intent, self._decision(intent), SYMBOL, "buy", Decimal("50"), stack["token"])
+        outcome = stack["oms"].submit(intent, sealed_decision(stack, intent), SYMBOL, "buy", Decimal("50"), stack["token"])
         assert outcome.state == "ACKED"
         assert stack["oms"].process_fill(intent.intent_id, "EVT-1-FILL", Decimal("50"))
         assert not stack["oms"].process_fill(intent.intent_id, "EVT-1-FILL", Decimal("50"))
 
 
 class TestRecovery:
-    def _decision(self, intent):
-        from trading_lab.contracts import RiskDecision
-
-        return RiskDecision(intent_id=intent.intent_id, policy_hash="b" * 32,
-                            allow=True, reason_codes=("POLICY_SATISFIED",),
-                            limits_snapshot={}, decision_at=NOW)
-
     def test_recovery_reconciles_unknown_and_requires_unlock(self, stack):
         intent = make_intent(300)
         coid = intent.deterministic_client_order_id
         stack["broker"].schedule_fault("ack_lost", coid)
-        stack["oms"].submit(intent, self._decision(intent), SYMBOL, "buy", Decimal("50"), stack["token"])
+        stack["oms"].submit(intent, sealed_decision(stack, intent), SYMBOL, "buy", Decimal("50"), stack["token"])
         assert stack["ks"].is_halted()
         # The "lost" order did reach the fake broker; recovery adopts it.
         stack["broker"].late_order_appears(coid, SYMBOL, Decimal("50"), "buy")
@@ -156,7 +138,7 @@ class TestRecovery:
     def test_recovery_unknown_without_broker_state_stays_halted(self, stack):
         intent = make_intent(301)
         stack["broker"].schedule_fault("submit_timeout", intent.deterministic_client_order_id)
-        stack["oms"].submit(intent, self._decision(intent), SYMBOL, "buy", Decimal("50"), stack["token"])
+        stack["oms"].submit(intent, sealed_decision(stack, intent), SYMBOL, "buy", Decimal("50"), stack["token"])
         report = stack["oms"].recover(NOW)
         assert intent.intent_id in report.still_unknown  # 查无 ≠ 未发送
         assert stack["ks"].is_halted()  # operator unlock required
@@ -167,11 +149,7 @@ class TestFencing:
         old_token = stack["token"]
         stack["fence"].acquire(NOW)  # someone else bumps the epoch
         intent = make_intent(400)
-        from trading_lab.contracts import RiskDecision
-
-        decision = RiskDecision(intent_id=intent.intent_id, policy_hash="b" * 32,
-                                allow=True, reason_codes=("POLICY_SATISFIED",),
-                                limits_snapshot={}, decision_at=NOW)
+        decision = sealed_decision(stack, intent)
         outcome = stack["oms"].submit(intent, decision, SYMBOL, "buy", Decimal("50"), old_token)
         assert outcome.state == "HALT_NEW_RISK"
         assert stack["broker"].created_orders_by_intent(intent.deterministic_client_order_id) == 0

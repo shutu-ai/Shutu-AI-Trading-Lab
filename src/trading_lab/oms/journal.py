@@ -14,6 +14,7 @@ import datetime as dt
 import json
 import sqlite3
 from pathlib import Path
+from decimal import Decimal
 from typing import Any
 
 from trading_lab.security.canonical import sha256_hex
@@ -34,6 +35,7 @@ CREATE TABLE IF NOT EXISTS intents (
     risk_decision_json TEXT NOT NULL,    -- full RiskDecision record
     state TEXT NOT NULL,
     version INTEGER NOT NULL,
+    filled_qty TEXT NOT NULL DEFAULT '0',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS attempts (
@@ -59,12 +61,21 @@ class JournalError(RuntimeError):
     """Journal unusable — every caller must fail closed."""
 
 
+class _SimulatedCrash(RuntimeError):
+    """Internal rollback trigger for crash-window simulation."""
+
+
 class OrderJournal:
-    def __init__(self, path: str | Path) -> None:
+    def __init__(self, path: str | Path, check_same_thread: bool = True) -> None:
+        # Thread-locked by default; the R6 race test explicitly opens a
+        # cross-thread connection to simulate an in-flight egress call from
+        # another thread. Real multi-process runs use one connection per
+        # process and never need this.
         self._path = Path(path)
         self._path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            self._conn = sqlite3.connect(str(self._path), isolation_level=None)
+            self._conn = sqlite3.connect(str(self._path), isolation_level=None,
+                                         check_same_thread=check_same_thread)
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.execute("PRAGMA synchronous=FULL")
             self._conn.execute("PRAGMA foreign_keys=ON")
@@ -81,7 +92,7 @@ class OrderJournal:
 
     # -- writes (each is one atomic transaction) ------------------------------
 
-    def record_intent(
+    def record_intent_and_submitting(
         self,
         intent_id: str,
         client_order_id: str,
@@ -92,72 +103,154 @@ class OrderJournal:
         quantity: str,
         payload: dict[str, Any],
         risk_decision: dict[str, Any],
-        state: str = "NEW_INTENT",
-    ) -> None:
+        fence_epoch: int,
+        simulate_crash_before_commit: bool = False,
+    ) -> str:
+        """ONE atomic transaction (R4): the full intent AND its SUBMITTING
+        attempt commit together, before any egress call is possible. A crash
+        before commit leaves neither row (rollback) — there is no observable
+        intermediate state, and the egress is only ever called after this
+        method returns. Returns the attempt id."""
+        import uuid
+
         now = dt.datetime.now(dt.timezone.utc).isoformat()
+        attempt_id = uuid.uuid4().hex
         payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
         decision_json = json.dumps(risk_decision, sort_keys=True, separators=(",", ":"))
         try:
-            with self._conn:  # atomic
-                self._conn.execute(
-                    "INSERT INTO intents (intent_id, client_order_id, environment, account_id,"
-                    " symbol, side, quantity, payload_json, payload_hash, risk_decision_json,"
-                    " state, version, created_at, updated_at)"
-                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                    (
-                        intent_id, client_order_id, environment, account_id, symbol, side,
-                        quantity, payload_json, sha256_hex(payload_json.encode("utf-8")),
-                        decision_json, state, 1, now, now,
-                    ),
-                )
+            self._conn.execute("BEGIN IMMEDIATE")
+            self._conn.execute(
+                "INSERT INTO intents (intent_id, client_order_id, environment, account_id,"
+                " symbol, side, quantity, payload_json, payload_hash, risk_decision_json,"
+                " state, version, filled_qty, created_at, updated_at)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,'SUBMITTING',1,'0',?,?)",
+                (
+                    intent_id, client_order_id, environment, account_id, symbol, side,
+                    quantity, payload_json, sha256_hex(payload_json.encode("utf-8")),
+                    decision_json, now, now,
+                ),
+            )
+            self._conn.execute(
+                "INSERT INTO attempts (attempt_id, intent_id, fence_epoch, state, started_at)"
+                " VALUES (?,?,?,?,?)",
+                (attempt_id, intent_id, fence_epoch, "SUBMITTING", now),
+            )
+            if simulate_crash_before_commit:
+                raise _SimulatedCrash("simulated crash before commit")
+            self._conn.execute("COMMIT")
+        except _SimulatedCrash:
+            self._conn.execute("ROLLBACK")
+            raise  # crash simulation propagates; nothing was committed
         except sqlite3.Error as exc:
-            raise JournalError(f"intent persist failed: {exc}") from exc
-
-    def mark_submitting(self, intent_id: str, attempt_id: str, fence_epoch: int) -> None:
-        """One transaction: intent -> SUBMITTING + attempt row SUBMITTING.
-        Must commit BEFORE the egress call is attempted."""
-        now = dt.datetime.now(dt.timezone.utc).isoformat()
-        try:
-            with self._conn:
-                self._conn.execute(
-                    "UPDATE intents SET state='SUBMITTING', updated_at=? WHERE intent_id=?",
-                    (now, intent_id),
-                )
-                self._conn.execute(
-                    "INSERT INTO attempts (attempt_id, intent_id, fence_epoch, state, started_at)"
-                    " VALUES (?,?,?,?,?)",
-                    (attempt_id, intent_id, fence_epoch, "SUBMITTING", now),
-                )
-        except sqlite3.Error as exc:
-            raise JournalError(f"submitting persist failed: {exc}") from exc
+            try:
+                self._conn.execute("ROLLBACK")
+            except sqlite3.Error:
+                pass
+            raise JournalError(f"intent+attempt persist failed: {exc}") from exc
+        return attempt_id
 
     def finish_attempt(self, attempt_id: str, state: str, result: dict[str, Any]) -> None:
         now = dt.datetime.now(dt.timezone.utc).isoformat()
         try:
-            with self._conn:
-                self._conn.execute(
-                    "UPDATE attempts SET state=?, finished_at=?, result_json=? WHERE attempt_id=?",
-                    (state, now, json.dumps(result, sort_keys=True), attempt_id),
-                )
+            self._conn.execute("BEGIN IMMEDIATE")
+            self._conn.execute(
+                "UPDATE attempts SET state=?, finished_at=?, result_json=? WHERE attempt_id=?",
+                (state, now, json.dumps(result, sort_keys=True), attempt_id),
+            )
+            self._conn.execute("COMMIT")
         except sqlite3.Error as exc:
+            try:
+                self._conn.execute("ROLLBACK")
+            except sqlite3.Error:
+                pass
             raise JournalError(f"attempt finish persist failed: {exc}") from exc
 
-    def set_state(self, intent_id: str, state: str, bump_version: bool = False) -> None:
+    def transition_state(self, intent_id: str, expected: str, target: str,
+                         bump_version: bool = False) -> None:
+        """CAS state transition persisted at the storage layer (R4): the
+        update only lands when the current state equals ``expected``, so
+        transitions cannot bypass or race the state machine."""
         now = dt.datetime.now(dt.timezone.utc).isoformat()
         try:
-            with self._conn:
-                if bump_version:
-                    self._conn.execute(
-                        "UPDATE intents SET state=?, version=version+1, updated_at=? WHERE intent_id=?",
-                        (state, now, intent_id),
-                    )
-                else:
-                    self._conn.execute(
-                        "UPDATE intents SET state=?, updated_at=? WHERE intent_id=?",
-                        (state, now, intent_id),
-                    )
+            self._conn.execute("BEGIN IMMEDIATE")
+            if bump_version:
+                cur = self._conn.execute(
+                    "UPDATE intents SET state=?, version=version+1, updated_at=?"
+                    " WHERE intent_id=? AND state=?",
+                    (target, now, intent_id, expected),
+                )
+            else:
+                cur = self._conn.execute(
+                    "UPDATE intents SET state=?, updated_at=?"
+                    " WHERE intent_id=? AND state=?",
+                    (target, now, intent_id, expected),
+                )
+            if cur.rowcount == 0:
+                self._conn.execute("ROLLBACK")
+                raise JournalError(
+                    f"CAS transition failed: {intent_id} expected state {expected!r}"
+                )
+            self._conn.execute("COMMIT")
+        except JournalError:
+            raise
         except sqlite3.Error as exc:
+            try:
+                self._conn.execute("ROLLBACK")
+            except sqlite3.Error:
+                pass
             raise JournalError(f"state persist failed: {exc}") from exc
+
+    def unresolved_count(self) -> int:
+        """Non-terminal, non-reconciled intents — any of them blocks an
+        operator unlock (R3)."""
+        row = self._conn.execute(
+            "SELECT COUNT(*) FROM intents WHERE state NOT IN"
+            " ('FILLED','CANCELLED','REJECTED','RECONCILED')"
+        ).fetchone()
+        return int(row[0])
+
+    def apply_fill(self, intent_id: str, broker_event_id: str, qty: Decimal) -> tuple[bool, str]:
+        """Atomic fill application (R5): event dedupe + cumulative quantity +
+        state transition in ONE transaction. Returns (recorded, reason)."""
+        now = dt.datetime.now(dt.timezone.utc).isoformat()
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
+            cur = self._conn.execute(
+                "INSERT OR IGNORE INTO events (intent_id, broker_event_id, kind,"
+                " payload_json, received_at) VALUES (?,?,?,?,?)",
+                (intent_id, broker_event_id, "FILL", json.dumps({"qty": str(qty)}), now),
+            )
+            if cur.rowcount == 0:
+                self._conn.execute("ROLLBACK")
+                return False, "DUPLICATE_EVENT"
+            row = self._conn.execute(
+                "SELECT state, quantity, filled_qty FROM intents WHERE intent_id=?",
+                (intent_id,),
+            ).fetchone()
+            if row is None:
+                self._conn.execute("ROLLBACK")
+                return False, "UNKNOWN_INTENT"
+            state, quantity, filled = row[0], Decimal(row[1]), Decimal(row[2])
+            if state not in ("ACKED", "PARTIALLY_FILLED"):
+                self._conn.execute("ROLLBACK")
+                return False, f"FILL_REJECTED_STATE:{state}"
+            new_filled = filled + qty
+            if new_filled > quantity:
+                self._conn.execute("ROLLBACK")
+                return False, "OVERFILL"
+            target = "FILLED" if new_filled == quantity else "PARTIALLY_FILLED"
+            self._conn.execute(
+                "UPDATE intents SET state=?, filled_qty=?, updated_at=? WHERE intent_id=?",
+                (target, str(new_filled), now, intent_id),
+            )
+            self._conn.execute("COMMIT")
+            return True, target
+        except sqlite3.Error as exc:
+            try:
+                self._conn.execute("ROLLBACK")
+            except sqlite3.Error:
+                pass
+            raise JournalError(f"fill persist failed: {exc}") from exc
 
     def state_of(self, intent_id: str) -> str | None:
         row = self._conn.execute(
@@ -190,14 +283,19 @@ class OrderJournal:
         """Idempotent by broker_event_id; returns True when newly recorded."""
         now = dt.datetime.now(dt.timezone.utc).isoformat()
         try:
-            with self._conn:
-                cur = self._conn.execute(
-                    "INSERT OR IGNORE INTO events (intent_id, broker_event_id, kind,"
-                    " payload_json, received_at) VALUES (?,?,?,?,?)",
-                    (intent_id, broker_event_id, kind, json.dumps(payload, sort_keys=True), now),
-                )
-                return cur.rowcount > 0
+            self._conn.execute("BEGIN IMMEDIATE")
+            cur = self._conn.execute(
+                "INSERT OR IGNORE INTO events (intent_id, broker_event_id, kind,"
+                " payload_json, received_at) VALUES (?,?,?,?,?)",
+                (intent_id, broker_event_id, kind, json.dumps(payload, sort_keys=True), now),
+            )
+            self._conn.execute("COMMIT")
+            return cur.rowcount > 0
         except sqlite3.Error as exc:
+            try:
+                self._conn.execute("ROLLBACK")
+            except sqlite3.Error:
+                pass
             raise JournalError(f"event persist failed: {exc}") from exc
 
     def seen_broker_event(self, broker_event_id: str) -> bool:

@@ -1,24 +1,32 @@
 """The single OMS: durable intents, journal-before-send, UNKNOWN semantics,
 recovery with reconciliation.
 
-Invariants (fault-injection suite asserts each):
+Invariants (fault-injection + remediation suites assert each):
 
-- INV-1 journal-before-send: an intent + SUBMITTING attempt commit atomically
-  BEFORE the egress call; journal failure => zero sends.
+- INV-1 journal-before-send: the full intent AND its SUBMITTING attempt
+  commit in ONE transaction before the egress call; persistence failure
+  (or a simulated crash) => zero sends.
 - INV-2 UNKNOWN never resends: any submit fault (ack lost / timeout / later
   get_order None) leaves the intent UNKNOWN + HALT_NEW_RISK; there is no
   resend path, no substitute intent, no coid replacement, no UNKNOWN cleanup.
-- INV-3 single writer: every egress write validates the fence; stale
-  executors get zero accepted broker writes.
-- INV-4 fills are idempotent by broker event id; duplicates never double-count.
+- INV-3 single writer: every egress write validates the fence before AND
+  after the port call; a superseded writer's result is never adopted.
+- INV-4 fills are atomic (event dedupe + cumulative quantity + state in one
+  transaction); duplicates never double-count; overfills/cancelled fills
+  refuse fail-closed.
 - INV-5 recovery reconciles against the broker before any new risk; operator
-  unlock is mandatory after UNKNOWN/HALT.
+  unlock additionally requires ZERO unresolved intents in the journal — an
+  authorization string alone never clears the halt (R3).
+- INV-6 (R1): a submit requires a risk decision that (a) allows, (b) is for
+  THIS intent, (c) matches the pinned policy hash, (d) is time-valid, and
+  (e) carries an HMAC seal binding intent+symbol+side+quantity minted by the
+  RiskEngine — forged/mismatched/substituted approvals yield ZERO sends and
+  are never journaled.
 """
 
 from __future__ import annotations
 
 import datetime as dt
-import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Callable
@@ -27,6 +35,7 @@ from ..brokers.port import BrokerError
 from ..contracts import Environment, RiskDecision, TradeIntent
 from ..security.audit import AuditLog
 from ..security.kill_switch import KillSwitch
+from ..security.approval import ApprovalSecrets
 from .egress import BrokerEgress
 from .fence import FenceCoordinator, FenceError, FenceToken
 from .journal import JournalError, OrderJournal
@@ -66,6 +75,8 @@ class OmsEngine:
         audit: AuditLog,
         kill_switch: KillSwitch,
         now_fn: NowFn,
+        expected_policy_hash: str = "",
+        approval_secrets: ApprovalSecrets | None = None,
     ) -> None:
         self._env = environment
         self._account = account_id
@@ -75,9 +86,64 @@ class OmsEngine:
         self._audit = audit
         self._ks = kill_switch
         self._now_fn = now_fn
+        self._expected_policy_hash = expected_policy_hash
+        self._approval_secrets = approval_secrets
 
     # ------------------------------------------------------------------
-    # submit path (INV-1, INV-2)
+    # R1: decision validation — refuse BEFORE any journal write
+    # ------------------------------------------------------------------
+
+    def _validate_decision(
+        self,
+        intent: TradeIntent,
+        decision: RiskDecision,
+        symbol: str,
+        side: str,
+        quantity: Decimal,
+    ) -> str | None:
+        if not decision.allow:
+            return "DECISION_NOT_APPROVED"
+        if decision.intent_id != intent.intent_id:
+            return "DECISION_INTENT_MISMATCH"
+        if self._expected_policy_hash and decision.policy_hash != self._expected_policy_hash:
+            return "DECISION_POLICY_MISMATCH"
+        now = self._now_fn()
+        if decision.decision_at > now:
+            return "DECISION_FROM_FUTURE"
+        snap = decision.limits_snapshot
+        for key in ("bound_symbol", "bound_side", "bound_quantity",
+                    "decision_expires_at", "approval_seal"):
+            if key not in snap:
+                return "DECISION_UNSEALED"
+        try:
+            expires = dt.datetime.fromisoformat(snap["decision_expires_at"])
+        except ValueError:
+            return "DECISION_UNSEALED"
+        if now > expires:
+            return "DECISION_EXPIRED"
+        if snap["bound_symbol"] != symbol:
+            return "DECISION_BINDING_MISMATCH:symbol"
+        if snap["bound_side"] != side:
+            return "DECISION_BINDING_MISMATCH:side"
+        if Decimal(snap["bound_quantity"]) != abs(quantity):
+            return "DECISION_BINDING_MISMATCH:quantity"
+        if self._approval_secrets is None:
+            return "DECISION_UNSEALED"
+        binding = {
+            "intent": intent.model_dump(mode="json"),
+            "symbol": symbol,
+            "side": side,
+            "quantity": str(quantity),
+            "policy_hash": decision.policy_hash,
+            "decision_at": decision.decision_at.isoformat(),
+            "expires_at": snap["decision_expires_at"],
+        }
+        if not self._approval_secrets.verify(binding, snap["approval_seal"]):
+            return "DECISION_SEAL_INVALID"
+        return None
+
+    # ------------------------------------------------------------------
+    # submit path (INV-1/2/3 + INV-6)
     # ------------------------------------------------------------------
 
     def submit(
@@ -92,8 +158,7 @@ class OmsEngine:
         intent_id = intent.intent_id
         coid = intent.deterministic_client_order_id
 
-        # Defense in depth: the risk engine gates normally, but the OMS also
-        # refuses outright while a halt is engaged (fault class "kill switch").
+        # Defense in depth: halted => refuse outright (fault class "kill switch").
         if self._ks.is_halted():
             self._audit.append(
                 "OMS_SUBMIT_REFUSED_HALTED",
@@ -101,9 +166,21 @@ class OmsEngine:
             )
             return SubmitOutcome(intent_id, "HALT_NEW_RISK", False, None, halted=True)
 
-        # INV-1: journal-first. Any persistence failure => zero sends.
+        # INV-6 (R1): an invalid/forged/mismatched approval is refused BEFORE
+        # any journal write or broker call — zero sends, audited.
+        validation_error = self._validate_decision(intent, decision, symbol, side, quantity)
+        if validation_error is not None:
+            self._audit.append(
+                "OMS_APPROVAL_REFUSED",
+                {"intent_id": intent_id, "client_order_id": coid,
+                 "reason": validation_error},
+            )
+            return SubmitOutcome(intent_id, "REJECTED", False, None, halted=False)
+
+        # INV-1: journal-first, ONE atomic transaction. Any persistence
+        # failure => zero sends.
         try:
-            self._journal.record_intent(
+            attempt_id = self._journal.record_intent_and_submitting(
                 intent_id=intent_id,
                 client_order_id=coid,
                 environment=str(intent.environment),
@@ -113,13 +190,8 @@ class OmsEngine:
                 quantity=str(quantity),
                 payload=intent.model_dump(mode="json"),
                 risk_decision=decision.model_dump(mode="json"),
-                state="NEW_INTENT",
+                fence_epoch=token.epoch,
             )
-            validate_transition("NEW_INTENT", "PERSISTED")
-            self._journal.set_state(intent_id, "PERSISTED")
-            attempt_id = uuid.uuid4().hex
-            validate_transition("PERSISTED", "SUBMITTING")
-            self._journal.mark_submitting(intent_id, attempt_id, token.epoch)
         except JournalError as exc:
             self._audit.append(
                 "OMS_PERSISTENCE_FAULT",
@@ -127,22 +199,19 @@ class OmsEngine:
             )
             return SubmitOutcome(intent_id, "FAILED_PERSISTENCE", False, None, halted=True)
 
-        # Fence re-validation inside the egress (INV-3); the token was acquired
-        # by the caller through the coordinator.
+        # INV-3: the egress re-validates the fence itself; a FenceError after
+        # the port call (R6 TOCTOU) also lands here — the superseded writer's
+        # result is never adopted.
         try:
             receipt = self._egress.submit(token, coid, symbol, quantity, side)
         except FenceError:
-            # provably never reached the broker; intent stays PERSISTED/
-            # SUBMITTING in journal — reconciliation decides its fate.
-            self._journal.set_state(intent_id, "HALT_NEW_RISK")
+            self._journal.transition_state(intent_id, "SUBMITTING", "HALT_NEW_RISK")
             return SubmitOutcome(intent_id, "HALT_NEW_RISK", False, None, halted=True)
         except BrokerError:
             # INV-2: answer lost / timeout / delivery unknown => UNKNOWN,
             # HALT_NEW_RISK; absolutely no resend from here.
-            validate_transition("SUBMITTING", "UNKNOWN")
-            self._journal.set_state(intent_id, "UNKNOWN")
-            validate_transition("UNKNOWN", "HALT_NEW_RISK")
-            self._journal.set_state(intent_id, "HALT_NEW_RISK")
+            self._journal.transition_state(intent_id, "SUBMITTING", "UNKNOWN")
+            self._journal.transition_state(intent_id, "UNKNOWN", "HALT_NEW_RISK")
             self._ks.set(reason=f"UNKNOWN outcome for {coid}", operator_id="oms-engine")
             self._audit.append(
                 "OMS_UNKNOWN_HALT",
@@ -155,39 +224,30 @@ class OmsEngine:
             return SubmitOutcome(intent_id, "UNKNOWN", False, None, halted=True)
 
         if receipt.acknowledged is True:
-            validate_transition("SUBMITTING", "ACKED")
-            self._journal.set_state(intent_id, "ACKED", bump_version=True)
+            self._journal.transition_state(intent_id, "SUBMITTING", "ACKED", bump_version=True)
             self._journal.finish_attempt(attempt_id, "SENT", {"receipt": receipt.raw or {}})
             return SubmitOutcome(intent_id, "ACKED", True, True, halted=False)
         if receipt.acknowledged is False:
             # provably delivered AND refused by the broker: terminal rejection.
-            validate_transition("SUBMITTING", "REJECTED")
-            self._journal.set_state(intent_id, "REJECTED")
+            self._journal.transition_state(intent_id, "SUBMITTING", "REJECTED")
             self._journal.finish_attempt(attempt_id, "SENT", {"rejected": True})
             return SubmitOutcome(intent_id, "REJECTED", True, False, halted=False)
         # acknowledged None with delivered True is not produced by the fake
         # port; treat defensively as UNKNOWN.
-        validate_transition("SUBMITTING", "UNKNOWN")
-        self._journal.set_state(intent_id, "UNKNOWN")
+        self._journal.transition_state(intent_id, "SUBMITTING", "UNKNOWN")
         return SubmitOutcome(intent_id, "UNKNOWN", True, None, halted=True)
 
     # ------------------------------------------------------------------
-    # fills (INV-4): idempotent by broker event id
+    # fills (INV-4): atomic application in the journal
     # ------------------------------------------------------------------
 
     def process_fill(self, intent_id: str, broker_event_id: str, qty: Decimal) -> bool:
-        if self._journal.seen_broker_event(broker_event_id):
-            self._audit.append(
-                "OMS_DUPLICATE_FILL_IGNORED",
-                {"intent_id": intent_id, "broker_event_id": broker_event_id},
-            )
-            return False
-        state = self._journal.state_of(intent_id)
-        target = "FILLED" if state == "ACKED" or state == "PARTIALLY_FILLED" else state
-        if target != state:
-            validate_transition(state, target)
-        self._journal.record_broker_event(intent_id, broker_event_id, "FILL", {"qty": str(qty)})
-        return True
+        recorded, reason = self._journal.apply_fill(intent_id, broker_event_id, qty)
+        self._audit.append(
+            "OMS_FILL_APPLIED" if recorded else "OMS_FILL_REFUSED",
+            {"intent_id": intent_id, "broker_event_id": broker_event_id, "reason": reason},
+        )
+        return recorded
 
     # ------------------------------------------------------------------
     # recovery (INV-2/INV-5)
@@ -210,8 +270,7 @@ class OmsEngine:
                 continue
             lookup = self._egress.get_order(coid)
             if lookup.found and lookup.state in ("FILLED", "CANCELLED", "ACKED"):
-                validate_transition(row["state"], "RECONCILED")
-                self._journal.set_state(intent_id, "RECONCILED", bump_version=True)
+                self._journal.transition_state(intent_id, row["state"], "RECONCILED", bump_version=True)
                 reconciled.append(intent_id)
             else:
                 # get_order not found is NOT proof of non-delivery.
@@ -224,8 +283,29 @@ class OmsEngine:
         return RecoveryReport(reconciled=tuple(reconciled), still_unknown=tuple(still_unknown), halted=True)
 
     def operator_unlock(self, operator_id: str, authorization_ref: str) -> None:
-        """After reconciliation, only an explicit human unlock resumes risk."""
+        """R3: unlock requires BOTH an explicit human authorization AND a
+        journal with zero unresolved intents (every open intent reconciled
+        or terminal). Authorization text alone is not reconciliation
+        evidence; unknown orders are never treated as undelivered."""
+        unresolved = self._journal.unresolved_count()
+        if unresolved > 0:
+            self._audit.append(
+                "OMS_UNLOCK_REFUSED_UNRECONCILED",
+                {"operator_id": operator_id, "unresolved": unresolved},
+            )
+            raise OmsError(
+                f"unlock refused: {unresolved} unresolved intent(s) — broker "
+                f"orders/positions/cash reconciliation is incomplete"
+            )
         self._ks.clear(operator_id=operator_id, authorization_ref=authorization_ref)
+        # MOCK_ONLY note: M2 reconciliation covers ORDER-level facts via the
+        # fake broker; no positions/cash ledger exists yet, so this unlock is
+        # a mock-scoped recovery and must never be read as production-ready.
+        self._audit.append(
+            "OMS_UNLOCK_MOCK_ONLY",
+            {"operator_id": operator_id,
+             "note": "order-level reconciliation only; positions/cash proof pending"},
+        )
 
 
 __all__ = ["OmsEngine", "OmsError", "RecoveryReport", "SubmitOutcome"]
