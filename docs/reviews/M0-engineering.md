@@ -69,7 +69,7 @@
 ## 4. Findings 与已知限制（不降低验收阈值）
 
 1. **OS 级权限攻击测试未做**（ADR-002 已记录）：研究沙箱隔离目前是结构/策略/审计层面；§6.5 "签批隔离要通过实际权限攻击测试证明" 的 OS 层部分归 M4（AI 研究工厂实现时以真实低权限进程验证）。M0 覆盖的是 mock 层负例矩阵。
-2. **GitHub Actions 未实际执行**：本地同命令集全部通过；Actions 结果待推送后产生，不作为本轮 PASS 依据。
+2. **GitHub Actions 首次执行暴露并修复一个问题**：初版 `pyproject.toml` 的 `license = "Proprietary"` 非合法 SPDX 表达式，两矩阵 Install 步骤失败（run `44755037633` ✗）；改为 `LicenseRef-Proprietary` 后推送（`5656dc5`），**run `44755451594` 双矩阵（ubuntu/windows）全绿**——pytest + 密钥扫描 + Paper 纯度门在 CI 实际通过。剩余注解仅 GitHub 平台自身的 actions Node 20 弃用提醒，非本仓库问题。
 3. **审计日志为单机文件**（含 head 记录防尾截断）：M0 威胁模型内足够；外部化防篡改存储留待后续阶段按需评估。
 4. **smoke 的 LIVE 干运行**：使用临时目录物化的 mock 配置（虚构账户 `MOCK_LIVE_DRYRUN_ACCOUNT`、mock 测试密钥）；`configs/live/runtime.template.yaml` 因占位符存在无法直接加载（fail-closed by design）。
 
