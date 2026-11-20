@@ -22,3 +22,8 @@ artifacts/evidence/M-1/candidates/qlib/mlruns/
 # Never committed: per-environment runtime state stays local by design.
 artifacts/state/
 
+
+# Python build artifacts
+*.egg-info/
+build/
+dist/
