@@ -1,0 +1,2 @@
+tests/fault_injection/test_a7_targeted_proof.py: 3
+

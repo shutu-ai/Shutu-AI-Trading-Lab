@@ -1,0 +1,10 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.15, pytest-9.2.0, pluggy-1.7.0
+rootdir: D:\dev-projects\Shutu-AI-Trading-Lab
+configfile: pyproject.toml
+plugins: platformdirs-4.14.7
+collected 8 items
+
+tests\fault_injection\test_a7_targeted_proof.py ........                 [100%]
+
+============================== 8 passed in 3.08s ==============================

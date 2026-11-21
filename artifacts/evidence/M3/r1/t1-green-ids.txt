@@ -1,0 +1,9 @@
+tests/fault_injection/test_a7_targeted_proof.py::TestA7T1ClaimHolderCrash::test_claim_holder_crash_auto_halt[1] PASSED [ 12%]
+tests/fault_injection/test_a7_targeted_proof.py::TestA7T1ClaimHolderCrash::test_claim_holder_crash_auto_halt[2] PASSED [ 25%]
+tests/fault_injection/test_a7_targeted_proof.py::TestA7T1ClaimHolderCrash::test_claim_holder_crash_auto_halt[3] PASSED [ 37%]
+tests/fault_injection/test_a7_targeted_proof.py::TestA7T1ClaimHolderCrash::test_claim_holder_crash_auto_halt[4] PASSED [ 50%]
+tests/fault_injection/test_a7_targeted_proof.py::TestA7T1ClaimHolderCrash::test_claim_holder_crash_auto_halt[5] PASSED [ 62%]
+tests/fault_injection/test_a7_targeted_proof.py::TestClaimCasOneShot::test_second_claim_returns_none PASSED [ 75%]
+tests/fault_injection/test_a7_targeted_proof.py::TestA7T2DualLayerBlock::test_risk_deny_after_halt PASSED [ 87%]
+tests/fault_injection/test_a7_targeted_proof.py::TestA7T2DualLayerBlock::test_oms_deny_preapproved_after_halt PASSED [100%]
+============================== 8 passed in 3.05s ==============================
