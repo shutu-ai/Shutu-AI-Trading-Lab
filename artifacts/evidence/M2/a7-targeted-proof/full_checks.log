@@ -1,0 +1,29 @@
+# A7 targeted proof verification â€” 2026-11-21T15:10:23+02:00 â€” HEAD 8a5f9c5
+## environment
+python: 3.13.15
+CHECK_ENV_EXIT=0
+## pytest A7
+.......                                                                  [100%]
+7 passed in 3.12s
+A7_EXIT=0
+## pytest full
+...........................................................              [100%]
+347 passed in 151.44s (0:02:31)
+PYTEST_EXIT=0
+## check_architecture
+check_architecture: scanned 3 packages (18 files), 0 violations
+ARCH_EXIT=0
+## scan_secrets
+scan_secrets: scanned 310 tracked files, 0 findings
+SCAN_EXIT=0
+## verify_live_blocked
+verify_live_blocked: paper runtime contains no live artifacts ¡ª PASS
+VLB_EXIT=0
+## smoke_mock
+SMOKE PASS: paper gate + kill switch + mock live verification all behaved fail-closed
+SMOKE_EXIT=0
+## git diff --check
+DIFF_CHECK_EXIT=0
+## fault matrix
+...........                                                              [100%]
+MATRIX_EXIT=0
