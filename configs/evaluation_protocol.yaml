@@ -1,0 +1,92 @@
+# M3 frozen evaluation protocol v1 — pre-registered BEFORE any experiment.
+# Changing any threshold creates a new protocol version + hash; lowering
+# thresholds after a failed run is prohibited.
+
+protocol_id: m3-synthetic-engineering-v1
+protocol_version: 1
+canonical_rule: sorted_keys_utf8_no_whitespace
+description: >
+  M3 synthetic engineering validation: B0 cash, B1 ETF buy-and-hold,
+  B2 transparent single-rule strategy. Synthetic data only — results
+  are engineering proofs, NOT alpha/OOS evidence.
+
+data_scope: SYNTHETIC_ENGINEERING_ONLY
+
+seeds: [42, 137, 2026]
+
+decimal_tolerance: "0.0001"
+
+# Cost model (multiplied by cost_multiplier for sensitivity)
+cost_model:
+  commission_per_trade: "1.00"
+  spread_pct: "0.001"
+  slippage_pct: "0.0005"
+
+cost_multipliers: [1, 2, 3]
+
+# Execution model
+execution:
+  order_delay_bars: 1          # signal at close T, execute at open T+1
+  allow_same_day_close: false  # 同日收盘信号不得当日收盘成交
+  volume_limit_pct: 0.10       # max 10% of bar volume
+  partial_fill_threshold_pct: 0.50
+  settlement_days: 2           # T+2 cash settlement
+
+# Pit constraint
+pit_rule: available_at <= decision_at
+
+# Arms
+arms:
+  B0_cash:
+    description: "Hold cash, no trades; baseline return = 0 (before any yield)"
+    budget_trials: 1
+    enabled: true
+  B1_buy_hold:
+    description: "Buy-and-hold synthetic broad ETF; includes dividends"
+    budget_trials: 1
+    enabled: true
+  B2_single_rule:
+    description: "Transparent single-rule (pre-declared MA cross); Train/Validation only"
+    budget_trials: 1
+    enabled: true
+  B3_regime:
+    description: "FROZEN definition only: B2 + pre-registered regime filter"
+    budget_trials: null
+    enabled: false
+  B4_multi_static:
+    description: "FROZEN definition only: fixed-weight multi-strategy"
+    budget_trials: null
+    enabled: false
+  B5_regime_routing:
+    description: "FROZEN definition only: B4 + regime routing"
+    budget_trials: null
+    enabled: false
+  B6_ai_champion:
+    description: "FROZEN definition only: B5 + AI champion-challenger"
+    budget_trials: null
+    enabled: false
+  B7_rule_search:
+    description: "FROZEN definition only: rule search with same trial budget"
+    budget_trials: null
+    enabled: false
+  B8_rebalance:
+    description: "FROZEN definition only: simple rebalance/risk budget"
+    budget_trials: null
+    enabled: false
+
+# Budgets
+budget:
+  max_total_trials: 100
+  max_search_queries: 200
+  max_failures_before_halt: 20
+  equal_trial_budget: true
+  equal_economic_budget: true
+
+# Statistical thresholds
+validation:
+  min_bars: 100
+  min_trades_for_stats: 10
+  require_conservation_check: true
+  require_pit_check: true
+  require_determinism_check: true
+  max_drawdown_pct: 100  # synthetic: no real limit, but must be reported
