@@ -49,7 +49,7 @@
 
 ---
 
-> **v2.1 文档审查范围**：保留 P0–P4、M-1～M11 原路线，在 M3 后插入 **M3.5 最小前向工程验证**；新增独立运行时、签名签批、持久订单意图与 fencing、Holdout 污染治理及数据供应验收。**当前状态：`M1_ENGINEERING_CLOSED_WITH_DATA_BLOCK / M2_IN_PROGRESS`**（M1 完成并经独立整改验证；用户 2026-11-20 批准关闭 M1 工程门并授权 M2，范围仅合成数据+Fake Broker，见 `docs/reviews/M1-independent-remediation.md` §7）。**BLOCKED_DATA（全市场研究）不解除；M2 不得借工程通过解锁研究数据；完成 M2 后停在阶段门。**（v2.1 文档修订当时状态为 `DESIGN_FREEZE_READY / ENGINEERING_START_APPROVAL_PENDING`。）
+> **v2.1 文档审查范围**：保留 P0–P4、M-1～M11 原路线，在 M3 后插入 **M3.5 最小前向工程验证**；新增独立运行时、签名签批、持久订单意图与 fencing、Holdout 污染治理及数据供应验收。**当前状态：`M2_GATE_CLOSED / M3_IN_PROGRESS`**（M1 完成并经独立整改验证；用户 2026-11-20 批准关闭 M1 工程门并授权 M2，范围仅合成数据+Fake Broker，见 `docs/reviews/M1-independent-remediation.md` §7）。**BLOCKED_DATA（全市场研究）不解除；M2 不得借工程通过解锁研究数据；完成 M2 后停在阶段门。**（v2.1 文档修订当时状态为 `DESIGN_FREEZE_READY / ENGINEERING_START_APPROVAL_PENDING`。）
 
 ## 1. 研究假设与设计价值
 
