@@ -1,0 +1,7 @@
+# A6-T2 abrupt crash + persistent HALT + new-risk block
+crash_round=1 coid=PAPER:PAPER_TEST_ACCOUNT:00003001 send_claimed=SEND_CLAIMED second_claim_refused=True persistent_halt=True new_risk_blocked=True
+crash_round=2 coid=PAPER:PAPER_TEST_ACCOUNT:00003002 send_claimed=SEND_CLAIMED second_claim_refused=True persistent_halt=True new_risk_blocked=True
+crash_round=3 coid=PAPER:PAPER_TEST_ACCOUNT:00003003 send_claimed=SEND_CLAIMED second_claim_refused=True persistent_halt=True new_risk_blocked=True
+crash_round=4 coid=PAPER:PAPER_TEST_ACCOUNT:00003004 send_claimed=SEND_CLAIMED second_claim_refused=True persistent_halt=True new_risk_blocked=True
+crash_round=5 coid=PAPER:PAPER_TEST_ACCOUNT:00003005 send_claimed=SEND_CLAIMED second_claim_refused=True persistent_halt=True new_risk_blocked=True
+SUMMARY crash_rounds=5 violations=0
