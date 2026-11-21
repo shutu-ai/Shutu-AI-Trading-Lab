@@ -1,8 +1,12 @@
 """Architecture boundary check (M1 task §5; hardened per
-M1-REVIEW-REMEDIATION-001 R4): the data plane must never import the
-trading/research planes or POC code.
+M1-REVIEW-REMEDIATION-001 R4; extended in M3-R1-T6 to the research
+planes): the data plane must never import the trading/research planes or
+POC code, and the M3 research packages (backtest/validation) must never
+import oms/risk/brokers/data — they consume admitted facts ONLY through
+``trading_lab.contracts`` plus ``trading_lab.security`` canonicalization.
 
-Machine-executable, stdlib-only AST check over ``src/trading_lab/data/``.
+Machine-executable, stdlib-only AST check over
+``src/trading_lab/{data,risk,oms,backtest,validation}/``.
 
 Coverage and honest boundaries:
 
@@ -44,29 +48,51 @@ FORBIDDEN_ROOTS = (
     "trading_lab.evolution",
     "trading_lab.portfolio",
     "trading_lab.monitoring",
+    "trading_lab.backtest",
+    "trading_lab.validation",
 )
 FORBIDDEN_FRAGMENTS = ("artifacts", "poc")
 
 # M2 plane rules (task §8): each package additionally forbids importing its
 # sibling planes directly — decisions/broker access flow one way only.
-#   data  -> no risk/oms/brokers           (M1 rule, kept)
-#   risk  -> no oms/brokers/data           (risk decides BEFORE the OMS;
-#                                           broker access is oms's job)
-#   oms   -> no risk/data                  (OMS consumes RiskDecision as data;
-#                                           brokers is the sanctioned direction)
+#   data       -> no risk/oms/brokers + no research packages (M1 rule,
+#                 extended in M3-R1: research must never feed the data plane)
+#   risk       -> no oms/brokers/data + no research (risk decides BEFORE
+#                 the OMS; broker access is oms's job)
+#   oms        -> no risk/data + no research (OMS consumes RiskDecision as
+#                 data; brokers is the sanctioned direction)
+#   backtest   -> no oms/risk/brokers/data (M3-R1: research plane consumes
+#                 ONLY contracts + security.canonical — one OMS/broker
+#                 authority, admitted data via contracts, never live)
+#   validation -> same as backtest
+_RESEARCH_FUTURE = (
+    "trading_lab.strategies",
+    "trading_lab.research",
+    "trading_lab.evolution",
+    "trading_lab.portfolio",
+    "trading_lab.monitoring",
+    "trading_lab.backtest",
+    "trading_lab.validation",
+)
 PLANE_RULES: dict[str, tuple[str, ...]] = {
     "trading_lab.data": (
         "trading_lab.risk",
         "trading_lab.oms",
         "trading_lab.brokers",
-        "trading_lab.strategies",
-        "trading_lab.research",
-        "trading_lab.evolution",
-        "trading_lab.portfolio",
-        "trading_lab.monitoring",
-    ),
+    ) + _RESEARCH_FUTURE,
     "trading_lab.risk": (
         "trading_lab.oms",
+        "trading_lab.brokers",
+        "trading_lab.data",
+    ) + _RESEARCH_FUTURE,
+    "trading_lab.oms": (
+        "trading_lab.risk",
+        "trading_lab.data",
+    ) + _RESEARCH_FUTURE,
+    # brokers is the ONE sanctioned trading-plane dependency of oms
+    "trading_lab.backtest": (
+        "trading_lab.oms",
+        "trading_lab.risk",
         "trading_lab.brokers",
         "trading_lab.data",
         "trading_lab.strategies",
@@ -75,15 +101,17 @@ PLANE_RULES: dict[str, tuple[str, ...]] = {
         "trading_lab.portfolio",
         "trading_lab.monitoring",
     ),
-    "trading_lab.oms": (
+    "trading_lab.validation": (
+        "trading_lab.oms",
         "trading_lab.risk",
+        "trading_lab.brokers",
         "trading_lab.data",
         "trading_lab.strategies",
         "trading_lab.research",
         "trading_lab.evolution",
         "trading_lab.portfolio",
         "trading_lab.monitoring",
-    ),  # brokers is the ONE sanctioned trading-plane dependency of oms
+    ),
 }
 
 

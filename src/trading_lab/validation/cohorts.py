@@ -163,11 +163,12 @@ class OverlapReport:
 
 
 def check_overlaps(cohorts: Sequence[CohortSpec]) -> OverlapReport:
-    """Pairwise legality: SEALED_FINAL must not intersect anything; any
-    two cohorts sharing a dimension intersection must be disclosed. Two
-    TRAIN/VALIDATION/HIST_OOS segments that merely touch in time are
-    legal only if they are the intended sequential splits — callers
-    declare independence via non-intersection of any listed dimension."""
+    """Pairwise legality. SEALED_FINAL is the one-shot instrument: any
+    overlap on a SAMPLE-DEFINING dimension (time window, event ids, label
+    intervals) with any other cohort is illegal. Symbol-universe and
+    available-at proximity overlaps are DISCLOSURES — an asset universe is
+    naturally shared across cohorts; they degrade nothing by themselves
+    but must appear in the report (v2.1 §4.5 逐条披露)."""
     pairwise: list[dict] = []
     independent = True
     for i, a in enumerate(cohorts):
@@ -176,7 +177,8 @@ def check_overlaps(cohorts: Sequence[CohortSpec]) -> OverlapReport:
                 continue
             inter = a.intersects(b)
             sealed_involved = CohortRole.SEALED_FINAL in (a.role, b.role)
-            illegal = sealed_involved and any(inter.values())
+            illegal = sealed_involved and (
+                inter["time"] or inter["event_ids"] or inter["labels"])
             pairwise.append({
                 "a": f"{a.role}#{i}", "b": f"{b.role}#{j}",
                 **inter,

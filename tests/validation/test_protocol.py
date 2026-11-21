@@ -235,8 +235,8 @@ class TestArmsAndBudgets:
 
         p = EvaluationProtocol.load(PROTOCOL_PATH)
         tb = p.equal_trial_budget()
-        assert tb["per_arm_trials"] == {"B0_cash": 1, "B1_buy_hold": 1,
-                                        "B2_single_rule": 1}
+        assert tb["per_arm_trials"] == {"B0_cash": 3, "B1_buy_hold": 3,
+                                        "B2_single_rule": 3}
         assert tb["count_failures"] is True
         assert tb["count_retries"] is True
         eb = p.equal_economic_budget()

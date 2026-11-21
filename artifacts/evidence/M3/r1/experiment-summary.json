@@ -1,0 +1,16 @@
+{
+  "b2_params_frozen": [
+    2,
+    4
+  ],
+  "claim": "engineering evidence only \u2014 NOT alpha, NOT HIST_OOS_SUPPORTED, NOT deployable",
+  "code_hash": "c0a9ede5bf4dea02e5a4141f3a494c29291039d678ed3aae2380619d510a8d0f",
+  "data_scope": "SYNTHETIC_ENGINEERING_ONLY",
+  "dataset_hash": "441980e3a64a5494fa90376dd23edf10ca79a777984f9bc1469225491d0eb435",
+  "evidence_class": "SYNTHETIC_ENGINEERING_ONLY",
+  "failures": 0,
+  "max_claimable_evidence": "ENGINEERING_ONLY",
+  "protocol_hash": "48dee8613dd727b3fce04230851c75062c9a6e85e634709d8bab09df1cf6ed83",
+  "runs": 9,
+  "selection": "Train/Validation-only; grid billed; frozen for OOS"
+}

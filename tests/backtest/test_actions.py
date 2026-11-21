@@ -20,7 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 sys.path.insert(0, str(REPO_ROOT / "tests"))
 
-from conftest import bar, day  # noqa: E402
+from helpers_backtest import bar, day  # noqa: E402
 
 from trading_lab.backtest import BacktestEngine, BacktestError  # noqa: E402
 from trading_lab.contracts import CorporateAction  # noqa: E402

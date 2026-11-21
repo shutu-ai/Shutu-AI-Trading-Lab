@@ -1,0 +1,60 @@
+=== M3-R1 T7 verification battery â€” 2026-11-21T18:40:20Z ===
+
+--- base HEAD at battery start: 464896ac87647c6a7d0d6e4713b5c093a2324a7f ---
+
+### RUN 1 (initial): .venv/Scripts/python.exe -m pytest
+1 failed (test_selection_cannot_see_beyond_boundary: ImportError â€” 'from conftest import bar' resolved to tests/security/conftest.py under full-suite module caching), 521 passed, EXIT=1.
+Root cause: top-level module-name collision on 'conftest'; fix: helpers moved to tests/backtest/helpers_backtest.py; zero 'from conftest import' remain.
+EXIT1=1 (honest record â€” see failure detail in verification.log appendix)
+
+### CMD (final): .venv/Scripts/python.exe -m pytest
+........................................................................ [ 96%]
+..................                                                       [100%]
+522 passed in 156.05s (0:02:36)
+EXIT=0
+
+### CMD (final): .venv/Scripts/python.exe -m pytest tests/backtest tests/validation
+........................................................................ [ 52%]
+................................................................         [100%]
+136 passed in 1.35s
+EXIT=0
+
+### CMD (final): .venv/Scripts/python.exe scripts/check_environment.py
+pydantic: 2.14.3
+cryptography: 50.0.2
+alpaca env vars: absent (expected for M0 ¡ª no broker access)
+EXIT=0
+
+### CMD (final): .venv/Scripts/python.exe scripts/check_architecture.py
+check_architecture: scanned 5 packages (26 files), 0 violations
+EXIT=0
+
+### CMD (final): .venv/Scripts/python.exe scripts/scan_secrets.py
+scan_secrets: scanned 356 tracked files, 0 findings
+EXIT=0
+
+### CMD (final): .venv/Scripts/python.exe scripts/verify_live_blocked.py
+paper config ok: configs\paper\runtime.example.yaml (PAPER/PAPER_TEST_ACCOUNT)
+verify_live_blocked: paper runtime contains no live artifacts ¡ª PASS
+EXIT=0
+
+### CMD (final): .venv/Scripts/python.exe scripts/smoke_mock.py
+over-quota request on valid release -> allow=False reasons=('NONCE_REPLAY:nonce=11111111111111111111111111111111', 'CAPITAL_CAP_EXCEEDED:requested=5000.00,signed=1000.00')
+brokers plane is fake-only (zero network/real-broker imports)
+SMOKE PASS: paper gate + kill switch + mock live verification all behaved fail-closed
+EXIT=0
+
+### CMD: git diff --check
+warning: in the working copy of 'artifacts/evidence/M3/r1/protocol-freeze.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'configs/evaluation_protocol.yaml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/adr/ADR-004-evaluation.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/trading_lab/validation/cohorts.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/backtest/conftest.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/backtest/test_actions.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/backtest/test_arms.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/backtest/test_engine.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/validation/test_protocol.py', LF will be replaced by CRLF the next time Git touches it
+EXIT=0
+### CMD (FINAL, post cohorts.py refinement): .venv/Scripts/python.exe -m pytest
+522 passed in 152.93s (0:02:32)
+EXIT=0

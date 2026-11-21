@@ -1,0 +1,14 @@
+=== M3-R1 T7 negative-test evidence — 2026-11-21T18:45:57Z ===
+
+--- architecture checker negatives (38 cases: forbidden forms x2 research packages, prefix-similarity non-flagging, sanctioned-direction allowlist, data/risk/oms->research blocks, honest static-limitation pin, runtime no-network probe)
+......................................                                   [100%]
+
+--- validation negative matrix (fail-closed protocol: 25; cohort hygiene: 22; holdout refusals: 14; ledger fail-closed/chain: 16)
+........................................................................ [ 93%]
+.....                                                                    [100%]
+
+--- backtest kernel negatives (invalid inputs, no-negative-cash, missing-mark fail-closed, PIT, volume cap, settlement: 59)
+...........................................................              [100%]
+
+--- static limitation disclosure (from tests/architecture/test_research_plane_rules.py::TestHonestStaticLimitations)
+computed dynamic imports (importlib.import_module(variable)) are NOT statically detectable — pinned by test, hard isolation deferred to M4 (honest boundary, not hidden).

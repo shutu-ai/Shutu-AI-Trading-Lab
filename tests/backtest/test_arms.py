@@ -19,7 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 sys.path.insert(0, str(REPO_ROOT / "tests"))
 
-from conftest import bar, day  # noqa: E402
+from helpers_backtest import bar, day  # noqa: E402
 
 from trading_lab.backtest.arms import (  # noqa: E402
     ARM_IDS,
@@ -227,7 +227,7 @@ class TestB2SingleRule:
         assert trials == len(MA_GRID)
         # The huge day(8+) jump cannot have influenced selection: on the
         # slice alone the chosen pair is reproducible from sliced data.
-        from conftest import bar as mkbar
+        from helpers_backtest import bar as mkbar
         sliced = SyntheticDataset(
             name="leak-slice",
             bars={"SPY": [mkbar("SPY", day(i), "100") for i in range(8)]})

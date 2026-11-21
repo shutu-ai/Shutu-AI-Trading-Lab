@@ -18,8 +18,9 @@ M3 引入研究层（`trading_lab.backtest` / `trading_lab.validation`）。3505
 - `protocol_hash` = `security.canonical.canonical_digest(整个解析后 payload)`。
   **不建第二套 canonical**；任何受控字段变更必然改变 hash = 新协议版本。
 - 加载后的对象运行时不可变（属性写入抛 AttributeError，视图为 mappingproxy/tuple）。
-- 当前冻结版本 hash：
-  `9158028541dc0fc7bc6f96b5291d1bee2f43277e055d962ef13f23b684b6e587`
+- 当前冻结版本 hash（v1.1，T7 官方实验前修订 per-arm 预算 1→3 = 成本 ×1/×2/×3
+  各一次官方运行；v1.0 hash `9158028...e587` 留痕于 protocol-freeze.md，未消耗）：
+  `48dee8613dd727b3fce04230851c75062c9a6e85e634709d8bab09df1cf6ed83`
 
 ### 2. 诚实的门（Gate）语义
 - SET 门（合成范围内可约束、可执行）：`conservation` / `pit` / `determinism`

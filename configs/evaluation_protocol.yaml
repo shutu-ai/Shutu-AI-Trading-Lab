@@ -132,14 +132,17 @@ budget:
   failure_retry_billing: ALL_BILLED
   equal_trial_budget:
     per_arm_trials:
-      B0_cash: 1
-      B1_buy_hold: 1
-      B2_single_rule: 1
+      B0_cash: 3
+      B1_buy_hold: 3
+      B2_single_rule: 3
     count_failures: true
     count_retries: true
     note: >
       Primary causal budget. Every registered run — success, failure,
       retry, cancelled — consumes one trial from the SAME per-arm budget.
+      Per-arm budget = 3 = one official run per cost multiplier (x1/x2/x3)
+      at the first protocol seed; determinism across seeds is enforced by
+      the automated test suite and is NOT extra billable trials.
   equal_economic_budget:
     status: NOT_APPLICABLE_YET
     llm_usd_cap: "0.00"
