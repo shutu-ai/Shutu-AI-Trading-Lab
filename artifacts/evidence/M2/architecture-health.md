@@ -158,3 +158,20 @@ UNKNOWN 不重发、stale fence 拒写、双进程争写、重复回报不双计
 - 334 passed（330 基线 + 4 竞争测试，新增单列）；原 1,080 故障矩阵在新 claim 语义下重跑全绿（`fault_matrix_final.log`，EXIT=0）。
 - 稳定性：A-RED1 修复后连续 5 次全绿；修 journal 事务管理器后全量套件绿。
 - 边界：claim 的跨进程仲裁由 SQLite BEGIN IMMEDIATE 事务承担（同机多进程已验证）；真实 broker 侧 fencing 仍归 Paper 专项（BROKER_BEHAVIOR_UNVERIFIED 不变）。
+
+---
+
+## G. A5 True Process Race 补遗（M2-A5-TRUE-PROCESS-RACE-AND-M3-GATED-001，2026-11-21）
+
+> 不覆盖 A–F 历史。只修改测试（零生产代码变更），50 轮跨进程同步竞争 + 5 轮 abrupt crash recovery。
+
+| 分类 | 记录 |
+|---|---|
+| REUSE | 既有 `claim_send_attempt`（BEGIN IMMEDIATE 原子 claim）、`KillSwitch`（全局 HALT 持久化+恢复解锁）、`AuditLog`（事件链）、`RiskEngine`/`OmsEngine`（恢复对账）、FakeBroker（零网络）——零复制零新增模块 |
+| MODIFY | `tests/fault_injection/test_a5_true_process_race.py`（唯一新测试文件——顺序重放→同步竞争修正 + abrupt terminate + recover 断言）；`docs/reviews/M2-residual-safety-remediation.md` 等历史不改 |
+| ADD | 零生产模块新增；ClaimWorker 测试辅助类（subprocess + stdin/stdout IPC） |
+| REMOVE | 无（旧 50 轮顺序重放测试保留并标注边界：证明 journal claim 仲裁而非跨进程 Port E2E） |
+| POC-ISOLATE | 3 包 0 违规（检查器 EXIT=0） |
+| DEPENDENCIES | 零新增（subprocess/multiprocessing 均标准库） |
+| BOUNDARIES | 3 包 0 违规；数据/risk/oms/brokers 平面边界不变；POC 零导入 |
+| DEBT | 跨进程 Port E2E 并发测试未做（worker 仅调用 journal.claim_send_attempt，不调用 port——如实标注而非谎称 E2E）；真实 broker 侧 fencing 归 Paper 专项（不变） |
