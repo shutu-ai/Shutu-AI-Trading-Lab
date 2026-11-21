@@ -26,11 +26,8 @@
 
 ## 阶段状态
 
-**`M2_A7_TARGETED_PROOF_LOCAL_PASS / CI_REMOTE_PENDING / E=PASS_WITH_SCOPE(MOCK_ONLY) / BLOCKED_DATA(全市场研究) / BROKER_BEHAVIOR_UNVERIFIED / M2_GATE=USER_PENDING / M3_START_APPROVAL_PENDING`**
-
-- 远端 CI 对 A7 新 SHA **未运行**（CI_REMOTE_PENDING）；远端基线 `5c3c5cb` 的 CI 仅证明旧代码。
-- 本地领先远端 3 个提交（`8a5f9c5`、`ea259c0`、`5c3c5cb`→`ea259c0` 区间的 M1/M2 提交均已推送或本地保留，具体见 git log）。
-- 推送需用户单独授权；推送后新 SHA 双平台 CI 全绿方可升 `M2_A7_TARGETED_PROOF_REMOTE_VERIFIED`。
+**（2026-11-21 更新）`M2_A7_TARGETED_PROOF_REMOTE_VERIFIED / E=PASS_WITH_SCOPE(MOCK_ONLY) / BLOCKED_DATA(全市场研究) / BROKER_BEHAVIOR_UNVERIFIED / M2_GATE=USER_PENDING / M3_START_APPROVAL_PENDING`**
+整改提交经用户明确授权推送（`5c3c5cb..379bd72`）后，远端 CI **双矩阵实际 PASS 于最终 SHA**：run `44912904901`——ubuntu ✓（42s）+ windows ✓（6m12s），URL `https://github.com/shutu-ai/Shutu-AI-Trading-Lab/actions/runs/44912904901`；347 用例（含 A7 定向证明、全量安全门、架构检查器、1,080 故障矩阵）双平台实际执行。
 
 ## 仍不变的边界
 
