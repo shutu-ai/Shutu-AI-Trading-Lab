@@ -1,0 +1,49 @@
+# A2 quantitative verification â€” 2026-11-21T10:11:51+02:00 â€” HEAD 29ecf54
+## environment
+python: 3.13.15
+CHECK_ENV_EXIT=0
+## pytest full
+................................................                         [100%]
+336 passed in 142.84s (0:02:22)
+PYTEST_EXIT=0
+## check_architecture
+check_architecture: scanned 3 packages (18 files), 0 violations
+ARCH_EXIT=0
+## scan_secrets
+scan_secrets: scanned 289 tracked files, 0 findings
+SCAN_EXIT=0
+## verify_live_blocked
+verify_live_blocked: paper runtime contains no live artifacts ¡ª PASS
+VLB_EXIT=0
+## smoke_mock
+SMOKE PASS: paper gate + kill switch + mock live verification all behaved fail-closed
+SMOKE_EXIT=0
+## git diff --check
+DIFF_CHECK_EXIT=0
+## suite counts
+== tests/contract tests/security ==
+140 passed
+== tests/no_lookahead ==
+71 passed
+== tests/risk ==
+19 passed
+== tests/oms ==
+14 passed
+== tests/architecture ==
+26 passed
+== tests/fault_injection ==
+18 passed
+== tests/m2_remediation ==
+48 passed
+## fault matrix
+11 passed
+MATRIX_EXIT=0
+
+## A4-2 thread race rounds (from thread_100_rounds.log)
+$(grep "SUMMARY" artifacts/evidence/M2/final-send-claim/a2-quantitative-close/thread_100_rounds.log 2>/dev/null || echo "see thread_100_rounds.log")
+## A4-3 process race rounds (from process_50_rounds.log)
+$(grep "SUMMARY" artifacts/evidence/M2/final-send-claim/a2-quantitative-close/process_50_rounds.log 2>/dev/null || echo "see process_50_rounds.log")
+## A4-2 thread race rounds
+SUMMARY rounds=100 total_port_entries=100 violations=0 retries=0 (requirement: each completed round exactly 1 entry, 0 violations)
+## A4-3 process race rounds
+SUMMARY race_rounds=50 crash_rounds=5 violations=0

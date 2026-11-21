@@ -261,6 +261,13 @@ class OrderJournal:
         ).fetchone()
         return row is not None
 
+    def attempt_state_for_coid(self, client_order_id: str) -> str | None:
+        row = self._conn.execute(
+            "SELECT a.state FROM attempts a JOIN intents i ON a.intent_id = i.intent_id"
+            " WHERE i.client_order_id=?", (client_order_id,),
+        ).fetchone()
+        return row[0] if row else None
+
     def unresolved_count(self) -> int:
         """Non-terminal, non-reconciled intents — any of them blocks an
         operator unlock (R3)."""
