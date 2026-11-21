@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import datetime as dt
 import sqlite3
+import threading
 import time
 import uuid
 from dataclasses import dataclass
@@ -80,6 +81,7 @@ class FenceCoordinator:
         if last_exc is not None:
             raise FenceError(f"fence store unavailable after retries: {last_exc}") from last_exc
         self._instance_id = uuid.uuid4().hex
+        self._read_lock = threading.Lock()
 
     def close(self) -> None:
         self._conn.close()
@@ -122,6 +124,13 @@ class FenceCoordinator:
         )
 
     def validate(self, token: FenceToken, now: dt.datetime) -> None:
+        self._read_lock.acquire()
+        try:
+            self._validate_inner(token, now)
+        finally:
+            self._read_lock.release()
+
+    def _validate_inner(self, token: FenceToken, now: dt.datetime) -> None:
         """A token is valid only if: this instance still owns it, the lease
         has not expired, and the stored epoch still equals the token's epoch
         (a newer acquire by ANY instance invalidates older tokens)."""

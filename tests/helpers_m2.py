@@ -83,8 +83,9 @@ def stack(tmp_path):
     """A fresh, fully-wired fake trading stack per test."""
     broker = FakeBroker()
     audit = AuditLog(tmp_path / "audit.jsonl", "PAPER")
-    journal = OrderJournal(tmp_path / "journal.sqlite3")
-    fence = FenceCoordinator(tmp_path / "fence.sqlite3", Environment.PAPER, ACCOUNT)
+    journal = OrderJournal(tmp_path / "journal.sqlite3", check_same_thread=False)
+    fence = FenceCoordinator(tmp_path / "fence.sqlite3", Environment.PAPER, ACCOUNT,
+                             check_same_thread=False)
     approval_secrets = ApprovalSecrets.mint()
     egress = BrokerEgress(broker, fence, audit, now_fn=lambda: NOW,
                       journal=journal, approval_secrets=approval_secrets)

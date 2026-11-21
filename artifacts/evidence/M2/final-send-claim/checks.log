@@ -39,3 +39,20 @@ DIFF_CHECK_EXIT=0
 ## fault matrix rerun
 ...........                                                              [100%]
 MATRIX_EXIT=0
+# A5-RED5 + CI fix verification â€” 2026-11-21T11:50:02+02:00 â€” HEAD 719315c
+## pytest full
+..................................................                       [100%]
+338 passed in 142.54s (0:02:22)
+PYTEST_EXIT=0
+## all gates
+check_architecture: scanned 3 packages (18 files), 0 violations
+ARCH_EXIT=0
+scan_secrets: scanned 303 tracked files, 0 findings
+SCAN_EXIT=0
+verify_live_blocked: paper runtime contains no live artifacts ¡ª PASS
+VLB_EXIT=0
+SMOKE PASS: paper gate + kill switch + mock live verification all behaved fail-closed
+SMOKE_EXIT=0
+## git diff --check
+warning: in the working copy of 'artifacts/evidence/M2/final-send-claim/checks.log', LF will be replaced by CRLF the next time Git touches it
+DIFF_CHECK_EXIT=0

@@ -85,7 +85,7 @@ round=83 attempt=1 coid=PAPER:PAPER_TEST_ACCOUNT:00000083 port_entries=1 sent=1 
 round=84 attempt=1 coid=PAPER:PAPER_TEST_ACCOUNT:00000084 port_entries=1 sent=1 refused=1 results={1: 'SENT'} errors={0: "EgressRefusalError('NO_ELIGIBLE_OR_ALREADY_CLAIMED')"} ok=True
 round=85 attempt=1 coid=PAPER:PAPER_TEST_ACCOUNT:00000085 port_entries=1 sent=1 refused=1 results={1: 'SENT'} errors={0: "EgressRefusalError('NO_ELIGIBLE_OR_ALREADY_CLAIMED')"} ok=True
 round=86 attempt=1 coid=PAPER:PAPER_TEST_ACCOUNT:00000086 port_entries=1 sent=1 refused=1 results={1: 'SENT'} errors={0: "EgressRefusalError('NO_ELIGIBLE_OR_ALREADY_CLAIMED')"} ok=True
-round=87 attempt=2 coid=PAPER:PAPER_TEST_ACCOUNT:00000087 port_entries=1 sent=1 refused=1 results={1: 'SENT'} errors={0: "EgressRefusalError('NO_ELIGIBLE_OR_ALREADY_CLAIMED')"} ok=True
+round=87 attempt=1 coid=PAPER:PAPER_TEST_ACCOUNT:00000087 port_entries=1 sent=1 refused=1 results={1: 'SENT'} errors={0: "EgressRefusalError('NO_ELIGIBLE_OR_ALREADY_CLAIMED')"} ok=True
 round=88 attempt=1 coid=PAPER:PAPER_TEST_ACCOUNT:00000088 port_entries=1 sent=1 refused=1 results={1: 'SENT'} errors={0: "EgressRefusalError('NO_ELIGIBLE_OR_ALREADY_CLAIMED')"} ok=True
 round=89 attempt=1 coid=PAPER:PAPER_TEST_ACCOUNT:00000089 port_entries=1 sent=1 refused=1 results={1: 'SENT'} errors={0: "EgressRefusalError('NO_ELIGIBLE_OR_ALREADY_CLAIMED')"} ok=True
 round=90 attempt=1 coid=PAPER:PAPER_TEST_ACCOUNT:00000090 port_entries=1 sent=1 refused=1 results={1: 'SENT'} errors={0: "EgressRefusalError('NO_ELIGIBLE_OR_ALREADY_CLAIMED')"} ok=True
