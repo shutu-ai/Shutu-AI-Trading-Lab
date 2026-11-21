@@ -40,5 +40,5 @@
 
 ## 状态
 
-**`M2_A2_QUANTITATIVE_LOCAL_PASS / CI_REMOTE_PENDING / BLOCKED_DATA / BROKER_BEHAVIOR_UNVERIFIED / M2_GATE=USER_PENDING / M3_START_APPROVAL_PENDING`**
-新 SHA 双平台 CI 真实 PASS（需用户授权推送）后升 `M2_A2_QUANTITATIVE_REMOTE_VERIFIED`。approver = USER_PENDING；不关闭 M2、不启动 M3。
+**（2026-11-21 更新）`M2_A2_QUANTITATIVE_REMOTE_VERIFIED / BLOCKED_DATA / BROKER_BEHAVIOR_UNVERIFIED / M2_GATE=USER_PENDING / M3_START_APPROVAL_PENDING`**
+定量测试提交经用户明确授权推送（`b7d11aa..1c6d7b7`）后，远端 CI **双矩阵实际 PASS 于最终 SHA**：run `44885002933`——ubuntu ✓（52s）+ windows ✓（5m32s），URL `https://github.com/shutu-ai/Shutu-AI-Trading-Lab/actions/runs/44885002933`；336 用例（含 100 轮双线程竞争、50 轮双进程 claim、5 轮崩溃恢复、1,080 故障矩阵）双平台实际执行。approver = USER_PENDING；不关闭 M2、不启动 M3。
