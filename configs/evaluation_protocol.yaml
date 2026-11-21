@@ -1,22 +1,35 @@
 # M3 frozen evaluation protocol v1 — pre-registered BEFORE any experiment.
-# Changing any threshold creates a new protocol version + hash; lowering
-# thresholds after a failed run is prohibited.
+#
+# GOVERNANCE (M3-R1-T2):
+# - The protocol_hash is the canonical digest (security.canonical) of this
+#   whole parsed payload. ANY change to ANY field below produces a new hash
+#   = a new protocol version; there is no in-place threshold edit.
+# - Runtime mutation of a loaded protocol is refused (frozen object).
+# - Gates marked NOT_SETTABLE have no defensible numeric basis in the M3
+#   synthetic scope; any experiment verdict that would depend on them must
+#   be reported INCONCLUSIVE, never PASS.
+# - The former stub's `max_drawdown_pct: 100` was an unbounded non-gate and
+#   is deliberately ABSENT: arms REPORT drawdown/tail metrics, but no fake
+#   risk filter is claimed. Synthetic results are engineering proofs only.
 
+schema_version: 1
 protocol_id: m3-synthetic-engineering-v1
 protocol_version: 1
 canonical_rule: sorted_keys_utf8_no_whitespace
 description: >
   M3 synthetic engineering validation: B0 cash, B1 ETF buy-and-hold,
-  B2 transparent single-rule strategy. Synthetic data only — results
-  are engineering proofs, NOT alpha/OOS evidence.
+  B2 transparent single-rule strategy. Synthetic data only — results are
+  engineering proofs (conservation/PIT/determinism/cohort hygiene), NOT
+  alpha, NOT OOS, NOT deployable evidence.
 
 data_scope: SYNTHETIC_ENGINEERING_ONLY
+max_claimable_evidence: ENGINEERING_ONLY
 
 seeds: [42, 137, 2026]
 
 decimal_tolerance: "0.0001"
 
-# Cost model (multiplied by cost_multiplier for sensitivity)
+# Cost model (sensitivity: run every arm at cost_multipliers x1/x2/x3)
 cost_model:
   commission_per_trade: "1.00"
   spread_pct: "0.001"
@@ -24,69 +37,160 @@ cost_model:
 
 cost_multipliers: [1, 2, 3]
 
-# Execution model
+# Execution model (identical semantics for ALL arms)
 execution:
-  order_delay_bars: 1          # signal at close T, execute at open T+1
-  allow_same_day_close: false  # 同日收盘信号不得当日收盘成交
-  volume_limit_pct: 0.10       # max 10% of bar volume
-  partial_fill_threshold_pct: 0.50
-  settlement_days: 2           # T+2 cash settlement
+  order_delay_bars: 1          # signal at close T, execute at open T+1 at the earliest
+  allow_same_day_close: false  # a close-formed signal may never fill at that same close
+  volume_limit_pct: 0.10       # max 10% of bar volume per order
+  partial_fill_threshold_pct: 0.50  # below 50% of requested size => partial-fill event
+  settlement_days: 2           # T+2 cash settlement (protocol assumption, NOT a broker guarantee)
 
-# Pit constraint
+# Point-in-time constraint
 pit_rule: available_at <= decision_at
 
-# Arms
-arms:
-  B0_cash:
-    description: "Hold cash, no trades; baseline return = 0 (before any yield)"
-    budget_trials: 1
-    enabled: true
-  B1_buy_hold:
-    description: "Buy-and-hold synthetic broad ETF; includes dividends"
-    budget_trials: 1
-    enabled: true
-  B2_single_rule:
-    description: "Transparent single-rule (pre-declared MA cross); Train/Validation only"
-    budget_trials: 1
-    enabled: true
-  B3_regime:
-    description: "FROZEN definition only: B2 + pre-registered regime filter"
-    budget_trials: null
-    enabled: false
-  B4_multi_static:
-    description: "FROZEN definition only: fixed-weight multi-strategy"
-    budget_trials: null
-    enabled: false
-  B5_regime_routing:
-    description: "FROZEN definition only: B4 + regime routing"
-    budget_trials: null
-    enabled: false
-  B6_ai_champion:
-    description: "FROZEN definition only: B5 + AI champion-challenger"
-    budget_trials: null
-    enabled: false
-  B7_rule_search:
-    description: "FROZEN definition only: rule search with same trial budget"
-    budget_trials: null
-    enabled: false
-  B8_rebalance:
-    description: "FROZEN definition only: simple rebalance/risk budget"
-    budget_trials: null
-    enabled: false
+# Gates. SET = binding, testable, enforced. NOT_SETTABLE = no defensible
+# numeric basis now; dependent verdicts are INCONCLUSIVE by construction.
+gates:
+  conservation:
+    status: SET
+    description: cash/shares/fees conservation on every event; fail closed
+  pit:
+    status: SET
+    description: available_at <= decision_at on every consumed fact
+  determinism:
+    status: SET
+    description: same seed + protocol_hash + dataset_hash + code_hash => identical output digest within decimal_tolerance
+  statistical_alpha:
+    status: NOT_SETTABLE
+    verdict: INCONCLUSIVE
+    reason: >
+      No effect size / significance / sample-power basis exists for
+      synthetic fixtures. Alpha statistics are registered (multiplicity
+      ledger) but cannot PASS in M3; they may only support
+      HIST_OOS_SUPPORTED claims once REAL admitted data exists, and even
+      then never Live eligibility.
 
-# Budgets
-budget:
-  max_total_trials: 100
-  max_search_queries: 200
-  max_failures_before_halt: 20
-  equal_trial_budget: true
-  equal_economic_budget: true
-
-# Statistical thresholds
+# Engineering acceptance thresholds (binding in synthetic scope)
 validation:
   min_bars: 100
   min_trades_for_stats: 10
   require_conservation_check: true
   require_pit_check: true
   require_determinism_check: true
-  max_drawdown_pct: 100  # synthetic: no real limit, but must be reported
+
+# Arms: v2.1 §4.3 definitions, frozen. M3 executes B0–B2 ONLY; B3–B8 are
+# registered definitions with fair-comparison budget rules — no shell code.
+arms:
+  B0_cash:
+    description: "Hold cash for the full window; baseline return 0 (cash yield per this protocol: none registered — reported as 0.0, not fabricated)"
+    budget_trials: 1
+    enabled: true
+  B1_buy_hold:
+    description: "Buy-and-hold synthetic broad ETF; dividends and splits applied via corporate-action events; full cost model"
+    budget_trials: 1
+    enabled: true
+  B2_single_rule:
+    description: "One pre-declared transparent MA-cross rule; parameters selected on Train/Validation ONLY, then frozen before OOS"
+    budget_trials: 1
+    enabled: true
+  B3_regime:
+    definition: "B2 + a pre-registered regime filter (state labels from the SAME snapshot boundary); isolates regime-filter increment"
+    budget_trials: null
+    enabled: false
+  B4_multi_static:
+    definition: "Fixed-weight multi-strategy, no regime use; isolates static diversification increment"
+    budget_trials: null
+    enabled: false
+  B5_regime_routing:
+    definition: "B4 + regime routing, no strategy evolution; isolates routing increment"
+    budget_trials: null
+    enabled: false
+  B6_ai_champion:
+    definition: "B5 + Champion–Challenger with AI strategy discovery; isolates strategy-evolution net value"
+    budget_trials: null
+    enabled: false
+  B7_rule_search:
+    definition: "Identical routing/evolution rules as B6 but rule/limited search only; isolates AI-vs-rules increment under EQUAL budgets"
+    budget_trials: null
+    enabled: false
+  B8_rebalance:
+    definition: "Simple periodic rebalance / risk-budget portfolio; tests whether low-cost allocation alone suffices"
+    budget_trials: null
+    enabled: false
+
+# Budgets — both views are STRUCTURES, not boolean flags (v2.1 §4.3: two
+# `true`s are not fairness). The trial ledger (validation.ledger) enforces
+# these fail-closed; failures and retries bill like successes.
+budget:
+  max_total_trials: 100
+  max_search_queries: 200
+  max_failures_before_halt: 20
+  max_hypotheses: 50
+  max_holdout_unlocks: 1
+  max_llm_usd: "0.00"       # M3 synthetic consumes no LLM budget
+  max_compute_hours: "4.0"
+  failure_retry_billing: ALL_BILLED
+  equal_trial_budget:
+    per_arm_trials:
+      B0_cash: 1
+      B1_buy_hold: 1
+      B2_single_rule: 1
+    count_failures: true
+    count_retries: true
+    note: >
+      Primary causal budget. Every registered run — success, failure,
+      retry, cancelled — consumes one trial from the SAME per-arm budget.
+  equal_economic_budget:
+    status: NOT_APPLICABLE_YET
+    llm_usd_cap: "0.00"
+    compute_hours_cap: "4.0"
+    data_amortization_usd_cap: "0.00"
+    human_intervention_minutes_cap: 0
+    note: >
+      Honest scoping: dollar-parity binds only when AI arms (B6/B7)
+      activate in M4+. In M3 the arms consume no LLM/human budget, so a
+      dollar-parity claim would be vacuous; the trial ledger is the only
+      fairness instrument. Registered now so the M4 comparison inherits
+      one frozen definition.
+
+# Multiplicity / multiple-comparison policy
+multiplicity:
+  register_all_trials: true
+  policy: >
+    All trials (success/failure/retry/incomplete), parameter combinations
+    and queries are registered in the experiment ledger with code,
+    protocol and dataset hashes. Multiplicity is reported by ACTUAL
+    registered counts. Correction methods (Deflated Sharpe, PBO,
+    Bootstrap/Reality Check) are applied only when the method fits the
+    sample structure; otherwise the report states the raw count and
+    INCONCLUSIVE — never an uncorrected PASS.
+
+# M9 one-shot final Holdout — candidate-selection rule pre-registered NOW.
+# Real market data is BLOCKED_DATA in M3: nothing is materialized, and no
+# sample IDs / dataset hashes may be fabricated.
+holdout:
+  status: SEALED_NOT_MATERIALIZED
+  sample_ids: null
+  dataset_hash: null
+  max_unlocks: 1
+  unlock_policy: M9_ONLY_INDEPENDENT_GOVERNANCE
+  strategy_family: transparent-single-rule-and-baselines
+  candidate_selection_rule: >
+    At M8 end, BEFORE any M9 unlock, an independent governance process
+    selects the UNIQUE candidate: highest Validation-set net return at
+    cost multiplier x2 among candidates passing ALL SET engineering gates
+    (conservation, PIT, determinism) and cohort hygiene; tie-break by
+    lower turnover; the chosen strategy_hash/build hash is irreversibly
+    frozen with an audit event. Selection may never see the holdout
+    itself, and after the first unlock no re-selection or re-test is
+    permitted for the same strategy family.
+  verdict_states: [PASS, FAILED, INCONCLUSIVE, INVALIDATED]
+  pollution: >
+    First unlock emits an immutable HoldoutAccess event and sets
+    polluted_for_future_selection=true; subsequent unlocks and subsequent
+    champion selections are refused unconditionally.
+  access: >
+    Research roles: no direct read, no statistical aggregation, no
+    query differencing, no repeated probing — all refused and audited.
+    (M3 enforces this at the application boundary; OS-level sandboxing
+    belongs to M4.)

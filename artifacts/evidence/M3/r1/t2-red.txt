@@ -1,0 +1,4 @@
+FAILED tests/validation/test_protocol.py::TestArmsAndBudgets::test_budgets_are_structured_not_booleans
+FAILED tests/validation/test_protocol.py::TestArmsAndBudgets::test_budget_limits_enumerable_for_ledger
+FAILED tests/validation/test_protocol.py::TestSealedHoldoutRegistration::test_holdout_not_materialized_no_fake_ids
+25 failed in 1.25s
