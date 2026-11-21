@@ -175,3 +175,19 @@ UNKNOWN 不重发、stale fence 拒写、双进程争写、重复回报不双计
 | DEPENDENCIES | 零新增（subprocess/multiprocessing 均标准库） |
 | BOUNDARIES | 3 包 0 违规；数据/risk/oms/brokers 平面边界不变；POC 零导入 |
 | DEBT | 跨进程 Port E2E 并发测试未做（worker 仅调用 journal.claim_send_attempt，不调用 port——如实标注而非谎称 E2E）；真实 broker 侧 fencing 归 Paper 专项（不变） |
+
+---
+
+## H. M2 最终门收口补遗（M2-FINAL-GATE-AND-M3-GATED-20261121-001 A 阶段，2026-11-21）
+
+> 不覆盖 A–G 历史。本轮仅文档+验证，零生产代码变更。
+
+| 分类 | 记录 |
+|---|---|
+| REUSE | 全部 347 基线用例原样保留；架构检查器/安全门/隔离/审计/PIT 语义未动 |
+| MODIFY | 零运行时代码变更（本阶段仅新增文档与证据） |
+| ADD | `docs/reviews/M2-final-gate-recommendation.md`、`M2-gate-decision-packet.md`、`artifacts/evidence/M2/final-gate/verification.md` |
+| REMOVE | 无 |
+| DEPENDENCIES | 零新增 |
+| BOUNDARIES | 3 包 18 文件 0 违规（EXIT=0）；安全回归 347 项全绿 |
+| DEBT | 不变（R6 TOCTOU、R7 MOCK_ONLY 六字段、U-1、跨进程 ApprovalSecrets 均维持原状） |
