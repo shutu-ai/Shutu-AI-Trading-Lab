@@ -58,3 +58,8 @@ EXIT=0
 ### CMD (FINAL, post cohorts.py refinement): .venv/Scripts/python.exe -m pytest
 522 passed in 152.93s (0:02:32)
 EXIT=0
+
+### REMOTE VERIFICATION — 2026-11-21T19:02:33Z ===
+Push authorized by user. 3505799..dde7a8b -> origin/main EXIT=0.
+CI run 44938095081 (SHA dde7a8b): ubuntu success '522 passed in 19.94s'; windows success '522 passed in 350.85s'; matches local 522 exactly.
+REMOTE_VERIFIED recorded in artifacts/evidence/M3/r1/remote-ci.md.

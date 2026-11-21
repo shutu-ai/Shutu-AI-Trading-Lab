@@ -11,7 +11,7 @@
 | test_commands | 全套件 522 passed EXIT=0（含 RUN1 失败→修复→绿链条，见 verification.log）；backtest+validation 136 passed；1,080 故障矩阵专项 11 cases EXIT=0；check_environment/architecture/scan_secrets/verify_live_blocked/smoke_mock 全 EXIT=0；git diff --check 干净 |
 | evidence_paths | `artifacts/evidence/M3/r1/{baseline.md, security-regression.md, protocol-freeze.md, verification.log, negative-tests.log, experiment-ledger.jsonl, experiment-summary.json, cohort-overlap-report.md, architecture-health.md, fault-matrix-r1.txt, t1-*, t2-*, t3-red.txt}` |
 | findings | P0（A7 回归）已修复并强化；测试模块名冲突（conftest sys.modules 污染）已修复；协议预算修订（v1.0→v1.1）发生在任何官方实验消耗前并双版本留痕 |
-| status | **E = PASS_WITH_SCOPE (SYNTHETIC_ENGINEERING_ONLY)**（本地；REMOTE_VERIFIED 需用户授权 push 后按实际 CI 双矩阵另评） |
+| status | **E = PASS_WITH_SCOPE (SYNTHETIC_ENGINEERING_ONLY) — REMOTE_VERIFIED**：用户授权推送 `dde7a8b` 后 CI run `44938095081` 双矩阵 success（Ubuntu `522 passed` / Windows `522 passed`，一手 job 日志取证见 `remote-ci.md`），与本机 522 完全一致 |
 | evidence_state | NOT_EVALUATED |
 | deployment_state | NOT_DEPLOYED |
 | strategy_role | NONE |
@@ -41,7 +41,7 @@
 
 ## 3. 已知风险与边界（如实）
 
-1. REMOTE 未验证：全部证据为本地；push 须用户授权，之后按实际 CI 双矩阵评 REMOTE_VERIFIED。
+1. ~~REMOTE 未验证~~ → **已消除**：用户授权推送后 CI run `44938095081`（SHA `dde7a8b`）双矩阵 522 passed，REMOTE_VERIFIED 记录见 `artifacts/evidence/M3/r1/remote-ci.md`。
 2. 静态检查不能覆盖计算性动态导入/exec（钉子测试如实披露；OS 级隔离归 M4）。
 3. Holdout 封存为应用层权限模拟，非 OS 沙箱（模块 docstring 明示）。
 4. 官方账本的经济预算行为 NOT_APPLICABLE_YET（M3 各臂零 LLM/人工预算，美元对等留 M4）。
