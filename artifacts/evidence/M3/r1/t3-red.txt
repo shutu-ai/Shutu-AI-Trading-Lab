@@ -1,0 +1,17 @@
+
+=================================== ERRORS ====================================
+_______________ ERROR collecting tests/backtest/test_engine.py ________________
+ImportError while importing test module 'D:\dev-projects\Shutu-AI-Trading-Lab\tests\backtest\test_engine.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\swx1536744\AppData\Local\Python\pythoncore-3.13-64\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\backtest\test_engine.py:24: in <module>
+    from trading_lab.backtest import BacktestEngine, BacktestError  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ImportError: cannot import name 'BacktestEngine' from 'trading_lab.backtest' (D:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\backtest\__init__.py)
+=========================== short test summary info ===========================
+ERROR tests/backtest/test_engine.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.24s
