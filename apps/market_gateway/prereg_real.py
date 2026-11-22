@@ -40,12 +40,22 @@ class PreregistrationRealRefused(ValueError):
 
 _REQUIRED_MODE = "REAL_SHADOW_READ_ONLY"
 
+#: schema v2 = the pinned LEGACY contract (LEGACY_INVALID_VENDOR_CONTRACT:
+#: fabricated latest-bar shape, minute-bar semantics consumed as daily).
+#: Loadable for pinned evidence reproduction only — real collection
+#: refuses it.
+_LEGACY_SCHEMA = "forward-observation-preregistration-v2"
+#: schema v3 = the production ranged-daily-bars contract (official
+#: /v2/stocks/{symbol}/bars?timeframe=1Day, official-api-contract.md §2).
+_RANGED_SCHEMA = "forward-observation-preregistration-v3"
+
 _MAX_SYMBOLS = 3
 _SYMBOL_RE = re.compile(r"^[A-Z]{1,5}$")
 _DATA_HOSTS = frozenset({"data.alpaca.markets"})
 _TRADING_HOSTS = frozenset({"api.alpaca.markets", "paper-api.alpaca.markets"})
 _PATH_PREFIX = "/v2/stocks/"
 _HHMM_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+_RANGED_PROBE_PATH = "/v2/stocks/SPY/bars"
 
 
 def _parse_date(value: str, field: str) -> dt.date:
@@ -70,10 +80,17 @@ class PreregistrationReal(Preregistration):
     # -- scope validation (fail closed, on construction) ---------------------
 
     def _validate_scope(self, p: Mapping[str, Any]) -> None:
-        if p.get("schema") != "forward-observation-preregistration-v2":
+        schema_value = p.get("schema")
+        if schema_value == _LEGACY_SCHEMA:
+            object.__setattr__(self, "_contract_legacy", True)
+        elif schema_value == _RANGED_SCHEMA:
+            object.__setattr__(self, "_contract_legacy", False)
+        else:
             raise PreregistrationRealRefused(
-                "schema must be forward-observation-preregistration-v2, "
-                f"got {p.get('schema')!r}")
+                "schema must be "
+                f"{_LEGACY_SCHEMA} (pinned legacy evidence) or "
+                f"{_RANGED_SCHEMA} (production ranged daily bars), got "
+                f"{schema_value!r}")
         if p.get("mode") != _REQUIRED_MODE:
             raise PreregistrationRealRefused(
                 f"mode must be {_REQUIRED_MODE}, got {p.get('mode')!r}")
@@ -127,6 +144,11 @@ class PreregistrationReal(Preregistration):
         if p.get("environment_must_equal") != _REQUIRED_MODE:
             raise PreregistrationRealRefused(
                 "environment_must_equal must be " f"{_REQUIRED_MODE}")
+        if not getattr(self, "_contract_legacy", True):
+            # ranged contract (schema v3): hard constraints on the daily
+            # bars data contract — the only legal production source
+            self._validate_data_contract(p.get("data_contract") or {},
+                                         p.get("collection") or {})
 
     @staticmethod
     def _validate_datasets(datasets: Any) -> None:
@@ -230,6 +252,50 @@ class PreregistrationReal(Preregistration):
                 "daily_bar_normalization must be SESSION_CLOSE_ET")
 
     @staticmethod
+    def _validate_data_contract(contract: Mapping[str, Any],
+                                collection: Mapping[str, Any]) -> None:
+        """Schema v3 hard constraints — the daily bars contract is the
+        official ranged endpoint (official-api-contract.md §2). The
+        legacy latest-bar contract can never re-enter production through
+        a v3 preregistration."""
+        if contract.get("bars_endpoint") != "ranged_daily_bars":
+            raise PreregistrationRealRefused(
+                "data_contract.bars_endpoint must be 'ranged_daily_bars' "
+                "(GET /v2/stocks/{symbol}/bars?timeframe=1Day) — the "
+                "latest-bar endpoint is minute-bar semantics and is "
+                "pinned as legacy evidence only")
+        if contract.get("timeframe") != "1Day":
+            raise PreregistrationRealRefused(
+                "data_contract.timeframe must be '1Day'")
+        if contract.get("adjustment") != "raw":
+            raise PreregistrationRealRefused(
+                "data_contract.adjustment must be 'raw'")
+        if contract.get("window_bounds") != "session_midnight_et_to_received_at":
+            raise PreregistrationRealRefused(
+                "data_contract.window_bounds must be "
+                "'session_midnight_et_to_received_at' — an explicit "
+                "bounded window for the requested session; no wide "
+                "historical sweeps")
+        limit = contract.get("limit")
+        if not isinstance(limit, int) or not 1 <= limit <= 10000:
+            raise PreregistrationRealRefused(
+                "data_contract.limit must be an int in [1, 10000]")
+        page_cap = contract.get("page_cap")
+        if not isinstance(page_cap, int) or not 1 <= page_cap <= 20:
+            raise PreregistrationRealRefused(
+                "data_contract.page_cap must be an int in [1, 20]")
+        if contract.get("completion_note") is None:
+            raise PreregistrationRealRefused(
+                "data_contract.completion_note must record the honest "
+                "completion margin (vendor finality is not guaranteed)")
+        transport = collection.get("transport") or {}
+        patterns = [str(p_) for p_ in (transport.get("allowed_paths") or [])]
+        if not any(re.match(pat, _RANGED_PROBE_PATH) for pat in patterns):
+            raise PreregistrationRealRefused(
+                "transport.allowed_paths must admit the ranged bars "
+                f"endpoint {_RANGED_PROBE_PATH} under the ranged contract")
+
+    @staticmethod
     def _validate_collection(collection: Mapping[str, Any]) -> None:
         transport = collection.get("transport") or {}
         hosts = [str(h).lower() for h in (transport.get("allowed_hosts") or [])]
@@ -283,6 +349,33 @@ class PreregistrationReal(Preregistration):
                 "poll_interval_seconds must be a positive int")
 
     # -- v2 views -------------------------------------------------------------
+
+    @property
+    def contract_legacy(self) -> bool:
+        """True for the pinned LEGACY_INVALID_VENDOR_CONTRACT schema
+        (fabricated latest-bar shape) — loadable for evidence
+        reproduction, refused for real collection."""
+        return bool(getattr(self, "_contract_legacy", True))
+
+    @property
+    def data_contract(self) -> Mapping[str, Any]:
+        """The ranged daily-bars contract (empty mapping under the legacy
+        schema — the legacy contract has no legal data contract)."""
+        if self.contract_legacy:
+            return {}
+        return self._payload["data_contract"]  # type: ignore[index]
+
+    @property
+    def page_cap(self) -> int:
+        if self.contract_legacy:
+            return 1
+        return int(self._payload["data_contract"]["page_cap"])  # type: ignore[index]
+
+    @property
+    def bars_limit(self) -> int:
+        if self.contract_legacy:
+            return 1
+        return int(self._payload["data_contract"]["limit"])  # type: ignore[index]
 
     @property
     def dataset_admission(self) -> str:

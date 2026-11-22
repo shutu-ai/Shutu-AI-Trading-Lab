@@ -1,28 +1,57 @@
-"""Data-quality validation for real market-data payloads (S8-T2).
+"""Data-quality validation for real market-data payloads (S8 contract
+remediation R1).
 
-Every raw vendor payload is validated BEFORE it can become a daemon
-event; a rejected payload never reaches the forward engine (it is
-receipt-logged as ``QUALITY_REJECT`` with its denominator-honest
-reason). Checks are fail-closed: an unparseable or out-of-contract bar
-is missing data, never "close enough".
+Two contracts live here, explicitly separated:
 
-Validation vocabulary (each reject carries a machine reason):
+- **`validate_raw_daily_bars`** — the ONLY production contract (ranged
+  ``GET /v2/stocks/{symbol}/bars?timeframe=1Day``, official schema
+  ``stock_bars_resp_single``: ``{"bars": [...], "next_page_token": ...,
+  "symbol": ...}``; official-api-contract.md §2, retrieved 2026-11-22).
+  Every raw payload is validated BEFORE it can become a daemon event; a
+  rejected payload never reaches the forward engine (it is receipted
+  with its denominator-honest reason). Fail-closed throughout.
+- **`validate_raw_bar`** — LEGACY, pinned historical-defect evidence
+  (``LEGACY_INVALID_VENDOR_CONTRACT``): the pre-remediation gate for the
+  fabricated latest-bar shape (a ``bars`` ARRAY no real ``/bars/latest``
+  endpoint returns, and minute-bar semantics consumed as daily). Kept
+  ONLY so the pinned legacy-mode tests and RED evidence keep running;
+  production never calls it under a ranged-contract preregistration.
 
-- ``SCHEMA``            — response shape is not the documented
-                          bars-latest object; required fields missing or
-                          wrongly typed;
-- ``NON_FINITE_PRICE``  — NaN/inf/zero/negative OHLC (the platform bans
-                          floats; values arrive as exact ``Decimal``);
-- ``CROSSED_BAR``       — high < low, or close outside [low, high];
-- ``NEGATIVE_VOLUME``   — volume < 0;
-- ``SYMBOL_MISMATCH``   — a symbol echo disagrees with the requested
-                          symbol;
+Reject vocabulary (each reject carries a machine reason):
+
+- ``SCHEMA``              — response shape is not the documented
+                            ranged-bars object; required fields missing
+                            or wrongly typed; more than one bar in a
+                            1Day window for one symbol;
+- ``NON_FINITE_PRICE``    — non-finite/zero/negative OHLC (exact
+                            ``Decimal`` only; NaN/Infinity JSON literals
+                            are refused at the transport);
+- ``CROSSED_BAR``         — high < low, or close/open outside [low, high];
+- ``NEGATIVE_VOLUME``     — volume < 0;
+- ``SYMBOL_MISMATCH``     — a symbol echo disagrees with the requested
+                            symbol;
 - ``UNEXPECTED_BAR_DATE`` — bar timestamp maps to a LATER session than
-                          the one being collected (a future/different
-                          session can never be consumed as today's bar);
-- ``STALE_BAR``         — bar timestamp maps to an EARLIER session
-                          (previous-session data is a gap, disclosed in
-                          denominators, never silently consumed).
+                            the one being collected (a future/different
+                            session can never be consumed as today's
+                            bar);
+- ``STALE_BAR``           — bar timestamp maps to an EARLIER session
+                            (previous-session data is a gap, disclosed
+                            in denominators, never silently consumed);
+- ``NOT_A_DAILY_BAR``     — defense-in-depth (ranged contract only): a
+                            bar stamped INSIDE the session trading hours
+                            carries an intraday (minute-bar) stamp. The
+                            vendor does NOT document the daily-stamp
+                            convention (official-api-contract.md §2), so
+                            this check is example-evidenced and
+                            deliberately strict: the daily/minute
+                            distinction belongs to the REQUEST contract
+                            (timeframe=1Day + bounded window), and a
+                            suspicious stamp is never relabeled into a
+                            daily bar — collection fails closed;
+- ``MISSING_BAR``         — the ranged window returned zero bars: a
+                            legal "no data this session" answer,
+                            receipted as a gap — zero events, zero day
+                            credit.
 
 Timestamp normalization is preregistered: a daily bar's ``t`` maps to its
 ET session date; the event ``ts_event`` is that session's DST-correct
@@ -38,7 +67,12 @@ from typing import Any
 
 from trading_lab.data.calendar import ET, MarketCalendar
 
-__all__ = ["BarRecord", "QualityReject", "validate_raw_bar"]
+__all__ = [
+    "BarRecord",
+    "QualityReject",
+    "validate_raw_bar",           # LEGACY (pinned defect evidence)
+    "validate_raw_daily_bars",    # production ranged contract
+]
 
 
 @dataclass(frozen=True)
@@ -97,19 +131,92 @@ def validate_raw_bar(
     calendar: MarketCalendar,
     raw_payload_digest: str,
 ) -> BarRecord:
-    """Validate one bars-latest response body for ``symbol`` against the
-    session being collected. Raises-free interface: returns a
-    :class:`BarRecord` or a :class:`QualityReject` (never throws except
-    on programming errors)."""
+    """LEGACY (``LEGACY_INVALID_VENDOR_CONTRACT``): the pre-remediation
+    gate for the fabricated bars-latest shape. Pinned for the legacy-mode
+    tests and RED evidence; production never calls it under a ranged
+    contract. Behavior is frozen — do not "fix" it in place."""
     try:
-        return _validate(symbol, session_date, payload, calendar,
-                         raw_payload_digest)
+        return _validate_legacy(symbol, session_date, payload, calendar,
+                                raw_payload_digest)
     except _Reject as exc:
         return QualityReject(symbol=symbol, reason=exc.reason,
                              detail=exc.detail)
 
 
-def _validate(
+def validate_raw_daily_bars(
+    *,
+    symbol: str,
+    session_date: dt.date,
+    merged_bars: list[Any],
+    symbol_echo: Any,
+    calendar: MarketCalendar,
+    raw_payload_digest: str,
+) -> BarRecord:
+    """Validate the MERGED ``bars`` of one ranged 1Day window for
+    ``symbol`` against the session being collected (production contract).
+
+    ``merged_bars`` is the concatenated bars array across all pages; the
+    feed handles pagination and passes the merged list plus the (first
+    page's documented) ``symbol`` echo. Returns a :class:`BarRecord` or a
+    :class:`QualityReject` — never throws except on programming errors.
+    """
+    try:
+        return _validate_ranged(symbol, session_date, merged_bars,
+                                symbol_echo, calendar, raw_payload_digest)
+    except _Reject as exc:
+        return QualityReject(symbol=symbol, reason=exc.reason,
+                             detail=exc.detail)
+
+
+def _validate_ranged(
+    symbol: str,
+    session_date: dt.date,
+    merged_bars: list[Any],
+    symbol_echo: Any,
+    calendar: MarketCalendar,
+    raw_payload_digest: str,
+) -> BarRecord:
+    # the ranged contract REQUIRES the symbol echo (official schema:
+    # stock_bars_resp_single requires bars, next_page_token, symbol)
+    _require(symbol_echo is not None, "SCHEMA",
+             "response.symbol (documented required echo) missing")
+    _require(symbol_echo == symbol, "SYMBOL_MISMATCH",
+             f"response symbol echo {symbol_echo!r} != requested "
+             f"{symbol!r}")
+    _require(isinstance(merged_bars, list), "SCHEMA",
+             "merged bars must be a list")
+    if len(merged_bars) == 0:
+        # a legal "no data this session" answer: a receipted gap, never
+        # an event, never day credit
+        raise _Reject("MISSING_BAR",
+                      f"{symbol} returned no bar for "
+                      f"{session_date.isoformat()} in the bounded window")
+    _require(len(merged_bars) == 1, "SCHEMA",
+             f"a 1Day window yields at most one bar per symbol, got "
+             f"{len(merged_bars)}")
+    record = _validate_bar_core(merged_bars[0], symbol, session_date,
+                                calendar, raw_payload_digest)
+    # defense-in-depth: an intraday (minute) stamp can never masquerade
+    # as the daily bar even if the transport layers above are misused.
+    # The documented daily-stamp convention is PRE-OPEN (the vendor's own
+    # examples stamp 1Day bars at/before session midnight ET), so any
+    # stamp at or after the session open is intraday and refused —
+    # including post-close stamps a polling loop could observe.
+    session = calendar.session(session_date)
+    open_et, close_et = session.open_et, session.close_et
+    assert open_et is not None and close_et is not None  # trading day
+    if record.bar_ts.time() >= open_et:
+        raise _Reject(
+            "NOT_A_DAILY_BAR",
+            f"bar stamp {record.bar_ts.time().isoformat()} ET is at or "
+            f"after the session open {open_et.isoformat()} — an intraday "
+            "stamp can never become the completed daily bar (the "
+            "daily/minute distinction is the request contract; see "
+            "official-api-contract.md)")
+    return record
+
+
+def _validate_legacy(
     symbol: str,
     session_date: dt.date,
     payload: dict[str, Any],
@@ -117,20 +224,31 @@ def _validate(
     raw_payload_digest: str,
 ) -> BarRecord:
     _require(isinstance(payload, dict), "SCHEMA", "response must be an object")
+    # pinned legacy behavior: the fabricated shape's optional symbol echo
+    # (the real contract makes it REQUIRED — enforced in _validate_ranged)
+    echo = payload.get("symbol")
+    if echo is not None:
+        _require(echo == symbol, "SYMBOL_MISMATCH",
+                 f"response symbol echo {echo!r} != requested {symbol!r}")
     bars = payload.get("bars")
     _require(isinstance(bars, list) and len(bars) >= 1, "SCHEMA",
              "response.bars must be a non-empty list")
     _require(len(bars) == 1, "SCHEMA",
              f"bars-latest must carry exactly one bar, got {len(bars)}")
-    bar = bars[0]
+    return _validate_bar_core(bars[0], symbol, session_date, calendar,
+                              raw_payload_digest)
+
+
+def _validate_bar_core(
+    bar: Any,
+    symbol: str,
+    session_date: dt.date,
+    calendar: MarketCalendar,
+    raw_payload_digest: str,
+) -> BarRecord:
     _require(isinstance(bar, dict), "SCHEMA", "bar entry must be an object")
     for field in ("t", "o", "h", "l", "c", "v"):
         _require(field in bar, "SCHEMA", f"bar field {field!r} missing")
-
-    echo = payload.get("symbol")
-    if echo is not None:
-        _require(echo == symbol, "SYMBOL_MISMATCH",
-                 f"response symbol echo {echo!r} != requested {symbol!r}")
 
     t = bar["t"]
     _require(isinstance(t, str), "SCHEMA", "bar.t must be an RFC3339 string")

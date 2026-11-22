@@ -38,18 +38,51 @@ def _last_json(stdout: str) -> dict:
 
 
 def test_check_config_prints_frozen_facts():
+    """Default --config is the ranged v2 protocol (contract remediation
+    R1): the legacy v2-schema file is pinned evidence and is never the
+    silent default."""
     proc = _run(["check-config"])
     assert proc.returncode == 0, proc.stderr
     payload = _last_json(proc.stdout)
-    assert payload["protocol_id"] == "m35-s8-real-shadow-readonly-v1"
+    assert payload["protocol_id"] == "m35-s8-real-shadow-readonly-v2"
     assert payload["mode"] == "REAL_SHADOW_READ_ONLY"
     assert payload["symbols"] == ["SPY", "QQQ"]
     assert payload["min_trading_days"] == 5
     assert payload["read_only"] is True
     assert payload["paper_write"] == "NOT_AUTHORIZED"
+    assert payload["contract_legacy"] is False
+    contract = payload["data_contract"]
+    assert contract["bars_endpoint"] == "ranged_daily_bars"
+    assert contract["timeframe"] == "1Day"
+    assert contract["adjustment"] == "raw"
+    assert contract["window_bounds"] == "session_midnight_et_to_received_at"
     assert len(payload["protocol_hash"]) == 64
     assert "2026-11-26" in payload["calendar"]["holidays"]
     assert "2026-11-27" in payload["calendar"]["half_days"]
+
+
+def test_check_config_on_legacy_file_is_pinned_evidence():
+    proc = _run(["check-config", "--config",
+                 "configs/forward_observation_s8_real.yaml"])
+    assert proc.returncode == 0, proc.stderr
+    payload = _last_json(proc.stdout)
+    assert payload["protocol_id"] == "m35-s8-real-shadow-readonly-v1"
+    assert payload["contract_legacy"] is True
+    assert "data_contract" not in payload  # the legacy contract is empty
+
+
+def test_collect_under_legacy_contract_is_structurally_refused(tmp_path):
+    """T3.1: the legacy protocol can never run real collection (exit 5),
+    regardless of gates."""
+    proc = _run(["collect", "--config",
+                 "configs/forward_observation_s8_real.yaml",
+                 "--state-dir", str(tmp_path / "state")],
+                env_extra={"S8_OPERATOR_AUTHORIZATION":
+                           "S8_APPROVAL_20261122",
+                           "APCA_API_KEY_ID": "k", "APCA_API_SECRET_KEY": "s"})
+    assert proc.returncode == 5, proc.stdout + proc.stderr
+    payload = _last_json(proc.stdout)
+    assert payload["collect"] == "LEGACY_CONTRACT_INVALID"
 
 
 def test_selftest_passes_offline_and_refuses_claims(tmp_path):

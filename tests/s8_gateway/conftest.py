@@ -15,8 +15,11 @@ from apps.market_gateway.prereg_real import PreregistrationReal  # noqa: E402
 from apps.trading_daemon.identity import build_s8_forward_identity  # noqa: E402
 
 PREREG_PATH = REPO_ROOT / "configs" / "forward_observation_s8_real.yaml"
+PREREG_PATH_V2 = REPO_ROOT / "configs" / "forward_observation_s8_real_v2.yaml"
 FIXTURE_PATH = REPO_ROOT / "apps" / "market_gateway" / "fixtures" / \
     "selftest_bars.json"
+FIXTURE_PATH_V2 = REPO_ROOT / "apps" / "market_gateway" / "fixtures" / \
+    "selftest_daily_bars_v2.json"
 
 REPO_ROOT_EXPORT = REPO_ROOT
 
@@ -28,8 +31,16 @@ def repo_root() -> Path:
 
 @pytest.fixture(scope="session")
 def real_prereg() -> PreregistrationReal:
-    """The REAL frozen v2 preregistration from configs/."""
+    """The PINNED LEGACY preregistration (schema v2) — historical-defect
+    evidence; loadable, refused for real collection."""
     return PreregistrationReal.load(PREREG_PATH)
+
+
+@pytest.fixture(scope="session")
+def ranged_prereg() -> PreregistrationReal:
+    """The production ranged daily-bars preregistration (schema v3,
+    contract remediation R1)."""
+    return PreregistrationReal.load(PREREG_PATH_V2)
 
 
 @pytest.fixture(scope="session")

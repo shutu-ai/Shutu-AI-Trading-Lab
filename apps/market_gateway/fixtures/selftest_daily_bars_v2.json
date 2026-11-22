@@ -1,0 +1,92 @@
+{
+  "schema": "s8-selftest-ranged-daily-bars-v1",
+  "note": "OFFLINE SELFTEST FIXTURE (contract remediation R1). Response SHAPES follow the official RANGED bars contract (GET /v2/stocks/{symbol}/bars?timeframe=1Day, schema stock_bars_resp_single: {bars: [...], next_page_token: ..., symbol: ...}; official-api-contract.md section 2, retrieved 2026-11-22). Bar stamps follow the pre-open convention evidenced in the vendor's own examples (session midnight ET = 05:00Z in EST), which the NOT_A_DAILY_BAR defense-in-depth guard accepts as a daily stamp. Session dates follow the preregistered real calendar's first candidate window (Thanksgiving 2026-11-26 absent as a declared holiday; 2026-11-27 a declared HALF DAY so its bar must normalize to the 13:00 ET close). The VALUES are hand-written synthetic-plausible numbers for pipeline engineering only - NOT recorded from the network, never market facts, never a real forward day.",
+  "documented_shape": {
+    "endpoint": "GET /v2/stocks/{symbol}/bars?timeframe=1Day&feed=iex&adjustment=raw&start=...&end=...&limit=10000&sort=asc",
+    "response": {
+      "bars": [
+        {
+          "t": "RFC3339 timestamp (daily bar: session midnight ET in vendor examples)",
+          "o": "open (exact decimal number)",
+          "h": "high (exact decimal number)",
+          "l": "low (exact decimal number)",
+          "c": "close (exact decimal number)",
+          "v": "volume (integer)",
+          "n": "trade count (documented required)",
+          "vw": "volume-weighted average price (documented required)"
+        }
+      ],
+      "next_page_token": "string token or null (documented: always present, may be null)",
+      "symbol": "requested symbol echo (documented required)"
+    }
+  },
+  "cycles": [
+    {
+      "session_date": "2026-11-23",
+      "pages": {
+        "SPY": [
+          {"bars": [{"t": "2026-11-23T05:00:00Z", "o": 679.40, "h": 680.55, "l": 678.90, "c": 680.10, "v": 41230000, "n": 610240, "vw": 679.85}], "next_page_token": null, "symbol": "SPY"}
+        ],
+        "QQQ": [
+          {"bars": [{"t": "2026-11-23T05:00:00Z", "o": 609.75, "h": 610.40, "l": 609.10, "c": 610.20, "v": 25880000, "n": 401120, "vw": 610.05}], "next_page_token": null, "symbol": "QQQ"}
+        ]
+      }
+    },
+    {
+      "session_date": "2026-11-24",
+      "pages": {
+        "SPY": [
+          {"bars": [{"t": "2026-11-24T05:00:00Z", "o": 680.30, "h": 681.70, "l": 679.95, "c": 681.25, "v": 39510000, "n": 589340, "vw": 680.90}], "next_page_token": null, "symbol": "SPY"}
+        ],
+        "QQQ": [
+          {"bars": [{"t": "2026-11-24T05:00:00Z", "o": 610.40, "h": 611.30, "l": 610.05, "c": 611.10, "v": 24930000, "n": 388410, "vw": 610.95}], "next_page_token": null, "symbol": "QQQ"}
+        ]
+      }
+    },
+    {
+      "session_date": "2026-11-25",
+      "pages": {
+        "SPY": [
+          {"bars": [{"t": "2026-11-25T05:00:00Z", "o": 680.90, "h": 681.10, "l": 679.20, "c": 679.80, "v": 42170000, "n": 622480, "vw": 680.20}], "next_page_token": null, "symbol": "SPY"}
+        ],
+        "QQQ": [
+          {"bars": [{"t": "2026-11-25T05:00:00Z", "o": 610.90, "h": 611.05, "l": 609.30, "c": 609.95, "v": 26120000, "n": 402870, "vw": 610.30}], "next_page_token": null, "symbol": "QQQ"}
+        ]
+      }
+    },
+    {
+      "session_date": "2026-11-27",
+      "half_day": true,
+      "pages": {
+        "SPY": [
+          {"bars": [{"t": "2026-11-27T05:00:00Z", "o": 679.95, "h": 682.80, "l": 679.60, "c": 682.40, "v": 22140000, "n": 331880, "vw": 681.60}], "next_page_token": null, "symbol": "SPY"}
+        ],
+        "QQQ": [
+          {"bars": [{"t": "2026-11-27T05:00:00Z", "o": 610.10, "h": 612.30, "l": 609.75, "c": 612.05, "v": 13950000, "n": 212340, "vw": 611.55}], "next_page_token": null, "symbol": "QQQ"}
+        ]
+      }
+    },
+    {
+      "session_date": "2026-11-30",
+      "pages": {
+        "SPY": [
+          {"bars": [{"t": "2026-11-30T05:00:00Z", "o": 682.55, "h": 683.40, "l": 681.95, "c": 683.05, "v": 40980000, "n": 601330, "vw": 682.75}], "next_page_token": null, "symbol": "SPY"}
+        ],
+        "QQQ": [
+          {"bars": [{"t": "2026-11-30T05:00:00Z", "o": 612.15, "h": 612.95, "l": 611.60, "c": 612.80, "v": 25310000, "n": 395280, "vw": 612.60}], "next_page_token": null, "symbol": "QQQ"}
+        ]
+      }
+    },
+    {
+      "session_date": "2026-12-01",
+      "pages": {
+        "SPY": [
+          {"bars": [{"t": "2026-12-01T05:00:00Z", "o": 682.90, "h": 683.10, "l": 681.35, "c": 681.90, "v": 38640000, "n": 571220, "vw": 682.15}], "next_page_token": null, "symbol": "SPY"}
+        ],
+        "QQQ": [
+          {"bars": [{"t": "2026-12-01T05:00:00Z", "o": 612.60, "h": 612.75, "l": 610.95, "c": 611.45, "v": 24470000, "n": 381930, "vw": 611.80}], "next_page_token": null, "symbol": "QQQ"}
+        ]
+      }
+    }
+  ]
+}

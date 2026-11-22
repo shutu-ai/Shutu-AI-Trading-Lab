@@ -36,10 +36,16 @@ CONFIG_FILE = "configs/forward_observation.yaml"
 
 # S8 read-only real-shadow identity scope (separately authorized; the
 # synthetic scope above stays untouched and remains the default build).
+# Contract remediation R1: the RANGED preregistration is the production
+# identity member; the legacy preregistration + fixture stay hashed as
+# pinned evidence.
 S8_RUNNER = "scripts/run_m35_s8_shadow_real.py"
-S8_CONFIG_FILE = "configs/forward_observation_s8_real.yaml"
+S8_CONFIG_FILE = "configs/forward_observation_s8_real_v2.yaml"
+S8_CONFIG_FILE_LEGACY = "configs/forward_observation_s8_real.yaml"
 S8_GATEWAY_PACKAGE = "apps/market_gateway"
 S8_SELFTEST_FIXTURE = "apps/market_gateway/fixtures/selftest_bars.json"
+S8_SELFTEST_FIXTURE_RANGED = \
+    "apps/market_gateway/fixtures/selftest_daily_bars_v2.json"
 
 #: top-level first-party file that executes on import
 _TOP_LEVEL_FILES = ("src/trading_lab/__init__.py",)
@@ -60,9 +66,11 @@ PARENT_IDENTITY = {
 __all__ = [
     "IDENTITY_SCHEMA",
     "S8_CONFIG_FILE",
+    "S8_CONFIG_FILE_LEGACY",
     "S8_GATEWAY_PACKAGE",
     "S8_RUNNER",
     "S8_SELFTEST_FIXTURE",
+    "S8_SELFTEST_FIXTURE_RANGED",
     "ForwardIdentity",
     "build_forward_identity",
     "build_s8_forward_identity",
@@ -196,13 +204,14 @@ def build_s8_forward_identity(repo_root: Path | str, *,
                               git_commit: str | None = None,
                               git_tree: str | None = None) -> ForwardIdentity:
     """The S8 read-only real-shadow scope: daemon core + gateway package +
-    the real preregistration + the offline selftest fixture + the S8
-    runner (same schema and parent linkage; a DIFFERENT hash from the
-    synthetic-scope identity)."""
+    the ranged preregistration + BOTH pinned fixtures (legacy evidence +
+    ranged production) + the S8 runner (same schema and parent linkage; a
+    DIFFERENT hash from the synthetic-scope identity)."""
     return build_forward_identity(
         repo_root, runner=S8_RUNNER, git_commit=git_commit,
         git_tree=git_tree,
-        extra_files=(S8_CONFIG_FILE, S8_SELFTEST_FIXTURE),
+        extra_files=(S8_CONFIG_FILE, S8_CONFIG_FILE_LEGACY,
+                     S8_SELFTEST_FIXTURE, S8_SELFTEST_FIXTURE_RANGED),
         extra_packages=(S8_GATEWAY_PACKAGE,))
 
 

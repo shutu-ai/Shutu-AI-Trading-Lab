@@ -1,0 +1,33 @@
+# s8-contract-r1 negative-test evidence log (2026-11-22, local run, Python 3.13.15)
+
+Verbatim verbose output of the remediation negative/positive proof files:
+
+- tests/s8_gateway/test_daily_bar_contract.py     (ranged daily-bars contract: minute-bar refusals, pagination, error classification)
+- tests/s8_gateway/test_protocol_migration.py     (frozen byte pins, legacy pinning, v3 hard constraints)
+- tests/s8_gateway/test_forward_gate_persistence.py (E-Gate chain facts: PASS positives + all refusal negatives + snapshot tamper detection)
+- tests/s8_gateway/test_red_contract_probe.py     (pinned legacy defect demonstrations + GREEN facts flip)
+- tests/architecture/test_gateway_plane_rules.py  (static plane rules)
+
+Additional negative coverage exercised in the wider suite:
+tests/s8_gateway/test_runner_cli.py (exit 4/5 honest refusals incl.
+LEGACY_CONTRACT_INVALID), tests/s8_gateway/test_prereg_real.py,
+tests/s8_gateway/test_alpaca_feed.py, tests/s8_gateway/test_http_guard.py
+(all unchanged, all green). RED-phase pre-fix output for the contract
+probe is archived verbatim in red-tests.log (4 passed against pre-fix
+code = the defects demonstrated).
+============================= test session starts =============================
+platform win32 -- Python 3.13.15, pytest-9.2.0, pluggy-1.7.0
+rootdir: D:\dev-projects\Shutu-AI-Trading-Lab
+configfile: pyproject.toml
+plugins: platformdirs-4.14.7
+collected 69 items
+
+tests\s8_gateway\test_daily_bar_contract.py .............                [ 18%]
+tests\s8_gateway\test_protocol_migration.py ............                 [ 36%]
+tests\s8_gateway\test_forward_gate_persistence.py ........               [ 47%]
+tests\s8_gateway\test_red_contract_probe.py ....                         [ 53%]
+tests\architecture\test_gateway_plane_rules.py ......................... [ 89%]
+.......                                                                  [100%]
+
+============================= 69 passed in 3.01s ==============================
+EXIT=0

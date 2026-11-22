@@ -48,7 +48,10 @@ def test_s8_identity_scope_covers_gateway_config_fixture_runner():
     ident = _s8_identity()
     paths = {rel for rel, _ in ident.files}
     assert "scripts/run_m35_s8_shadow_real.py" in paths
+    # the ranged production preregistration AND the pinned legacy pair
+    assert "configs/forward_observation_s8_real_v2.yaml" in paths
     assert "configs/forward_observation_s8_real.yaml" in paths
+    assert "apps/market_gateway/fixtures/selftest_daily_bars_v2.json" in paths
     assert "apps/market_gateway/fixtures/selftest_bars.json" in paths
     assert any(p.startswith("apps/market_gateway/") for p in paths)
     # ...and still covers the daemon core it reuses

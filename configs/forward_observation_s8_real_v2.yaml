@@ -1,0 +1,242 @@
+# Forward observation preregistration v3 — S8 read-only REAL shadow
+# window, RANGED DAILY BARS contract (contract remediation R1).
+#
+# NEW controlled protocol version (task M35-S8-REAL-FEED-CONTRACT-AND-
+# FORWARD-GATE-R1-20261122): the previous real preregistration
+# (configs/forward_observation_s8_real.yaml, schema v2) is FROZEN as
+# LEGACY_INVALID_VENDOR_CONTRACT — it encoded a fabricated latest-bar
+# response shape (a `bars` array no real /bars/latest endpoint returns)
+# and minute-bar semantics consumed as daily. During its entire existence
+# it produced ZERO API_VERIFIED facts and ZERO real forward days, and it
+# can never mint a real PASS. It stays loadable for pinned evidence
+# reproduction only; real collection refuses it.
+#
+# MIGRATION REASON (protocol-migration.md): the only legal daily-bar
+# source is the official ranged endpoint
+# GET /v2/stocks/{symbol}/bars?timeframe=1Day (schema
+# stock_bars_resp_single: {"bars": [...], "next_page_token": ...,
+# "symbol": ...}; official-api-contract.md §2, retrieved 2026-11-22).
+#
+# UNCHANGED GOVERNANCE: user approval S8_DATA_READ_ONLY=APPROVED_WITH_SCOPE
+# (2026-11-22, artifacts/evidence/M3.5/s8/authorization-check.md) and its
+# successor task authorization (T0-T5 only, local commits, no auto-push,
+# no credentials, no real API calls this round). The synthetic
+# preregistration (configs/forward_observation.yaml) stays byte-frozen.
+
+schema: forward-observation-preregistration-v3
+forward_protocol_id: m35-s8-real-shadow-readonly-v2
+mode: REAL_SHADOW_READ_ONLY
+description: >
+  S8 read-only real market-data shadow window over the official RANGED
+  daily-bars endpoint: one bounded, preregistered window per requested
+  session (start = session midnight ET inclusive, end = real receipt
+  time), timeframe=1Day, feed=iex, adjustment=raw, GET-only, exact
+  Decimal parsing, fail-closed quality gates, receipt chain for every
+  outcome, exactly-once forward scoring under the unchanged daemon
+  engine. Contract remediation R1 replaces the pinned legacy contract.
+
+environment_must_equal: REAL_SHADOW_READ_ONLY
+
+# ---------------------------------------------------------------------------
+# source authorization — identical signed scope, unchanged
+# ---------------------------------------------------------------------------
+source_authorization:
+  real_market_data: ALPACA_IEX_BASIC_READ_ONLY
+  provider: alpaca
+  feed: iex                       # free Basic feed; SIP is NOT authorized
+  plan: basic_free                # $0 — paid upgrades are never authorized
+  broker_credentials: FORBIDDEN   # no trading API use of any kind
+  vendor_capability_claims_accepted: false   # M1 U-1 stays closed
+  admitted_sources: [alpaca_iex]
+  license_attestation:
+    operator_confirmed: true      # the account owner confirms license/
+                                  # feed/credential setup personally;
+                                  # see operator-preflight.md — this
+                                  # declaration alone is NOT a verified
+                                  # account fact (UNVERIFIED until the
+                                  # operator checklist is signed locally)
+    approval_record: artifacts/evidence/M3.5/s8/authorization-check.md
+    operator_checklist: artifacts/evidence/M3.5/s8-contract-r1/operator-preflight.md
+    scope: personal_engineering_shadow_only
+
+# ---------------------------------------------------------------------------
+# strategy lineage — SAME frozen B2 rule; parent chain unchanged
+# ---------------------------------------------------------------------------
+lineage:
+  parent_identity_schema: research-code-identity-v1
+  parent_code_hash: af7ff10c425c0f153b2e7c1d1a86c6185267438610a81fa39a268a0f8d15f611
+  parent_runner: scripts/run_m3_r2_baselines.py
+  parent_protocol_id: m3-synthetic-engineering-v2
+  parent_protocol_hash: 8afb5207819bcd51ee66072f95d85355ed91b0e73d52e8ed24cc3fcd1ed43901
+  synthetic_sibling:
+    preregistration: configs/forward_observation.yaml
+    note: >
+      Byte-frozen synthetic sibling (m35-shadow-synthetic-replay-v1).
+  predecessor:
+    preregistration: configs/forward_observation_s8_real.yaml
+    status: LEGACY_INVALID_VENDOR_CONTRACT
+    note: >
+      Pinned legacy contract (schema v2). 0 API_VERIFIED, 0 real forward
+      days during its existence; loadable for pinned evidence
+      reproduction ONLY; real collection refuses it; it can never mint a
+      real forward PASS.
+
+strategy:
+  arm: B2_single_rule
+  rule: >
+    Transparent MA cross: hold (LONG) while MA(short_n) > MA(long_n),
+    FLAT otherwise; decisions use only closes with
+    ts_available <= decision_at (PIT gate).
+  short_n: 2
+  long_n: 4
+  warmup_bars: 4                  # = long_n; no predictions before warmup
+  prediction_content: exposure decision (LONG/FLAT) + reference close digest
+  scoring_rule: >
+    A LONG slot scores HIT when the observation event's close is strictly
+    above the locked reference close, MISS when strictly below, and FLAT
+    when equal; a FLAT slot scores NO_CLAIM (no directional claim was
+    made). Verdicts are engineering stability counters only — never alpha.
+
+# ---------------------------------------------------------------------------
+# data contract — the RANGED daily-bars endpoint (production contract)
+# ---------------------------------------------------------------------------
+data_contract:
+  bars_endpoint: ranged_daily_bars
+  timeframe: 1Day
+  adjustment: raw
+  feed: iex
+  window_bounds: session_midnight_et_to_received_at
+  # start = requested session 00:00 ET (inclusive: covers the vendor's
+  # pre-open daily-bar stamp convention), end = real receipt time
+  # (inclusive); no wide historical sweeps — history backfills can never
+  # masquerade as forward observations
+  limit: 10000                    # documented max: one 1Day window never
+                                  # legitimately paginates past this
+  page_cap: 5                     # pagination loop bound (fail closed)
+  sort: asc
+  completion_note: >
+    Vendor finality of a just-closed daily bar is NOT guaranteed by the
+    documentation; the preregistered poll window (after 16:05 ET) is the
+    completion margin, and a later revision of the same bar arrives as a
+    same-event-id/different-payload CONFLICT that conservatively suspends
+    scoring — it can never silently rewrite a locked prediction.
+
+# ---------------------------------------------------------------------------
+# admitted real dataset (receipt-content admission — unchanged)
+# ---------------------------------------------------------------------------
+admitted_datasets:
+  - name: m35-s8-real-iex-shadow-v2
+    source: alpaca_iex
+    symbols: [SPY, QQQ]           # <= 3 per the signed approval
+    interval: 1d
+    dataset_admission: receipt_content_hash
+    feed_restriction: iex_only
+
+# ---------------------------------------------------------------------------
+# event contract and ordering — unchanged semantics, new identity fields
+# ---------------------------------------------------------------------------
+event_contract:
+  required_fields: [event_id, source, dataset_hash, symbol, interval,
+                    ts_event, ts_available, received_at, close]
+  timestamps_tz_aware: true
+  available_not_before_event: true        # ts_available >= ts_event
+  ordering: per-source ts_event non-decreasing
+  duplicate_policy: IDEMPOTENT_SAME_PAYLOAD_REJECT_DIFFERENT
+  duplicate_identity_fields: [event_id, source, dataset_hash, symbol,
+                              interval, ts_event, ts_available, close]
+  event_id_rule: alpaca_iex:{SYMBOL}:1d:{session_date}
+  ttl:
+    max_events_wait: 2
+    max_synthetic_seconds: 864000
+  environment_mismatch: REJECT
+
+# ---------------------------------------------------------------------------
+# market clock — same operator-declared table (unchanged facts)
+# ---------------------------------------------------------------------------
+market_clock:
+  validate: true
+  calendar_source: OPERATOR_DECLARED_TABLE
+  calendar_valid_from: "2026-11-23"
+  calendar_valid_until: "2027-01-08"
+  holidays: ["2026-11-26", "2026-12-25", "2027-01-01"]
+  half_days: ["2026-11-27", "2026-12-24"]
+  session_window_et: ["09:30", "16:00"]
+  daily_bar_normalization: SESSION_CLOSE_ET
+  note: >
+    The daily/minute distinction is enforced by the request contract
+    (timeframe=1Day + bounded window) plus a defense-in-depth intraday
+    stamp rejection (NOT_A_DAILY_BAR) — the vendor does not document the
+    daily-bar stamp convention (official-api-contract.md §2).
+
+# ---------------------------------------------------------------------------
+# collection schedule and transport
+# ---------------------------------------------------------------------------
+collection:
+  poll_window_et: ["16:05", "17:30"]
+  poll_interval_seconds: 60
+  poll_timeout_seconds: 20
+  transport:
+    scheme: https
+    allowed_hosts: [data.alpaca.markets]
+    allowed_paths:
+      - "^/v2/stocks/[A-Z]{1,5}/bars$"      # ranged daily bars (production)
+    methods: [GET]
+    redirects: forbidden
+    body: forbidden
+    credential_headers: [APCA-API-KEY-ID, APCA-API-SECRET-KEY]
+    # trading-API hosts (api.alpaca.markets / paper-api.alpaca.markets)
+    # remain structurally unreachable; the operator independently
+    # enforces host-level egress isolation (operator-preflight.md) —
+    # the in-process guard does NOT by itself prove credential read-only.
+
+# ---------------------------------------------------------------------------
+# journaling — receipt chain v2 (adds disconnect-eligibility class) +
+# persisted window evaluation on completion
+# ---------------------------------------------------------------------------
+journal:
+  backbone: security.audit.AuditLog
+  head_record: true
+  anchor_file: journal-anchor.json
+  receipt_chain: receipts.jsonl
+  receipt_schema: s8-receipts-v2   # per-record disconnect_eligible class
+  scoring_exactly_once: >
+    A SCORED entry in the chain is the persistent scored record; rebuilds
+    refuse to score a slot twice; recovery completes an observed slot
+    exactly once. On window completion a WINDOW_COMPLETED record (facts
+    digest) is appended to the receipt chain and the evaluation snapshot
+    is written next to it — the E-Gate verdict always has a replayable,
+    chain-bound fact source (forward-gate-proof.md).
+
+# ---------------------------------------------------------------------------
+# real forward window — same 5-real-day bar, now with a persistent
+# fact source (T2)
+# ---------------------------------------------------------------------------
+real_window:
+  enabled: true
+  min_trading_days: 5
+  day_counting_rule: full_coverage
+  requirements:
+    - "real-arrived events with prediction_locked_at < observation_available_at
+      bound to receipt-chain arrivals (journal<->receipt cross-check)"
+    - "at least one disconnect/restart recovery and one duplicate-event
+      recovery inside the real window, computed from the chains
+      (disconnect_recoveries / duplicate_recoveries), never self-reported"
+    - "zero unauthorized broker orders; zero duplicate broker orders
+      (structurally: no broker write path exists)"
+    - "audits_passed computed from chain facts: journal chain+head+anchor,
+      receipt chain, receipt binding, and protocol binding all verified —
+      never defaulted to true"
+  paper_orders: PAPER_NOT_RUN
+  operator_gate:
+    authorization_token: S8_APPROVAL_20261122
+    authorization_record: artifacts/evidence/M3.5/s8/authorization-check.md
+    credentials: operator-injected market-data credentials (collector
+      process env only; values never logged, receipted, or committed)
+    missing_credentials_state: BLOCKED_ENV
+
+eligibility_states:
+  - OFFLINE_HARNESS_PASS_WITH_SCOPE
+  - BLOCKED_ENV
+  - BLOCKED_DATA
+  - PENDING_FORWARD_WINDOW
+  - PASS

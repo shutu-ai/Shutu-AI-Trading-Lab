@@ -1,0 +1,238 @@
+{
+  "claim_refusals": {
+    "PASS": "E=PASS requires REAL arrival records bound to a verified receipt chain under an enabled real preregistration \u2014 synthetic windows can never substitute (task S5)",
+    "PENDING_FORWARD_WINDOW": "PENDING_FORWARD_WINDOW requires legally obtained REAL arrived forward observations with verified receipt evidence; synthetic fixtures are never a forward window"
+  },
+  "cycles": [
+    {
+      "collect_status": "OK",
+      "credential_env_visible": [],
+      "engine_counters": {
+        "consumed": 2,
+        "duplicates": 0,
+        "events_delivered": 2,
+        "expired": 0,
+        "held": 0,
+        "locked": 0,
+        "observed": 0,
+        "rejected": 0,
+        "scored": {
+          "flat_close": 0,
+          "hit": 0,
+          "miss": 0,
+          "no_claim": 0,
+          "total": 0
+        }
+      },
+      "events_emitted": 2,
+      "quality_rejects": [],
+      "receipts_appended": 2,
+      "score_sequence": [],
+      "session_date": "2026-11-23",
+      "transport_errors": []
+    },
+    {
+      "collect_status": "OK",
+      "credential_env_visible": [],
+      "engine_counters": {
+        "consumed": 2,
+        "duplicates": 0,
+        "events_delivered": 2,
+        "expired": 0,
+        "held": 0,
+        "locked": 0,
+        "observed": 0,
+        "rejected": 0,
+        "scored": {
+          "flat_close": 0,
+          "hit": 0,
+          "miss": 0,
+          "no_claim": 0,
+          "total": 0
+        }
+      },
+      "events_emitted": 2,
+      "quality_rejects": [],
+      "receipts_appended": 2,
+      "score_sequence": [],
+      "session_date": "2026-11-24",
+      "transport_errors": []
+    },
+    {
+      "collect_status": "OK",
+      "credential_env_visible": [],
+      "engine_counters": {
+        "consumed": 2,
+        "duplicates": 0,
+        "events_delivered": 2,
+        "expired": 0,
+        "held": 0,
+        "locked": 2,
+        "observed": 0,
+        "rejected": 0,
+        "scored": {
+          "flat_close": 0,
+          "hit": 0,
+          "miss": 0,
+          "no_claim": 0,
+          "total": 0
+        }
+      },
+      "events_emitted": 2,
+      "quality_rejects": [],
+      "receipts_appended": 2,
+      "score_sequence": [],
+      "session_date": "2026-11-25",
+      "transport_errors": []
+    },
+    {
+      "collect_status": "OK",
+      "credential_env_visible": [],
+      "engine_counters": {
+        "consumed": 2,
+        "duplicates": 0,
+        "events_delivered": 2,
+        "expired": 0,
+        "held": 0,
+        "locked": 2,
+        "observed": 2,
+        "rejected": 0,
+        "scored": {
+          "flat_close": 0,
+          "hit": 1,
+          "miss": 0,
+          "no_claim": 1,
+          "total": 2
+        }
+      },
+      "events_emitted": 2,
+      "quality_rejects": [],
+      "receipts_appended": 2,
+      "score_sequence": [
+        "hit",
+        "no_claim"
+      ],
+      "session_date": "2026-11-27",
+      "transport_errors": []
+    },
+    {
+      "collect_status": "OK",
+      "credential_env_visible": [],
+      "engine_counters": {
+        "consumed": 2,
+        "duplicates": 0,
+        "events_delivered": 2,
+        "expired": 0,
+        "held": 0,
+        "locked": 2,
+        "observed": 2,
+        "rejected": 0,
+        "scored": {
+          "flat_close": 0,
+          "hit": 1,
+          "miss": 0,
+          "no_claim": 1,
+          "total": 2
+        }
+      },
+      "events_emitted": 2,
+      "quality_rejects": [],
+      "receipts_appended": 2,
+      "score_sequence": [
+        "hit",
+        "no_claim",
+        "no_claim",
+        "hit"
+      ],
+      "session_date": "2026-11-30",
+      "transport_errors": []
+    },
+    {
+      "collect_status": "OK",
+      "credential_env_visible": [],
+      "engine_counters": {
+        "consumed": 2,
+        "duplicates": 0,
+        "events_delivered": 2,
+        "expired": 0,
+        "held": 0,
+        "locked": 2,
+        "observed": 2,
+        "rejected": 0,
+        "scored": {
+          "flat_close": 0,
+          "hit": 0,
+          "miss": 2,
+          "no_claim": 0,
+          "total": 2
+        }
+      },
+      "events_emitted": 2,
+      "quality_rejects": [],
+      "receipts_appended": 2,
+      "score_sequence": [
+        "hit",
+        "no_claim",
+        "no_claim",
+        "hit",
+        "miss",
+        "miss"
+      ],
+      "session_date": "2026-12-01",
+      "transport_errors": []
+    }
+  ],
+  "duplicate_cycle": {
+    "engine_duplicates": 2,
+    "events_emitted": 2,
+    "new_scores": 0
+  },
+  "eligibility": {
+    "broker_writes": 0,
+    "eligibility": "OFFLINE_HARNESS_PASS_WITH_SCOPE",
+    "forward_window_status": "NOT_STARTED",
+    "paper_orders": "PAPER_NOT_RUN",
+    "r": "NOT_STARTED",
+    "real_source": "ALPACA_IEX_BASIC_READ_ONLY",
+    "reason": "synthetic replay harness passed; scope is the test fixture only \u2014 never a real forward window",
+    "s": "INCONCLUSIVE",
+    "trading_days_observed": 6
+  },
+  "events_synthetic": true,
+  "facts": {
+    "audits_passed": true,
+    "cycles_after_feed_error": 0,
+    "days_full_coverage": 6,
+    "days_partial": 0,
+    "disconnect_recoveries": 0,
+    "duplicate_broker_orders": 0,
+    "duplicate_events": 2,
+    "duplicate_recoveries": 2,
+    "events_synthetic": true,
+    "feed_errors": 0,
+    "journal_verified": true,
+    "protocol_binding_ok": true,
+    "quality_rejects": 0,
+    "receipt_binding_mismatched": [],
+    "receipt_binding_missing": [],
+    "receipt_evidence_ok": true,
+    "receipts_verified": true,
+    "scored": {
+      "hit": 2,
+      "miss": 2,
+      "no_claim": 2
+    },
+    "symbols_expected": 2,
+    "trading_days_observed": 6,
+    "unauthorized_broker_orders": 0
+  },
+  "honesty": "fixture events are never real trading days; they can never mint PENDING_FORWARD_WINDOW or PASS",
+  "identity_code_hash": "7a9e489a0d1a03c75b465ce3a47a0d2bb4d61fbf858a2876f0378e7a8d1be0c9",
+  "journal_msg": "41 entries verified",
+  "journal_ok": true,
+  "outcome": "OFFLINE_HARNESS_PASS_WITH_SCOPE",
+  "problems": [],
+  "protocol_hash": "f373b83468aed302866a2e73ec37614ad8916ebd98579ab5bf4404e284a02019",
+  "protocol_id": "m35-s8-real-shadow-readonly-v2",
+  "selftest": "S8-READ-ONLY-PIPELINE-OFFLINE"
+}

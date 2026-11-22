@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import urllib.parse
 from pathlib import Path
 from typing import Any
 
@@ -28,13 +29,21 @@ from .alpaca_feed import AlpacaIexDailyBarFeed, CollectorCodeIdentity
 from .http_client import GuardedGetClient, TransportError
 
 __all__ = [
+    "FIXTURE_SCHEMA_LEGACY",
+    "FIXTURE_SCHEMA_RANGED",
     "ScriptedBarsClient",
     "ScriptedExhausted",
+    "CycleClock",
     "fixture_clock",
     "load_fixture_table",
 ]
 
-FIXTURE_SCHEMA = "s8-selftest-bars-latest-v1"
+#: pinned legacy fixture (fabricated latest-bar shape — historical
+#: defect evidence only)
+FIXTURE_SCHEMA_LEGACY = "s8-selftest-bars-latest-v1"
+#: ranged daily-bars fixture (production contract, remediation R1)
+FIXTURE_SCHEMA_RANGED = "s8-selftest-ranged-daily-bars-v1"
+_ACCEPTED_SCHEMAS = (FIXTURE_SCHEMA_LEGACY, FIXTURE_SCHEMA_RANGED)
 
 
 class ScriptedExhausted(RuntimeError):
@@ -58,7 +67,14 @@ class _ScriptedResponse:
 
 class ScriptedBarsClient:
     """Canned transport behind the REAL GuardedGetClient: every request
-    still passes the guard; canned data is only the network answer."""
+    still passes the guard; canned data is only the network answer.
+
+    Carries BOTH fixture shapes, dispatched on the request path:
+    ``.../bars/latest`` answers from the pinned LEGACY single-object
+    table (``responses`` per cycle, historical-defect evidence), and the
+    production ranged path ``.../bars`` answers from per-symbol PAGE
+    LISTS (``pages`` per cycle) consumed sequentially via the documented
+    ``page_token`` chaining."""
 
     def __init__(
         self,
@@ -72,6 +88,7 @@ class ScriptedBarsClient:
         self.cycle_index = 0
         self.requests: list[str] = []          # audited request log (URLs)
         self._fail_hosts = {h.lower() for h in (fail_hosts or set())}
+        self._page_cursor: dict[tuple[int, str], int] = {}
         self._client = GuardedGetClient(
             allowed_hosts=allowed_hosts,
             allowed_paths=allowed_paths,
@@ -92,7 +109,6 @@ class ScriptedBarsClient:
     def _open(self, request: Any, timeout: float | None = None):
         url = request.full_url
         self.requests.append(url)
-        import urllib.parse
         parsed = urllib.parse.urlparse(url)
         host = (parsed.hostname or "").lower()
         if host in self._fail_hosts:
@@ -100,11 +116,15 @@ class ScriptedBarsClient:
         if parsed.scheme != "https":
             raise ScriptedExhausted(f"non-https scripted request: {url}")
         parts = [p for p in parsed.path.split("/") if p]
-        # /v2/stocks/{SYMBOL}/bars/latest
-        if len(parts) != 5 or parts[3] != "bars" or parts[4] != "latest":
-            raise ScriptedExhausted(
-                f"scripted transport only carries bars/latest: {url}")
-        symbol = parts[2]
+        if len(parts) == 5 and parts[3] == "bars" and parts[4] == "latest":
+            return _ScriptedResponse(self._legacy_answer(parts[2]))
+        if len(parts) == 4 and parts[3] == "bars":
+            return _ScriptedResponse(self._ranged_answer(parts[2], parsed))
+        raise ScriptedExhausted(
+            f"scripted transport carries bars/latest (legacy) and bars "
+            f"(ranged) only: {url}")
+
+    def _legacy_answer(self, symbol: str) -> bytes:
         if self.cycle_index >= len(self._cycle_tables):
             raise ScriptedExhausted(
                 f"cycle {self.cycle_index} beyond the fixture table "
@@ -113,18 +133,43 @@ class ScriptedBarsClient:
             "responses", {})
         if symbol not in responses:
             raise ScriptedExhausted(
-                f"no scripted response for {symbol} in cycle "
+                f"no scripted legacy response for {symbol} in cycle "
                 f"{self.cycle_index}")
-        return _ScriptedResponse(
-            json.dumps(responses[symbol]).encode("utf-8"))
+        return json.dumps(responses[symbol]).encode("utf-8")
+
+    def _ranged_answer(self, symbol: str, parsed) -> bytes:
+        query = urllib.parse.parse_qs(parsed.query or "")
+        if self.cycle_index >= len(self._cycle_tables):
+            raise ScriptedExhausted(
+                f"cycle {self.cycle_index} beyond the fixture table "
+                f"({len(self._cycle_tables)} cycles)")
+        page_lists = self._cycle_tables[self.cycle_index].get("pages", {})
+        if symbol not in page_lists:
+            raise ScriptedExhausted(
+                f"no scripted ranged pages for {symbol} in cycle "
+                f"{self.cycle_index}")
+        pages = page_lists[symbol]
+        token = (query.get("page_token") or [""])[0]
+        key = (self.cycle_index, symbol)
+        if not token:
+            self._page_cursor[key] = 1
+            index = 0
+        else:
+            index = self._page_cursor.get(key, 1)
+            self._page_cursor[key] = index + 1
+        if index >= len(pages):
+            raise ScriptedExhausted(
+                f"page_token ran past the scripted pages for {symbol} "
+                f"cycle {self.cycle_index}")
+        return json.dumps(pages[index]).encode("utf-8")
 
 
 def load_fixture_table(path: Path | str) -> dict[str, Any]:
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
-    if payload.get("schema") != FIXTURE_SCHEMA:
+    if payload.get("schema") not in _ACCEPTED_SCHEMAS:
         raise ScriptedExhausted(
-            f"fixture schema mismatch: {payload.get('schema')!r} != "
-            f"{FIXTURE_SCHEMA!r}")
+            f"fixture schema mismatch: {payload.get('schema')!r} not in "
+            f"{list(_ACCEPTED_SCHEMAS)}")
     return payload
 
 

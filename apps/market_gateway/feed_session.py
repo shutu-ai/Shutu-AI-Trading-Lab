@@ -189,6 +189,10 @@ def window_facts_from_journal(
     facts: dict[str, Any] = {
         "events_synthetic": bool(events_synthetic),
         "receipt_evidence_ok": False,
+        "protocol_binding_ok": False,
+        "audits_passed": False,
+        "disconnect_recoveries": 0,
+        "duplicate_recoveries": 0,
         "trading_days_observed": 0,
         "days_full_coverage": 0,
         "days_partial": 0,
@@ -212,7 +216,7 @@ def window_facts_from_journal(
     receipt_path = receipt_log_path(state_dir)
     receipts_ok = False
     receipt_index: dict[str, dict[str, Any]] = {}
-    receipt_order: list[tuple[str, str]] = []
+    receipt_timeline: list[tuple[str, dict[str, Any]]] = []
     if receipt_path.exists():
         try:
             log = AuditLog(receipt_path, environment_tag=prereg.environment)
@@ -222,21 +226,35 @@ def window_facts_from_journal(
                 event_type = payload.get("event_type", "")
                 if event_type == "RECEIPT":
                     receipt_index[str(payload.get("event_id"))] = payload
-                    receipt_order.append(("RECEIPT",
-                                          str(payload.get("event_id"))))
+                    receipt_timeline.append(("RECEIPT", payload))
                 elif event_type == "FEED_ERROR":
-                    receipt_order.append(("FEED_ERROR", ""))
+                    receipt_timeline.append(("FEED_ERROR", payload))
                     facts["feed_errors"] += 1
                 elif event_type == "QUALITY_REJECT":
-                    receipt_order.append(("QUALITY_REJECT", ""))
+                    receipt_timeline.append(("QUALITY_REJECT", payload))
                     facts["quality_rejects"] += 1
         except (ValueError, OSError, KeyError):
             receipts_ok = False
     facts["receipts_verified"] = bool(receipts_ok)
 
-    # a successful RECEIPT after the first FEED_ERROR = disconnect recovery
+    # disconnect recovery evidence (E-Gate): a disconnect-ELIGIBLE
+    # transport failure (network error, 429/5xx — never 400/401/403/404,
+    # which are operator-side faults) followed by a successful RECEIPT
+    # in the same window. Computed from the chain, never self-reported.
+    pending_disconnect = False
+    disconnect_recoveries = 0
+    for kind, payload in receipt_timeline:
+        if kind == "FEED_ERROR":
+            if payload.get("disconnect_eligible") is True:
+                pending_disconnect = True
+        elif kind == "RECEIPT" and pending_disconnect:
+            disconnect_recoveries += 1
+            pending_disconnect = False
+    facts["disconnect_recoveries"] = disconnect_recoveries
+    # legacy view (receipts after the first error of any kind): kept for
+    # continuity, never used as recovery evidence
     seen_error = False
-    for kind, _eid in receipt_order:
+    for kind, _payload in receipt_timeline:
         if kind == "FEED_ERROR":
             seen_error = True
         elif kind == "RECEIPT" and seen_error:
@@ -247,6 +265,8 @@ def window_facts_from_journal(
     duplicates = 0
     scored: dict[str, int] = {}
     coverage: dict[str, set[str]] = {}
+    sessions_seen = 0
+    protocol_bindings_ok = True
     for entry in entries:
         etype = entry.get("event_type", "")
         payload = entry.get("payload", {}) or {}
@@ -262,6 +282,12 @@ def window_facts_from_journal(
         elif etype == "SCORED":
             verdict = str(payload.get("verdict", ""))
             scored[verdict] = scored.get(verdict, 0) + 1
+        elif etype == "SESSION_STARTED":
+            sessions_seen += 1
+            if str(payload.get("protocol_hash")) != str(prereg.hash) or \
+                    str(payload.get("environment")) != \
+                    str(prereg.environment):
+                protocol_bindings_ok = False
     facts["duplicate_events"] = duplicates
     facts["scored"] = scored
 
@@ -281,6 +307,18 @@ def window_facts_from_journal(
     facts["receipt_binding_mismatched"] = sorted(mismatched)
     facts["receipt_evidence_ok"] = bool(
         journal_ok and receipts_ok and not missing and not mismatched)
+    # protocol binding: every session in the chain must have run under
+    # THIS preregistration — a foreign-protocol session poisons the
+    # window (cross-protocol contamination is refused, never merged)
+    facts["protocol_binding_ok"] = bool(
+        sessions_seen > 0 and protocol_bindings_ok)
+    # the E-Gate audit verdict: everything verified from the chains —
+    # never defaulted to true, never operator-asserted
+    facts["audits_passed"] = bool(
+        facts["receipt_evidence_ok"] and facts["protocol_binding_ok"])
+    # duplicate-recovery evidence: the journal's DUPLICATE entries ARE the
+    # audited refusals to re-consume/re-score a redelivered event
+    facts["duplicate_recoveries"] = duplicates
 
     expected_symbols = set(prereg.symbols)
     full_days: set[str] = set()
