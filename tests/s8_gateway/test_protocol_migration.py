@@ -25,7 +25,12 @@ RANGED_PATH = REPO / "configs" / "forward_observation_s8_real_v2.yaml"
 
 # byte-freeze pins (recorded in artifacts/evidence/M3.5/s8-contract-r1/
 # baseline.md at remediation start; a change to either file is a NEW
-# protocol version, never an in-place edit)
+# protocol version, never an in-place edit). Pins are computed over
+# LF-NORMALIZED content — the same platform-independent discipline as
+# the code-identity scheme — because raw working-copy bytes are
+# checkout-dependent (git translates LF->CRLF on Windows checkouts,
+# which first surfaced as CI run 45018794107 failing these two pins on
+# windows-latest while ubuntu-latest passed).
 SYNTHETIC_SHA256 = \
     "ad287c600e2be1223aaf0f4b70f6f811eedb145f0ccabe900c1b818b9d622a01"
 LEGACY_SHA256 = \
@@ -33,7 +38,14 @@ LEGACY_SHA256 = \
 
 
 def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """SHA-256 over LF-normalized UTF-8 text (BOM stripped) — invariant
+    across LF and CRLF checkouts, so the pin freezes LOGICAL content,
+    not a platform's line endings."""
+    text = path.read_bytes().decode("utf-8")
+    if text.startswith("﻿"):
+        text = text[1:]
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
 def test_frozen_synthetic_preregistration_is_byte_identical():

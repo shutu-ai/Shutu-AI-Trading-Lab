@@ -55,3 +55,23 @@ selftest EXIT=0
   "reason": "market-data credentials are not visible in the collector environment (missing: APCA_API_KEY_ID, APCA_API_SECRET_KEY) \u2014 no legal data access is configured; the collector must not attempt real connections (BLOCKED_ENV)"
 }
 collect(no-credentials) EXIT=3
+---- [remote CI run 1 (fc5c0c5): run 45018794107 ubuntu GREEN / windows RED] ----
+windows: 2 failed, 924 passed — both failures = byte-freeze pins computed over raw checkout bytes (LF->CRLF translation on windows checkout); frozen files themselves show ZERO drift
+fix: pins recomputed over LF-normalized content (repo identity discipline); pin values unchanged (self-checked); local migration tests 12/12 green
+still CI_REMOTE_PENDING — fixed commit awaits separate push authorization
+---- [post-fix full regression: pytest (all suites, LF-normalized pins)] ----
+........................................................................ [  7%]
+........................................................................ [ 15%]
+........................................................................ [ 23%]
+........................................................................ [ 31%]
+........................................................................ [ 38%]
+........................................................................ [ 46%]
+........................................................................ [ 54%]
+........................................................................ [ 62%]
+........................................................................ [ 69%]
+........................................................................ [ 77%]
+........................................................................ [ 85%]
+........................................................................ [ 93%]
+..............................................................           [100%]
+926 passed in 244.61s (0:04:04)
+EXIT=0
