@@ -61,7 +61,7 @@
 
 | 字段 | R2 值 |
 |---|---|
-| status | **M3_R2_RESEARCH_INTEGRITY_LOCAL_PASS / CI_REMOTE_PENDING**（上文 REMOTE_VERIFIED 仅属 dde7a8b 的既有测试范围，不覆盖 R2 变更） |
+| status | **M3_R2_RESEARCH_INTEGRITY_REMOTE_VERIFIED / E=PASS_WITH_SCOPE(SYNTHETIC_ENGINEERING_ONLY)**（2026-11-22 用户授权推送；受测代码 SHA `906bf6f`，run `44998829308` 双矩阵 `572 passed`，一手 job 日志见 `artifacts/evidence/M3/r2/remote-ci.md`；上文 REMOTE_VERIFIED 属 dde7a8b 的既有测试范围，本轮为 R2 变更的独立验证）。远端过程含如实披露：SHA 9e640bd attempt1 ubuntu 失败于既有 M2 A6 进程竞争 flake（571/572），attempt2 windows 失败于 R2 自身 CRLF 前置断言测试缺陷（已修复），修复 SHA 双矩阵全绿。M3_GATE=USER_PENDING 不变 |
 | R2-P0-1 code 身份 | FIXED：24 文件全量清单 `af7ff10c…`（RED：engine 字节变更 legacy hash 不动）；legacy `c0a9ede5…` 钉为 RUNNER_ONLY_LEGACY，r1 证据零改写 |
 | R2-P1-1 样本门 | FIXED：`sample_gate` API + 官方运行前强制拒绝 + 结果层强制印章；20-bar r1 注册为 SYNTHETIC_SMOKE_ONLY_LEGACY；120-bar 官方批次 `m3-r2-batch-1`（v2 协议 `8afb5207…`，9 trials + 4 queries，0 失败，成本 ×1→×3 单调退化） |
 | R2-P1-2 账本 | FIXED：加载前验链 + 身份/计数一致性 fail-closed + 单写者锁 + 外部锚；尾截断/替换/清空经锚可检测；**诚实边界钉住**：无独立锚的 JSONL 不具备不可抵赖性 |

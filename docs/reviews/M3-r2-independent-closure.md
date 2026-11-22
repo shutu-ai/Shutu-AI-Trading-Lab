@@ -11,7 +11,7 @@
 | environment | Windows 11 Pro，Python 3.13.15（`.venv`，pytest 9.2.0），离线（gh CI 核验经代理 192.168.1.2:8080）；零新第三方依赖 |
 | test_commands | 全套件 `572 passed` EXIT=0；backtest+validation 186 passed；1,080 故障矩阵专项 11 cases EXIT=0；check_environment / check_architecture(5 包 27 文件 0 违规) / scan_secrets(370 文件 0 findings) / verify_live_blocked / smoke_mock 全 EXIT=0；git diff --check 干净；官方运行 EXIT=0（verification.log 逐条真实退出码） |
 | evidence_paths | `artifacts/evidence/M3/r2/{baseline.md, red-tests.log, red-pytest.txt, red-probe.txt, green-probe.txt, pytest-green-full.txt, verification.log, code-identity-manifest.md, code-identity-manifest.json, protocol-change-and-budget.md, ledger-integrity-negative-tests.md, architecture-health.md, experiment-ledger.jsonl, experiment-summary.json, ledger-anchor.json, probe-red-gaps.py}` |
-| status | **M3_R2_RESEARCH_INTEGRITY_LOCAL_PASS / CI_REMOTE_PENDING / M3_GATE=USER_PENDING** |
+| status | **M3_R2_RESEARCH_INTEGRITY_REMOTE_VERIFIED / E=PASS_WITH_SCOPE(SYNTHETIC_ENGINEERING_ONLY)**（受测代码 SHA `906bf6f`，run `44998829308` 双矩阵 572 passed；见 §7）。前置状态 `LOCAL_PASS / CI_REMOTE_PENDING` 已被本记录取代 |
 | evidence_state | NOT_EVALUATED |
 | deployment_state | NOT_DEPLOYED |
 | strategy_role | NONE |
@@ -114,3 +114,24 @@ RED 先于实现、5/5 行为缺口实证在先；既有目标 522→572 只增�
 - M3 最终关闭、M3.5/M4 启动、真实数据/券商/资金任何一步：仍需用户分别签批。
 
 **STOP**：本轮工程与验收准备到此为止；未 push、未代签、未动 M3 门。
+
+## 7. 远端验证记录（2026-11-22 追加，用户授权"提交推送"后）
+
+以下为 push 后发生的实测，§0–§6 保持出报告时点原貌（当时 CI_REMOTE_PENDING 如实）。
+
+- 推送：`4ae119f..9e640bd`（R2 代码+证据）与 `9e640bd..906bf6f`（CI 缺陷修复）均 EXIT=0。
+- run `44996858265`（SHA `9e640bd`）如实记录两次失败与归因：
+  attempt1 ubuntu `1 failed, 571 passed` —— 失败项为**既有 M2 A6 进程竞争测试**
+  （真实进程 spawn 握手时序；R2 diff 零触碰 fault_injection/oms，50 项新测试全过；
+  windows 被 fail-fast 取消）；attempt2 ubuntu `572 passed`、windows
+  `1 failed, 571 passed` —— 失败项为 **R2 自身 CRLF 前置断言测试缺陷**
+  （Windows runner 检出为 CRLF 所暴露；已在 `906bf6f` 修复，测试目的不变）。
+- **VERIFIED 基准 run `44998829308`（SHA `906bf6f`）**：ubuntu job `137135622818`
+  `572 passed in 64.78s`；windows job `137135622437` `572 passed in 482.39s`
+  （一手 job 日志，经代理提取）——与本地 572 分母一致。
+- **A6 flake 观察项**（不弱化、处置留用户决定）：5 次 A6 执行中 1 次握手时序
+  失败（attempt1-ubuntu），复跑即绿；属共享 CI runner 负载敏感的既有风险，
+  与本轮 diff 无因果证据。
+- 结论：`M3_R2_RESEARCH_INTEGRITY_REMOTE_VERIFIED /
+  E=PASS_WITH_SCOPE(SYNTHETIC_ENGINEERING_ONLY)`；M3 关闭、M3.5/M4 启动仍需
+  用户分别签批（`M3_GATE=USER_PENDING` 不变）。

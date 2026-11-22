@@ -86,3 +86,9 @@ ledger chain: True (14 entries verified)
 ledger file re-verify: True (14 entries verified)
 ledger anchor: head=fa7fa0b09c7f¡­ tail=c0e6bf1404ce¡­ entries=14 ¡ú ledger-anchor.json
 OFFICIAL_EXIT=0
+
+### REMOTE VERIFICATION â€” 2026-11-22 ===
+Push authorized by user ('æäº¤æŽ¨é€'). 4ae119f..9e640bd -> origin/main EXIT=0; then 9e640bd..906bf6f (CI test-bug fix) EXIT=0.
+Run 44996858265 (SHA 9e640bd): attempt1 ubuntu FAIL '1 failed, 571 passed in 56.11s' (pre-existing M2 A6 process-race flake; windows cancelled by fail-fast); attempt2 ubuntu '572 passed in 43.07s' PASS, windows FAIL '1 failed, 571 passed in 604.69s' (R2's own CRLF-fixture precondition bug â€” fixed in 906bf6f, purpose unchanged).
+Run 44998829308 (SHA 906bf6f): ubuntu job 137135622818 success '572 passed in 64.78s'; windows job 137135622437 success '572 passed in 482.39s'; matches local 572 exactly.
+REMOTE_VERIFIED recorded in artifacts/evidence/M3/r2/remote-ci.md. M3_GATE stays USER_PENDING.
