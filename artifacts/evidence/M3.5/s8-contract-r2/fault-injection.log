@@ -1,0 +1,73 @@
+T7 FAULT-INJECTION LOG — M35-S8-T7-COMPLETION-INTEGRITY-AND-OPERATOR-PREFLIGHT-R1-20261122
+LOCAL_ONLY, 2026-11-22. All states are synthetic fixture windows in temp dirs
+(SIMULATED_REAL_SHAPE_TEST_ONLY). No real state dir, evidence set, credential,
+or network endpoint was touched (REAL_API_CALLS=0).
+
+EXIT-CODE CONTRACT (documented in scripts/run_m35_s8_shadow_real.py docstring):
+  0 EXIT_OK                    command ran; integrity verified or legal
+                               not-started/in-progress query (NEVER an
+                               eligibility claim)
+  1 EXIT_FAILURE               generic failure (unknown completion state)
+  3 EXIT_BLOCKED_ENV           collect: no legal data access configured
+  4 EXIT_AUTHORIZATION_REFUSED collect: wrong/missing operator token
+  5 EXIT_LEGACY_CONTRACT       collect: pinned legacy contract
+  6 EXIT_INTEGRITY_FAILURE     snapshot digest/protocol mismatch, unbound
+                               snapshot, duplicate/conflicting completions,
+                               corrupted journal/receipt chain/snapshot
+  7 EXIT_COMPLETION_INCOMPLETE receipt write failed / snapshot write failed
+                               / chain-committed completion missing snapshot
+                               (all recoverable via idempotent re-completion)
+
+=== A. pytest fault-injection suite (tests/s8_gateway/test_completion_integrity.py) ===
+RED  (pre-fix):  18 failed   — artifacts/evidence/M3.5/s8-contract-r2/red-run-full.log
+GREEN (post-fix): 18 passed  — artifacts/evidence/M3.5/s8-contract-r2/green-run.log
+  exit=0 GREEN: .venv/Scripts/python.exe -m pytest tests/s8_gateway/test_completion_integrity.py
+  18 passed in 17.27s (local Windows, Python 3.13.15)
+
+=== B. cross-process crash verification (os._exit in a fresh child) ===
+  fault point "before receipt write":
+    child returncode=9 (hard death); WINDOW_COMPLETED records=0; snapshot absent;
+    fresh-process status -> exit 0 completion_state=NOT_COMPLETED
+    fresh repair run -> exit 0 COMPLETE_VERIFIED; records=1 (no duplicate)
+  fault point "after receipt commit, before snapshot":
+    child returncode=9; WINDOW_COMPLETED records=1 (committed); snapshot absent;
+    fresh-process status -> exit 7 completion_state=CHAIN_COMMITTED_SNAPSHOT_MISSING
+    fresh repair run -> exit 0 COMPLETE_VERIFIED; records=1 (no duplicate receipt)
+  fault point "during snapshot write" (snapshot path blocked by a directory —
+  fails identically on Windows and POSIX):
+    completion=SNAPSHOT_WRITE_FAILED reported; receipt stays committed;
+    after unblocking, fresh repair run -> COMPLETE_VERIFIED, records=1,
+    snapshot restored
+  fault point "after snapshot write": normal completion -> status exit 0
+    completion_state=COMPLETE_VERIFIED
+
+=== C. CLI-level demonstration transcript (fresh temp state, recorded 2026-11-22) ===
+=== T7 fault-injection CLI demonstration (simulated state in C:\Users\SWX153~1\AppData\Local\Temp\t7-faultdemo-5dwoxh7u ) ===
+1. in-progress window, intact chains -> (0, 'NOT_COMPLETED', [])
+2. crash child after receipt commit: returncode = 9
+   WINDOW_COMPLETED records in chain = 1 ; snapshot exists = False
+   fresh-process status -> (7, 'CHAIN_COMMITTED_SNAPSHOT_MISSING', [])
+3. repair child: 0 COMPLETION: COMPLETE_VERIFIED
+   records = 1 ; status -> (0, 'COMPLETE_VERIFIED', [])
+4. tampered snapshot digest -> (6, 'INTEGRITY_FAILURE', ['DIGEST_MISMATCH', 'UNBOUND_SNAPSHOT'])
+
+  note on (4): tampering the snapshot digest breaks BOTH the recomputed-digest
+  match AND the binding to the committed chain record, so both problem codes
+  fire — composite fail-closed reporting is expected.
+
+=== D. coverage of T7.2 injection matrix (all via the committed test suite) ===
+  snapshot facts_digest tampered        -> 6 DIGEST_MISMATCH                  [test_status_detects_tampered_snapshot_digest]
+  snapshot protocol_hash mismatch       -> 6 PROTOCOL_MISMATCH                 [test_status_detects_snapshot_protocol_mismatch]
+  snapshot without committed record     -> 6 UNBOUND_SNAPSHOT                  [test_status_refuses_unbound_snapshot_without_completion_receipt]
+  chain record without snapshot         -> 7 CHAIN_COMMITTED_SNAPSHOT_MISSING  [test_status_reports_chain_committed_completion_without_snapshot]
+  conflicting duplicate completions     -> 6 CONFLICTING_COMPLETIONS           [test_status_detects_conflicting_duplicate_completions]
+  identical duplicate completions       -> 6 DUPLICATE_COMPLETION              [test_status_detects_identical_duplicate_completions]
+  corrupt receipt chain                 -> 6 RECEIPT_CHAIN_CORRUPT             [test_status_detects_corrupt_receipt_chain]
+  corrupt journal                       -> 6 JOURNAL_CORRUPT                   [test_status_detects_corrupt_journal]
+  legal empty state                     -> 0 NOT_STARTED                       [test_status_empty_state_stays_legal_exit_zero]
+  legal in-progress state               -> 0 NOT_COMPLETED                     [test_status_in_progress_intact_chains_stays_legal_exit_zero]
+
+=== E. P0-A failure-path exit codes (collect --complete, simulated feed) ===
+  receipt persistence OSError injected -> cmd_collect returns 7 (RECEIPT_WRITE_FAILED);
+  no snapshot written; no evidence copy written (pre-fix: snapshot written + exit 0)
+  snapshot write OSError injected      -> completion=SNAPSHOT_WRITE_FAILED, recoverable (pre-fix: unhandled exception)

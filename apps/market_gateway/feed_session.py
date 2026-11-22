@@ -46,6 +46,7 @@ __all__ = [
     "append_receipts",
     "evaluate_window",
     "preflight",
+    "read_completion_records",
     "run_collection_cycle",
     "window_facts_from_journal",
 ]
@@ -124,6 +125,36 @@ def append_receipts(state_dir: Path | str, records: list[dict[str, Any]],
     for record in records:
         log.append(str(record.get("event_type", "RECEIPT")), record)
     return len(records)
+
+
+def read_completion_records(
+    state_dir: Path | str, environment: str,
+) -> tuple[bool, list[dict[str, Any]]]:
+    """Fail-closed read of the ``WINDOW_COMPLETED`` completion records
+    from the receipt chain: ``(chain_ok, records)``.
+
+    ``chain_ok`` is False whenever the chain exists but fails
+    verification or cannot be parsed — a completion decision must then be
+    REFUSED, never guessed from a possibly-edited chain. An absent chain
+    simply carries no completion (legal before the first ``--complete``).
+    """
+    path = receipt_log_path(state_dir)
+    if not path.exists():
+        return True, []
+    try:
+        log = AuditLog(path, environment_tag=environment)
+        ok, _bad = log.verify()
+        if not ok:
+            return False, []
+        records = [
+            dict(entry.get("payload") or {})
+            for entry in read_entries(path)
+            if (entry.get("payload") or {}).get("event_type")
+            == "WINDOW_COMPLETED"
+        ]
+        return True, records
+    except (ValueError, OSError, KeyError):
+        return False, []
 
 
 def run_collection_cycle(
