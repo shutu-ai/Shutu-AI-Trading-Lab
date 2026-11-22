@@ -2,19 +2,38 @@
 
 ## 状态
 
-**`CI_REMOTE_PENDING`** — 本阶段未推送（任务书 §0.2：默认仅本地 commit，push 需单独用户授权）。
+**`M3.5_OFFLINE_HARNESS_REMOTE_VERIFIED`**（2026-11-22 用户授权 push；双平台 CI 全绿）
+完整真实前向 E=PASS 仍不成立：真实窗口未开始，`S=INCONCLUSIVE` 等状态不变（见下）。
 
-## 事实
+## 授权与推送
 
-- 本地验证（Python 3.13.15，Windows 11）：见 `verification.log`——全量回归、M2 故障矩阵、架构检查、密钥扫描、live-blocked、smoke、官方回放，全部通过（EXIT CODE 如实记录）。
-- **未验证**：Ubuntu 平台、Windows 远端 runner、远端双矩阵。在用户授权 push 且双平台 CI 全绿之前，任何 `REMOTE_VERIFIED` 表述都不成立。
-- 受测代码 SHA：以推送时刻 `git rev-parse HEAD` 为准（本阶段完成后记录于最终 commit）。
-- 已知观察项：M2 A6 ready 握手进程竞争 flake（历史失败 run 见 `docs/reviews/M3-engineering.md`）。若远端重现，按任务书 S0.5 处理（确定性 READY 同步小范围 RED→GREEN，50 轮竞争数量不减，单独报告），不得以 skip/xfail 掩盖。
+- **push 授权**: 2026-11-22，用户在本会话明确指令"推送"（对应执行报告列出的待签批项 ①）。
+- **推送范围**: `e1301c5..a06e0dc` → `origin/main`，三个本地 commit：
+  - `de39b40` feat(M3.5-S1-S6) — daemon/预注册/runner/测试/检查器
+  - `4d7acfb` chore(M3.5) — M2 自再生日志（披露谱系）
+  - `a06e0dc` docs(M3.5) — 授权/基线/证据/三轨报告
 
-## 解除条件（按任务书 S7）
+## CI 结果（一手 job 日志核对）
 
-1. 用户单独授权 push；
-2. 远端 CI 双平台（Ubuntu + Windows）全绿；
-3. 在此记录 run ID、受测 SHA、双矩阵通过数，方可将状态写为
-   `M3.5_OFFLINE_HARNESS_REMOTE_VERIFIED`——但仍不得升级为完整真实前向 E=PASS
-   （真实窗口未开始，`S=INCONCLUSIVE` 不变）。
+| 项 | 值 |
+|---|---|
+| Run | [`45006808270`](https://github.com/shutu-ai/Shutu-AI-Trading-Lab/actions/runs/45006808270)（push 触发，2026-11-22T09:17:22Z） |
+| 受测 HEAD | `a06e0dc`（daemon 代码在 `de39b40`，docs-only 差异至 `a06e0dc`） |
+| ubuntu-latest | ✓ **686 passed** in 55.70s（job 137160108678） |
+| windows-latest | ✓ **686 passed** in 355.44s（job 137160108361） |
+| 本地对照 | 同为 686 passed（Python 3.13.15，见 `verification.log`） |
+| 注解 | 仅 Node.js 20 deprecation 提示（actions 基建噪音，非测试失败） |
+| A6 flake | 本 run 未重现（windows 6m24s 全绿，一次通过） |
+
+## 状态升级（严格限定）
+
+- `CI_REMOTE_PENDING` → `M3.5_OFFLINE_HARNESS_REMOTE_VERIFIED`
+- **不升级项（保持原样）**：`E=PASS_WITH_SCOPE(SYNTHETIC_REPLAY_ONLY)`（远端绿 ≠ 真实前向窗口）、
+  `REAL_FORWARD=NOT_STARTED_OR_BLOCKED_ENV`、`S=INCONCLUSIVE`、`R=NOT_STARTED`、
+  `BLOCKED_DATA`、`BROKER_BEHAVIOR_UNVERIFIED`、`M1 U-1 UNRESOLVED`、
+  `PAPER_NOT_RUN`、`M3.5_GATE=USER_PENDING`。
+- REMOTE_VERIFIED 的语义：离线合成 Shadow 工程夹具在双平台可复现——仅此而已。
+
+## 后续门（各自需单独签批）
+
+S8 真实行情来源 / Alpaca Paper 写 / M4 启动 —— 本记录不构成其中任何一项的授权。
