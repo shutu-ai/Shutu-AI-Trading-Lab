@@ -353,3 +353,7 @@ EXIT=0
 ...........                                                              [100%]
 11 passed in 115.62s (0:01:55)
 EXIT=0
+---- [remote CI: run 45013402697 after user-authorized push d85d105..2e189eb] ----
+ubuntu-latest: 887 passed in 54.50s (job 137180438950, green)
+windows-latest: 887 passed in 306.72s (job 137180439148, green)
+REMOTE_VERIFIED (one-line excerpts from gh run view --job --log, 2026-11-22)
