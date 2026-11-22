@@ -75,3 +75,5 @@ still CI_REMOTE_PENDING — fixed commit awaits separate push authorization
 ..............................................................           [100%]
 926 passed in 244.61s (0:04:04)
 EXIT=0
+---- [remote CI run 2 (2a60864): run 45023566557 BOTH MATRICES GREEN] ----
+ubuntu: 926 passed in 46.92s (job 137211543143) / windows: 926 passed in 384.09s (job 137211542872); head verified 2a60864; REMOTE_VERIFIED
