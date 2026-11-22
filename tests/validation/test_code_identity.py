@@ -187,13 +187,19 @@ class TestDeterminism:
 
     def test_windows_crlf_and_linux_lf_checkouts_hash_identically(self, tmp_path):
         """GitHub Windows runners check out CRLF, Linux LF; the identity
-        must be a function of source CONTENT, not checkout line endings."""
+        must be a function of source CONTENT, not checkout line endings.
+        The fixture constructs both variants from a self-normalized LF
+        base, so it holds on any checkout mode (the runner's working tree
+        may itself be CRLF)."""
         root = make_fake_repo(tmp_path)
-        h_lf = build_code_identity(root, runner=R2_RUNNER).code_hash
         target = root / "src" / "trading_lab" / "validation" / "ledger.py"
-        data = target.read_bytes()
-        assert b"\r\n" not in data  # repo stores LF
-        target.write_bytes(data.replace(b"\n", b"\r\n"))
+        # build a known-LF base independent of the local checkout mode,
+        # WRITE it before the first hash, then derive the CRLF variant
+        data_lf = target.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+        assert b"\r" not in data_lf
+        target.write_bytes(data_lf)
+        h_lf = build_code_identity(root, runner=R2_RUNNER).code_hash
+        target.write_bytes(data_lf.replace(b"\n", b"\r\n"))
         h_crlf = build_code_identity(root, runner=R2_RUNNER).code_hash
         assert h_lf == h_crlf
 
