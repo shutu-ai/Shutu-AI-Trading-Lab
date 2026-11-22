@@ -1,0 +1,355 @@
+=== S8 verification sequence (2026-11-22, local Python 3.13.15 venv) ===
+---- [check_environment] ----
+python: 3.13.15
+platform: win32
+baseline (3.13): OK
+pydantic: 2.14.3
+cryptography: 50.0.2
+alpaca env vars: absent (expected for M0 �� no broker access)
+EXIT=0
+---- [check_architecture] ----
+check_architecture: scanned 5 packages (48 files), 0 violations
+EXIT=0
+---- [scan_secrets] ----
+scan_secrets: scanned 447 tracked files, 0 findings
+EXIT=0
+---- [verify_live_blocked] ----
+paper config ok: configs\paper\runtime.example.yaml (PAPER/PAPER_TEST_ACCOUNT)
+verify_live_blocked: paper runtime contains no live artifacts �� PASS
+EXIT=0
+---- [smoke_mock] ----
+== 1. PAPER runtime: bind, gate, kill switch ==
+paper context bound: PAPER/PAPER_TEST_ACCOUNT
+valid signal -> ALLOW_SIGNAL allow=True
+kill switch set -> require_tradable blocked (expected)
+kill switch cleared with authorization -> tradable again
+== 2. LIVE dry-run: mock release verification ==
+mock-signed release -> allow=True reasons=()
+attacker-signed release -> allow=False reasons=('SIGNATURE_INVALID_OR_TRUST_ROOT_UNRECOGNIZED',)
+over-quota request on valid release -> allow=False reasons=('NONCE_REPLAY:nonce=11111111111111111111111111111111', 'CAPITAL_CAP_EXCEEDED:requested=5000.00,signed=1000.00')
+brokers plane is fake-only (zero network/real-broker imports)
+SMOKE PASS: paper gate + kill switch + mock live verification all behaved fail-closed
+EXIT=0
+---- [s8 runner: check-config] ----
+{
+  "calendar": {
+    "half_days": [
+      "2026-11-27",
+      "2026-12-24"
+    ],
+    "holidays": [
+      "2026-11-26",
+      "2026-12-25",
+      "2027-01-01"
+    ],
+    "valid_from": "2026-11-23",
+    "valid_until": "2027-01-08"
+  },
+  "dataset_admission": "receipt_content_hash",
+  "environment": "REAL_SHADOW_READ_ONLY",
+  "feed": "iex",
+  "identity_code_hash": "b2ee90d5051690e0dbd0539493e3dfbd4e80485ba31070f812ccd92ab0f568f5",
+  "identity_files": 53,
+  "identity_schema": "forward-daemon-identity-v1",
+  "min_trading_days": 5,
+  "mode": "REAL_SHADOW_READ_ONLY",
+  "paper_write": "NOT_AUTHORIZED",
+  "plan": "basic_free",
+  "protocol_hash": "d3446826a01d95ea8dbc2b72cae7ccede02cf217be4fde35b882582a00d286c4",
+  "protocol_id": "m35-s8-real-shadow-readonly-v1",
+  "read_only": true,
+  "symbols": [
+    "SPY",
+    "QQQ"
+  ]
+}
+EXIT=0
+---- [s8 runner: selftest -> evidence] ----
+{
+  "claim_refusals": {
+    "PASS": "E=PASS requires REAL arrival records bound to a verified receipt chain under an enabled real preregistration \u2014 synthetic windows can never substitute (task S5)",
+    "PENDING_FORWARD_WINDOW": "PENDING_FORWARD_WINDOW requires legally obtained REAL arrived forward observations with verified receipt evidence; synthetic fixtures are never a forward window"
+  },
+  "cycles": [
+    {
+      "collect_status": "OK",
+      "credential_env_visible": [],
+      "engine_counters": {
+        "consumed": 2,
+        "duplicates": 0,
+        "events_delivered": 2,
+        "expired": 0,
+        "held": 0,
+        "locked": 0,
+        "observed": 0,
+        "rejected": 0,
+        "scored": {
+          "flat_close": 0,
+          "hit": 0,
+          "miss": 0,
+          "no_claim": 0,
+          "total": 0
+        }
+      },
+      "events_emitted": 2,
+      "quality_rejects": [],
+      "receipts_appended": 2,
+      "score_sequence": [],
+      "session_date": "2026-11-23",
+      "transport_errors": []
+    },
+    {
+      "collect_status": "OK",
+      "credential_env_visible": [],
+      "engine_counters": {
+        "consumed": 2,
+        "duplicates": 0,
+        "events_delivered": 2,
+        "expired": 0,
+        "held": 0,
+        "locked": 0,
+        "observed": 0,
+        "rejected": 0,
+        "scored": {
+          "flat_close": 0,
+          "hit": 0,
+          "miss": 0,
+          "no_claim": 0,
+          "total": 0
+        }
+      },
+      "events_emitted": 2,
+      "quality_rejects": [],
+      "receipts_appended": 2,
+      "score_sequence": [],
+      "session_date": "2026-11-24",
+      "transport_errors": []
+    },
+    {
+      "collect_status": "OK",
+      "credential_env_visible": [],
+      "engine_counters": {
+        "consumed": 2,
+        "duplicates": 0,
+        "events_delivered": 2,
+        "expired": 0,
+        "held": 0,
+        "locked": 2,
+        "observed": 0,
+        "rejected": 0,
+        "scored": {
+          "flat_close": 0,
+          "hit": 0,
+          "miss": 0,
+          "no_claim": 0,
+          "total": 0
+        }
+      },
+      "events_emitted": 2,
+      "quality_rejects": [],
+      "receipts_appended": 2,
+      "score_sequence": [],
+      "session_date": "2026-11-25",
+      "transport_errors": []
+    },
+    {
+      "collect_status": "OK",
+      "credential_env_visible": [],
+      "engine_counters": {
+        "consumed": 2,
+        "duplicates": 0,
+        "events_delivered": 2,
+        "expired": 0,
+        "held": 0,
+        "locked": 2,
+        "observed": 2,
+        "rejected": 0,
+        "scored": {
+          "flat_close": 0,
+          "hit": 1,
+          "miss": 0,
+          "no_claim": 1,
+          "total": 2
+        }
+      },
+      "events_emitted": 2,
+      "quality_rejects": [],
+      "receipts_appended": 2,
+      "score_sequence": [
+        "hit",
+        "no_claim"
+      ],
+      "session_date": "2026-11-27",
+      "transport_errors": []
+    },
+    {
+      "collect_status": "OK",
+      "credential_env_visible": [],
+      "engine_counters": {
+        "consumed": 2,
+        "duplicates": 0,
+        "events_delivered": 2,
+        "expired": 0,
+        "held": 0,
+        "locked": 2,
+        "observed": 2,
+        "rejected": 0,
+        "scored": {
+          "flat_close": 0,
+          "hit": 1,
+          "miss": 0,
+          "no_claim": 1,
+          "total": 2
+        }
+      },
+      "events_emitted": 2,
+      "quality_rejects": [],
+      "receipts_appended": 2,
+      "score_sequence": [
+        "hit",
+        "no_claim",
+        "no_claim",
+        "hit"
+      ],
+      "session_date": "2026-11-30",
+      "transport_errors": []
+    },
+    {
+      "collect_status": "OK",
+      "credential_env_visible": [],
+      "engine_counters": {
+        "consumed": 2,
+        "duplicates": 0,
+        "events_delivered": 2,
+        "expired": 0,
+        "held": 0,
+        "locked": 2,
+        "observed": 2,
+        "rejected": 0,
+        "scored": {
+          "flat_close": 0,
+          "hit": 0,
+          "miss": 2,
+          "no_claim": 0,
+          "total": 2
+        }
+      },
+      "events_emitted": 2,
+      "quality_rejects": [],
+      "receipts_appended": 2,
+      "score_sequence": [
+        "hit",
+        "no_claim",
+        "no_claim",
+        "hit",
+        "miss",
+        "miss"
+      ],
+      "session_date": "2026-12-01",
+      "transport_errors": []
+    }
+  ],
+  "duplicate_cycle": {
+    "engine_duplicates": 2,
+    "events_emitted": 2,
+    "new_scores": 0
+  },
+  "eligibility": {
+    "broker_writes": 0,
+    "eligibility": "OFFLINE_HARNESS_PASS_WITH_SCOPE",
+    "forward_window_status": "NOT_STARTED",
+    "paper_orders": "PAPER_NOT_RUN",
+    "r": "NOT_STARTED",
+    "real_source": "ALPACA_IEX_BASIC_READ_ONLY",
+    "reason": "synthetic replay harness passed; scope is the test fixture only \u2014 never a real forward window",
+    "s": "INCONCLUSIVE",
+    "trading_days_observed": 6
+  },
+  "events_synthetic": true,
+  "facts": {
+    "cycles_after_feed_error": 0,
+    "days_full_coverage": 6,
+    "days_partial": 0,
+    "duplicate_broker_orders": 0,
+    "duplicate_events": 2,
+    "events_synthetic": true,
+    "feed_errors": 0,
+    "journal_verified": true,
+    "quality_rejects": 0,
+    "receipt_binding_mismatched": [],
+    "receipt_binding_missing": [],
+    "receipt_evidence_ok": true,
+    "receipts_verified": true,
+    "scored": {
+      "hit": 2,
+      "miss": 2,
+      "no_claim": 2
+    },
+    "symbols_expected": 2,
+    "trading_days_observed": 6,
+    "unauthorized_broker_orders": 0
+  },
+  "honesty": "fixture events are never real trading days; they can never mint PENDING_FORWARD_WINDOW or PASS",
+  "identity_code_hash": "b2ee90d5051690e0dbd0539493e3dfbd4e80485ba31070f812ccd92ab0f568f5",
+  "journal_msg": "41 entries verified",
+  "journal_ok": true,
+  "outcome": "OFFLINE_HARNESS_PASS_WITH_SCOPE",
+  "problems": [],
+  "protocol_hash": "d3446826a01d95ea8dbc2b72cae7ccede02cf217be4fde35b882582a00d286c4",
+  "protocol_id": "m35-s8-real-shadow-readonly-v1",
+  "selftest": "S8-READ-ONLY-PIPELINE-OFFLINE"
+}
+wrote D:\dev-projects\Shutu-AI-Trading-Lab\artifacts\evidence\M3.5\s8\selftest-result.json
+EXIT=0
+---- [s8 runner: collect without credentials -> BLOCKED_ENV] ----
+{
+  "collect": "BLOCKED_ENV",
+  "credential_env_visible": [],
+  "note": "no legal data access configured \u2014 the collector must not attempt real connections (S8 approval condition 3)",
+  "reason": "market-data credentials are not visible in the collector environment (missing: APCA_API_KEY_ID, APCA_API_SECRET_KEY) \u2014 no legal data access is configured; the collector must not attempt real connections (BLOCKED_ENV)"
+}
+EXIT=3
+---- [m3.5 synthetic replay runner (capability intact, new identity disclosed)] ----
+- journal verify after run 1: ok=True (109 entries verified)
+
+## Run 2 �� identical replay, fresh state (S2.4)
+- logical_digest equal: True
+- score_sequence equal: True
+- counters equal: True
+
+## Run 3 �� full redelivery onto the same journal (S1/S3)
+- duplicates: 30 (expected 30)
+- new scores this session: 0 (expected 0)
+- journal verify after run 3: ok=True (141 entries verified)
+OFFLINE_REPLAY_OK
+EXIT=0
+---- git diff --check ----
+warning: in the working copy of 'apps/trading_daemon/eligibility.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/trading_daemon/engine.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/trading_daemon/identity.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/trading_daemon/prereg.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'apps/trading_daemon/report.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/check_architecture.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/trading_lab/data/__init__.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/trading_lab/data/acceptance.py', LF will be replaced by CRLF the next time Git touches it
+EXIT=0
+---- [final full regression: pytest -q (all suites)] ----
+........................................................................ [  8%]
+........................................................................ [ 16%]
+........................................................................ [ 24%]
+........................................................................ [ 32%]
+........................................................................ [ 40%]
+........................................................................ [ 48%]
+........................................................................ [ 56%]
+........................................................................ [ 64%]
+........................................................................ [ 73%]
+........................................................................ [ 81%]
+........................................................................ [ 89%]
+........................................................................ [ 97%]
+.......................                                                  [100%]
+887 passed in 202.22s (0:03:22)
+EXIT=0
+---- [fault matrix: test_fault_matrix.py explicit] ----
+...........                                                              [100%]
+11 passed in 115.62s (0:01:55)
+EXIT=0

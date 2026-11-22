@@ -1,0 +1,19 @@
+# S8 negative-test evidence log (2026-11-22, local run, Python 3.13.15)
+
+Machine-readable verbose output of the negative-proof test files, real run:
+
+- tests/s8_gateway/test_http_guard.py            (read-only network guard)
+- tests/s8_gateway/test_prereg_real.py           (out-of-scope prereg refusal)
+- tests/s8_gateway/test_eligibility_real.py      (claim refusals, fail-closed defaults)
+- tests/no_lookahead/test_vendor_facts_u1.py     (M1 U-1 RED->GREEN)
+- tests/architecture/test_gateway_plane_rules.py (static plane rules)
+
+Summary line and per-test outcomes below are verbatim pytest output (EXIT=0).
+Additional negative coverage exercised inside the broader suite:
+tests/s8_gateway/test_feed_session.py (revision conflict -> SUSPENDED,
+backfill -> STALE_BAR, tampered receipt chain -> evidence_ok=False,
+partial-coverage day disclosure, restart exactly-once, full redelivery
+idempotency) and tests/s8_gateway/test_runner_cli.py (exit 3/4 honest
+states). M3.5 daemon negative core remains in tests/forward_smoke/
+(unchanged, all green).
+============================= test session starts ============================= platform win32 -- Python 3.13.15, pytest-9.2.0, pluggy-1.7.0 rootdir: D:\dev-projects\Shutu-AI-Trading-Lab configfile: pyproject.toml plugins: platformdirs-4.14.7 collected 159 items  tests\s8_gateway\test_http_guard.py .......................              [ 14%] tests\s8_gateway\test_prereg_real.py ................................... [ 36%] ..                                                                       [ 37%] tests\s8_gateway\test_eligibility_real.py ..............                 [ 46%] tests\no_lookahead\test_vendor_facts_u1.py ............................. [ 64%] ........................                                                 [ 79%] tests\architecture\test_gateway_plane_rules.py ......................... [ 95%] .......                                                                  [100%]  ============================= 159 passed in 4.11s =============================EXIT=0

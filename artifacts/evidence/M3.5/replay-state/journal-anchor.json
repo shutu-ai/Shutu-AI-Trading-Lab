@@ -1,7 +1,7 @@
 {
   "entry_count": 141,
-  "head_digest": "ac5f2d2dc54de02a20e2eacb085798e43da06bdafa3975465c95ab396a87b8b6",
+  "head_digest": "c4336dc210c5b406013b662aac39843bfeec1013e02eaff918975bcd2ba0aa54",
   "schema": "forward-journal-anchor-v1",
   "session_id": "m35-shadow-synthetic-replay-v1-s2",
-  "tail_digest": "c723cb253d74d9fda375cc07d9cf4b4e4038c54a88979380633b446f94310746"
+  "tail_digest": "06443dc2332bd72ad696a483c85b3698dbe3f89be53d527a1e10f98359c691b4"
 }

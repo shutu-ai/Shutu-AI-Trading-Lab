@@ -1,0 +1,6 @@
+== M1 U-1 RED reproduction against pre-fix code ==
+DEFECT-1 CONSTRUCTION: illegal values accepted -> 'partially' / 'event-level capable per vendor page'
+DEFECT-2 EVALUATION verdict = ACCEPT reasons = []
+VERDICT_ACCEPT = ACCEPT
+RED CONFIRMED: illegal enum values flowed through to ACCEPT.
+EXIT=0

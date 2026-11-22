@@ -2,7 +2,7 @@
   "account_environment": "SYNTHETIC_REPLAY",
   "available_at": "2026-04-10T20:00:00+00:00",
   "clock_skew": 300.0,
-  "code_hash": "2c7f98a9c3abd3305186b7415caee2944e962426b420eaa3f61429c0356bf91b",
+  "code_hash": "4937bc461af45ed16cc4acaea4e20e1541a6a4df6b6c8df3b5633ab9ec03c171",
   "cohort_id": "m35-shadow-synthetic-replay-v1-s1",
   "counters": {
     "consumed": 30,
@@ -32,17 +32,18 @@
     "r": "NOT_STARTED",
     "real_source": "BLOCKED_DATA",
     "reason": "synthetic replay harness passed; scope is the test fixture only \u2014 never a real forward window",
-    "s": "INCONCLUSIVE"
+    "s": "INCONCLUSIVE",
+    "trading_days_observed": 0
   },
   "event_id": "m35-shadow-replay-v1-0029",
   "event_ts": "2026-04-10T20:00:00+00:00",
   "events_delivered": 30,
   "expired_count": 1,
   "gap_count": 0,
-  "generated_at": "2026-11-22T08:42:52.520112+00:00",
+  "generated_at": "2026-11-22T10:28:34.980096+00:00",
   "mode": "SYNTHETIC_REPLAY",
   "no_broker_writes": true,
-  "prediction_lock_digest": "8f71fda15711792603d21332a164661a67ce2efbf679b2582b362cdf09b7b78a",
+  "prediction_lock_digest": "a476fe08b6ad285c769c99ac0f5c66b1c090ed626b55d6afd0b407ff3cf68361",
   "protocol_hash": "91b2671901f2e7a2b3d3181258771d8dc5fc51bed3374994d2658b3a47d1d8b1",
   "real_forward_window": {
     "authorized_source": "BLOCKED_DATA",
@@ -57,7 +58,7 @@
   "recovery_status": "CLEAN_START",
   "rejected_count": 0,
   "replay_count": 0,
-  "score_at": "2026-11-22T08:42:52.292380+00:00",
+  "score_at": "2026-11-22T10:28:34.748278+00:00",
   "source_authorization_status": "NONE",
   "source_evidence_level": "SYNTHETIC_REPLAY",
   "strategy_hash": "ba460195a4d6a63d5e3e64888bf28d3ba97914bc4b77fbc14c131eaaf18cb394"

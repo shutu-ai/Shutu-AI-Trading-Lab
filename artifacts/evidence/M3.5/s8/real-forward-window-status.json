@@ -1,0 +1,56 @@
+{
+  "blocked_reason": "no market-data credentials in this environment; per signed approval condition 3 the account owner registers the account, confirms the license and injects credentials personally - the collector refuses real connections until both preflight gates pass (BLOCKED_ENV)",
+  "broker_writes": 0,
+  "eligibility": {
+    "broker_writes": 0,
+    "eligibility": "BLOCKED_ENV",
+    "forward_window_status": "NOT_STARTED",
+    "paper_orders": "PAPER_NOT_RUN",
+    "r": "NOT_STARTED",
+    "real_source": "ALPACA_IEX_BASIC_READ_ONLY",
+    "reason": "offline harness incomplete: journal_verified",
+    "s": "INCONCLUSIVE",
+    "trading_days_observed": 0
+  },
+  "engineering": {
+    "offline_selftest": "OFFLINE_HARNESS_PASS_WITH_SCOPE",
+    "read_only_proof": "runtime guard + static plane rules + v2 loader (artifacts/evidence/M3.5/s8/read-only-network-proof.md)",
+    "u1": "FIXED_WITH_POSITIVE_AND_NEGATIVE_TESTS (BLOCKED_DATA unchanged)"
+  },
+  "facts": {
+    "cycles_after_feed_error": 0,
+    "days_full_coverage": 0,
+    "days_partial": 0,
+    "duplicate_broker_orders": 0,
+    "duplicate_events": 0,
+    "events_synthetic": false,
+    "feed_errors": 0,
+    "journal_verified": false,
+    "quality_rejects": 0,
+    "receipt_evidence_ok": false,
+    "receipts_verified": false,
+    "scored": {},
+    "symbols_expected": 2,
+    "trading_days_observed": 0,
+    "unauthorized_broker_orders": 0
+  },
+  "forward_window_status": "NOT_STARTED",
+  "generated_at": "2026-11-22T10:29:24.820494+00:00",
+  "honesty": "zero real trading days observed; synthetic/selftest facts can never count toward the window",
+  "min_trading_days": 5,
+  "mode": "REAL_SHADOW_READ_ONLY",
+  "paper_orders": "PAPER_NOT_RUN",
+  "preflight": {
+    "credential_env_visible": [],
+    "reason": "market-data credentials are not visible in the collector environment (missing: APCA_API_KEY_ID, APCA_API_SECRET_KEY) \u2014 no legal data access is configured; the collector must not attempt real connections (BLOCKED_ENV)",
+    "state": "BLOCKED_ENV"
+  },
+  "protocol_hash": "d3446826a01d95ea8dbc2b72cae7ccede02cf217be4fde35b882582a00d286c4",
+  "protocol_id": "m35-s8-real-shadow-readonly-v1",
+  "r": "NOT_STARTED",
+  "s": "INCONCLUSIVE",
+  "source_authorization": "ALPACA_IEX_BASIC_READ_ONLY (APPROVED_WITH_SCOPE)",
+  "source_evidence_level": "UNVERIFIED_NO_REAL_ARRIVALS",
+  "stage": "M3.5-S8",
+  "trading_days_observed": 0
+}
