@@ -1,0 +1,19 @@
+[GAP-PROVEN] P0-1 legacy hash == r1 ledger value: legacy=c0a9ede5bf4d recorded={'c0a9ede5bf4d'}
+[GAP-PROVEN] P0-1 engine bytes outside legacy identity input: mutating engine source cannot move the legacy code_hash
+[NOT-REPRODUCED] P1-1 below-gate run completes with NO refusal and NO verdict: min_bars=100 bars=20 ran to net_return=0.0026 sample_gate_verdict_field=True
+Traceback (most recent call last):
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\artifacts\evidence\M3\r2\probe-red-gaps.py", line 154, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\artifacts\evidence\M3\r2\probe-red-gaps.py", line 112, in main
+    led2 = ExperimentLedger(led_path, limits={
+        "max_total_trials": 10, "max_search_queries": 10,
+        "max_failures_before_halt": 5, "max_hypotheses": 5},
+        protocol_hash="p" * 32, code_hash="c" * 32)
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\validation\ledger.py", line 219, in __init__
+    self._verify_and_replay(anchor)
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "D:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\validation\ledger.py", line 261, in _verify_and_replay
+    raise LedgerIntegrityError(
+        f"refusing to load ledger {self.path.name}: {msg}")
+trading_lab.validation.ledger.LedgerIntegrityError: refusing to load ledger probe-ledger.jsonl: digest mismatch at entry #1

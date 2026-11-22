@@ -40,3 +40,24 @@
 真实数据解封（M1 准入 + U-1 解决）→ 真实历史滚动 OOS → M4 激活 AI 臂与美元预算对等
 → M8 末按预注册规则冻结唯一候选 → M9 一次性解封判定
 （PASS/FAILED/INCONCLUSIVE/INVALIDATED）。任何一步缺失都维持 S=INCONCLUSIVE。
+
+---
+
+# M3-R2 补充（2026-11-21）—— S 轴状态不变，样本语义修正
+
+> 本节为 R2 追加；上文历史事实不变。S = INCONCLUSIVE / N_A、evidence_state=
+> NOT_EVALUATED、final_holdout_status=SEALED_NOT_MATERIALIZED 均不变。
+
+- **样本地位修正（R2-P1-1）**：上表官方运行的 20-bar 数据集现被协议 v2 注册为
+  `SYNTHETIC_SMOKE_ONLY_LEGACY`（sample_gate=INSUFFICIENT_SAMPLE）——它从未满足
+  `min_bars=100`，只作功能冒烟证据；r1 报告本就未据其宣称工程样本门 PASS，
+  R2 以机制补齐"不足即拒"并显式降级注册，数据与账本零改动。
+- **新官方批次 `m3-r2-batch-1`（协议 v2 `8afb5207…`，120 根全合成）**：
+  B0 0.0000 / B1 +0.0105 / B2(MA 2,4) +0.0031（×1 成本；×2 +0.0012，×3 −0.0006）。
+  B2 20 笔成交（trade stats OK）；B0/B1 成交数低于 `min_trades_for_stats=10`，
+  交易统计如实 `N_A_INSUFFICIENT_TRADES`（非"工程无效"）。
+- **证据等级不变**：正净值仍是合成上升漂移的形状产物；样本门 SATISFIED 只证明
+  工程样本量门槛，不改变 `max_claimable_evidence=ENGINEERING_ONLY`，
+  statistical_alpha 门恒 INCONCLUSIVE，无任何 alpha / HIST_OOS_SUPPORTED 声称。
+- 证据：`artifacts/evidence/M3/r2/{protocol-change-and-budget.md,
+  experiment-summary.json, experiment-ledger.jsonl}`。

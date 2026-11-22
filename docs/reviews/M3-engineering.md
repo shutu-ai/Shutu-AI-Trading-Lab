@@ -51,3 +51,19 @@
    回归与全套件运行按测试设计再次重写了这三个文件（commit c0c49ae 含此变更）。
    原始版本在 Git 历史（3505799 及更早）中可追溯；M2 gate record 的审计披露已记录
    该重生成行为。未对断言或测试逻辑做任何改动。
+
+---
+
+# M3-R2 补充（研究证据完整性定向补强，2026-11-21）
+
+> 本节为 R2 追加，不改动上文任何历史事实。完整独立验收见
+> `docs/reviews/M3-r2-independent-closure.md`；证据在 `artifacts/evidence/M3/r2/`。
+
+| 字段 | R2 值 |
+|---|---|
+| status | **M3_R2_RESEARCH_INTEGRITY_LOCAL_PASS / CI_REMOTE_PENDING**（上文 REMOTE_VERIFIED 仅属 dde7a8b 的既有测试范围，不覆盖 R2 变更） |
+| R2-P0-1 code 身份 | FIXED：24 文件全量清单 `af7ff10c…`（RED：engine 字节变更 legacy hash 不动）；legacy `c0a9ede5…` 钉为 RUNNER_ONLY_LEGACY，r1 证据零改写 |
+| R2-P1-1 样本门 | FIXED：`sample_gate` API + 官方运行前强制拒绝 + 结果层强制印章；20-bar r1 注册为 SYNTHETIC_SMOKE_ONLY_LEGACY；120-bar 官方批次 `m3-r2-batch-1`（v2 协议 `8afb5207…`，9 trials + 4 queries，0 失败，成本 ×1→×3 单调退化） |
+| R2-P1-2 账本 | FIXED：加载前验链 + 身份/计数一致性 fail-closed + 单写者锁 + 外部锚；尾截断/替换/清空经锚可检测；**诚实边界钉住**：无独立锚的 JSONL 不具备不可抵赖性 |
+| 测试分母 | 522 → **572**（+50，0 删/跳/xfail；3 处既有测试更新均非弱化，逐处声明见 r2 evidence）；1,080 矩阵专项重跑 11 cases EXIT=0；architecture 5 包 27 文件 0 违规 |
+| next_gate | 不变：M3_GATE=USER_PENDING；push/M3 关闭/M3.5/M4 需用户分别签批 |

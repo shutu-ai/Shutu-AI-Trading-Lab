@@ -1,0 +1,88 @@
+=== M3-R2 verification battery â€” 2026-11-21T20:02:59Z ===
+
+--- base HEAD at battery start: 4ae119fe17ab7118075adb2899def69eafe2cd78 ---
+
+### RED evidence (pre-GREEN, same session):
+  red-pytest.txt: 3 module collection errors (ImportError: SampleGateVerdict / code_identity / LedgerAnchor+LedgerIntegrityError) â€” pytest EXIT=2
+  red-probe.txt: 5/5 behavioral gaps mechanically proven (probe EXIT=0), see red-probe.txt
+
+### CMD: .venv/Scripts/python.exe -m pytest  (GREEN, full suite)
+572 passed in 165.05s (0:02:45)
+EXIT=0 (full log: pytest-green-full.txt)
+
+### CMD: .venv/Scripts/python.exe -m pytest tests/backtest tests/validation
+186 passed in 15.34s
+EXIT=0
+
+### CMD: .venv/Scripts/python.exe -m pytest tests/fault_injection/test_fault_matrix.py  (1,080-instance matrix)
+...........                                                              [100%]
+11 passed in 119.01s (0:01:59)
+EXIT=0
+
+### POST-GREEN probe re-run (gaps must be closed):
+PROBE_EXIT=1 (1 = expected: post-GREEN the P1-1/P1-2 behaviors no longer reproduce; P0-1 legacy-scheme facts remain true history)
+[GAP-PROVEN] P0-1 legacy hash == r1 ledger value: legacy=c0a9ede5bf4d recorded={'c0a9ede5bf4d'}
+[GAP-PROVEN] P0-1 engine bytes outside legacy identity input: mutating engine source cannot move the legacy code_hash
+[NOT-REPRODUCED] P1-1 below-gate run completes with NO refusal and NO verdict: min_bars=100 bars=20 ran to net_return=0.0026 sample_gate_verdict_field=True
+
+POST-GREEN probe annotation: probe 3a now RAISES LedgerIntegrityError at
+construction ('refusing to load ledger probe-ledger.jsonl: digest mismatch
+at entry #1') â€” the RED probe's naive reopen crashes on the new fail-closed
+loader, which is exactly the fix. P1-1 printed NOT-REPRODUCED (sample_gate
+verdict now stamped). Probe 3b never reached; the unanchored-chain
+limitation it demonstrated remains a TRUE property (by design, pinned by
+tests/validation/test_ledger_integrity_r2.py::
+TestExternalAnchor::test_unanchored_verification_cannot_detect_tail_truncation)
+and is closed operationally by the LedgerAnchor mechanism (same file,
+5 dedicated tests).
+
+### CMD: .venv/Scripts/python.exe scripts/check_environment.py
+python: 3.13.15
+platform: win32
+baseline (3.13): OK
+pydantic: 2.14.3
+cryptography: 50.0.2
+alpaca env vars: absent (expected for M0 ¡ª no broker access)
+EXIT=0
+
+### CMD: .venv/Scripts/python.exe scripts/check_architecture.py
+check_architecture: scanned 5 packages (27 files), 0 violations
+EXIT=0
+
+### CMD: .venv/Scripts/python.exe scripts/scan_secrets.py
+scan_secrets: scanned 370 tracked files, 0 findings
+EXIT=0
+
+### CMD: .venv/Scripts/python.exe scripts/verify_live_blocked.py
+paper config ok: configs\paper\runtime.example.yaml (PAPER/PAPER_TEST_ACCOUNT)
+verify_live_blocked: paper runtime contains no live artifacts ¡ª PASS
+EXIT=0
+
+### CMD: .venv/Scripts/python.exe scripts/smoke_mock.py
+brokers plane is fake-only (zero network/real-broker imports)
+SMOKE PASS: paper gate + kill switch + mock live verification all behaved fail-closed
+EXIT=0
+
+### CMD: git diff --check
+EXIT=0 (warnings about LF/CRLF on touched text files are git checkout noise, same class as r1; no whitespace errors above)
+
+### OFFICIAL RUN: .venv/Scripts/python.exe scripts/run_m3_r2_baselines.py  (batch m3-r2-batch-1)
+sample_gate=SATISFIED sessions=120 min_bars=100 role=OFFICIAL_ENGINEERING_RUN
+protocol=m3-synthetic-engineering-v2/v2 protocol_hash=8afb5207819bcd51ee66072f95d85355ed91b0e73d52e8ed24cc3fcd1ed43901
+dataset_hash=803b11b4e64ba97351dd2f2fb5cab24c814512fef91d4e84465a4bd5c9433286
+code_hash=af7ff10c425c0f153b2e7c1d1a86c6185267438610a81fa39a268a0f8d15f611 (research-code-identity manifest: 24 files)
+B2 params selected on Train/Validation (<= 2026-04-02 21:00:00+00:00): (2, 4) (4 grid trials billed as queries)
+OK B0_cash seed=42 mult=1 net=0.0000 dd=0.0000 fills=0 gate=SATISFIED stats=N_A_INSUFFICIENT_TRADES ledger=1b341b758b4e
+OK B0_cash seed=42 mult=2 net=0.0000 dd=0.0000 fills=0 gate=SATISFIED stats=N_A_INSUFFICIENT_TRADES ledger=f8e6928b71ca
+OK B0_cash seed=42 mult=3 net=0.0000 dd=0.0000 fills=0 gate=SATISFIED stats=N_A_INSUFFICIENT_TRADES ledger=5d90c7af0c83
+OK B1_buy_hold seed=42 mult=1 net=0.0105 dd=0.0016 fills=1 gate=SATISFIED stats=N_A_INSUFFICIENT_TRADES ledger=c70ecbbde842
+OK B1_buy_hold seed=42 mult=2 net=0.0105 dd=0.0016 fills=1 gate=SATISFIED stats=N_A_INSUFFICIENT_TRADES ledger=5a18fd16ce94
+OK B1_buy_hold seed=42 mult=3 net=0.0104 dd=0.0016 fills=1 gate=SATISFIED stats=N_A_INSUFFICIENT_TRADES ledger=7223fd39dfe4
+OK B2_single_rule seed=42 mult=1 net=0.0031 dd=0.0000 fills=20 gate=SATISFIED stats=OK ledger=c536959ea7f8
+OK B2_single_rule seed=42 mult=2 net=0.0012 dd=0.0000 fills=20 gate=SATISFIED stats=OK ledger=52d388169fd4
+OK B2_single_rule seed=42 mult=3 net=-0.0006 dd=0.0000 fills=20 gate=SATISFIED stats=OK ledger=c0e6bf1404ce
+ledger counters: {'trials': 9, 'queries': 4, 'failures': 0, 'retries': 0, 'cancels': 0, 'unlock_attempts': 0, 'hypotheses': 0}
+ledger chain: True (14 entries verified)
+ledger file re-verify: True (14 entries verified)
+ledger anchor: head=fa7fa0b09c7f¡­ tail=c0e6bf1404ce¡­ entries=14 ¡ú ledger-anchor.json
+OFFICIAL_EXIT=0

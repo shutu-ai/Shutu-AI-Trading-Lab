@@ -1,0 +1,171 @@
+{
+  "b2_params_frozen": [
+    2,
+    4
+  ],
+  "batch_id": "m3-r2-batch-1",
+  "claim": "engineering evidence only \u2014 NOT alpha, NOT HIST_OOS_SUPPORTED, NOT deployable; synthetic upward drift means positive net_return is a data shape artifact, not a market judgment",
+  "code_identity": {
+    "code_hash": "af7ff10c425c0f153b2e7c1d1a86c6185267438610a81fa39a268a0f8d15f611",
+    "git_commit": "4ae119fe17ab7118075adb2899def69eafe2cd78",
+    "git_tree": "8345984ad9cd7b9ed430d5f93f445892a3647551",
+    "legacy_r1_code_hash": "c0a9ede5bf4dea02e5a4141f3a494c29291039d678ed3aae2380619d510a8d0f",
+    "legacy_scope": "RUNNER_ONLY_LEGACY",
+    "manifest_files": 24,
+    "runner": "scripts/run_m3_r2_baselines.py",
+    "schema": "research-code-identity-v1"
+  },
+  "cohort_overlap_independent": true,
+  "dataset": {
+    "dataset_hash": "803b11b4e64ba97351dd2f2fb5cab24c814512fef91d4e84465a4bd5c9433286",
+    "name": "m3-r2-official-v1",
+    "sessions": 120,
+    "source": "synthetic"
+  },
+  "evidence_class": "SYNTHETIC_ENGINEERING_ONLY",
+  "failures": 0,
+  "protocol": {
+    "data_scope": "SYNTHETIC_ENGINEERING_ONLY",
+    "max_claimable_evidence": "ENGINEERING_ONLY",
+    "protocol_hash": "8afb5207819bcd51ee66072f95d85355ed91b0e73d52e8ed24cc3fcd1ed43901",
+    "protocol_id": "m3-synthetic-engineering-v2",
+    "protocol_version": 2
+  },
+  "results": [
+    {
+      "arm": "B0_cash",
+      "cost_multiplier": 1,
+      "fees_total": "0",
+      "fills": 0,
+      "ledger_digest": "1b341b758b4e09d0b67fadd7ad7f8f17fa03ebf987cbca68d3a2dc3edb5ef899",
+      "max_drawdown": "0.0000",
+      "net_return": "0.0000",
+      "sample_bars": 120,
+      "sample_gate_verdict": "SATISFIED",
+      "seed": 42,
+      "tail_loss": "0.0000",
+      "trade_stats_status": "N_A_INSUFFICIENT_TRADES"
+    },
+    {
+      "arm": "B0_cash",
+      "cost_multiplier": 2,
+      "fees_total": "0",
+      "fills": 0,
+      "ledger_digest": "f8e6928b71ca2942013297cbc6f302f1f51f05f0b392a376f9d5d2495d5e3d69",
+      "max_drawdown": "0.0000",
+      "net_return": "0.0000",
+      "sample_bars": 120,
+      "sample_gate_verdict": "SATISFIED",
+      "seed": 42,
+      "tail_loss": "0.0000",
+      "trade_stats_status": "N_A_INSUFFICIENT_TRADES"
+    },
+    {
+      "arm": "B0_cash",
+      "cost_multiplier": 3,
+      "fees_total": "0",
+      "fills": 0,
+      "ledger_digest": "5d90c7af0c83ffd47611bb673c545bea3d1ce179b281eec0f43ef7a2f430d0c9",
+      "max_drawdown": "0.0000",
+      "net_return": "0.0000",
+      "sample_bars": 120,
+      "sample_gate_verdict": "SATISFIED",
+      "seed": 42,
+      "tail_loss": "0.0000",
+      "trade_stats_status": "N_A_INSUFFICIENT_TRADES"
+    },
+    {
+      "arm": "B1_buy_hold",
+      "cost_multiplier": 1,
+      "fees_total": "1.0000",
+      "fills": 1,
+      "ledger_digest": "c70ecbbde842d7155c879c481c922fa08c4bfe655bbb382c7115f04018729c9b",
+      "max_drawdown": "0.0016",
+      "net_return": "0.0105",
+      "sample_bars": 120,
+      "sample_gate_verdict": "SATISFIED",
+      "seed": 42,
+      "tail_loss": "-0.0003",
+      "trade_stats_status": "N_A_INSUFFICIENT_TRADES"
+    },
+    {
+      "arm": "B1_buy_hold",
+      "cost_multiplier": 2,
+      "fees_total": "2.0000",
+      "fills": 1,
+      "ledger_digest": "5a18fd16ce940a995c11992e3da973c272de01fb8079ea36811f37a874a3a554",
+      "max_drawdown": "0.0016",
+      "net_return": "0.0105",
+      "sample_bars": 120,
+      "sample_gate_verdict": "SATISFIED",
+      "seed": 42,
+      "tail_loss": "-0.0003",
+      "trade_stats_status": "N_A_INSUFFICIENT_TRADES"
+    },
+    {
+      "arm": "B1_buy_hold",
+      "cost_multiplier": 3,
+      "fees_total": "3.0000",
+      "fills": 1,
+      "ledger_digest": "7223fd39dfe46dcbcc3ab8aca9250aceff5fc40da29f6d65a079cd121ac6aec5",
+      "max_drawdown": "0.0016",
+      "net_return": "0.0104",
+      "sample_bars": 120,
+      "sample_gate_verdict": "SATISFIED",
+      "seed": 42,
+      "tail_loss": "-0.0003",
+      "trade_stats_status": "N_A_INSUFFICIENT_TRADES"
+    },
+    {
+      "arm": "B2_single_rule",
+      "cost_multiplier": 1,
+      "fees_total": "20.0000",
+      "fills": 20,
+      "ledger_digest": "c536959ea7f8af4018a98fe7c6ca7ec59ea75974ea0637b1e2d643706329c22a",
+      "max_drawdown": "0.0000",
+      "net_return": "0.0031",
+      "sample_bars": 120,
+      "sample_gate_verdict": "SATISFIED",
+      "seed": 42,
+      "tail_loss": "0.0000",
+      "trade_stats_status": "OK"
+    },
+    {
+      "arm": "B2_single_rule",
+      "cost_multiplier": 2,
+      "fees_total": "40.0000",
+      "fills": 20,
+      "ledger_digest": "52d388169fd47f855bdf5fd15977f7e2c3874561f356266116815b70ba90082a",
+      "max_drawdown": "0.0000",
+      "net_return": "0.0012",
+      "sample_bars": 120,
+      "sample_gate_verdict": "SATISFIED",
+      "seed": 42,
+      "tail_loss": "0.0000",
+      "trade_stats_status": "OK"
+    },
+    {
+      "arm": "B2_single_rule",
+      "cost_multiplier": 3,
+      "fees_total": "60.0000",
+      "fills": 20,
+      "ledger_digest": "c0e6bf1404ce9e10936791eae2cfa0700b396e6ff3accd62e92dddcbc5fea93c",
+      "max_drawdown": "0.0000",
+      "net_return": "-0.0006",
+      "sample_bars": 120,
+      "sample_gate_verdict": "SATISFIED",
+      "seed": 42,
+      "tail_loss": "0.0000",
+      "trade_stats_status": "OK"
+    }
+  ],
+  "runs": 9,
+  "sample_gate": {
+    "enforcement": "OfficialRunRefused below min_bars",
+    "min_bars": 100,
+    "n_bars": 120,
+    "verdict": "SATISFIED"
+  },
+  "selection": "Train/Validation-only; grid billed; frozen for OOS",
+  "trade_stats_note": "Arms below validation.min_trades_for_stats=10 fill events report trade_stats_status=N_A_INSUFFICIENT_TRADES: statistics not computable \u2014 engineering gates (conservation/PIT/determinism) are independent of this and reported separately"
+}

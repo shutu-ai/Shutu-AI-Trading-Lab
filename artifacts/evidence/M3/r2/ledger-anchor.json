@@ -1,0 +1,11 @@
+{
+  "batch_id": "m3-r2-batch-1",
+  "code_hash": "af7ff10c425c0f153b2e7c1d1a86c6185267438610a81fa39a268a0f8d15f611",
+  "created_ts": "2026-11-21T20:06:51.086971Z",
+  "entry_count": 14,
+  "head_digest": "fa7fa0b09c7f15f2cd7ada2117a355883c85a0a9874ddd43db77827be0232ad0",
+  "note": "external anchor for m3-r2-batch-1 \u2014 store/keep this committed record OUTSIDE the ledger file; it is what makes tail truncation / whole-file replacement detectable on the next open. Trust equals this file's own storage (documented boundary).",
+  "protocol_hash": "8afb5207819bcd51ee66072f95d85355ed91b0e73d52e8ed24cc3fcd1ed43901",
+  "schema": "experiment-ledger-anchor-v1",
+  "tail_digest": "c0e6bf1404ce9e10936791eae2cfa0700b396e6ff3accd62e92dddcbc5fea93c"
+}

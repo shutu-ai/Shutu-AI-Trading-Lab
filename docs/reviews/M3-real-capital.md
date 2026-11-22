@@ -32,3 +32,21 @@
 - M3-R1 不申请、不预批、不预连接任何 Paper/Live 环境。
 - Live 准入硬守卫链（E∧S∧evidence_state∧final_holdout_status∧forward∧签批）本轮
   无任何一项被推进；final_holdout_status 仍为 SEALED_NOT_MATERIALIZED。
+
+---
+
+# M3-R2 补充（2026-11-21）—— R 轴状态不变，零真实接触
+
+> 本节为 R2 追加；上文历史事实不变。R = NOT_STARTED、deployment_state=
+> NOT_DEPLOYED、broker_access=无 全部不变。
+
+- R2 全部工作仍为合成数据 + 纯离线工程（新增：代码身份清单、样本门、账本
+  完整性）；无任何真实数据供应商、券商 API、凭证、Paper/Live 或资金操作。
+- 复验：`verify_live_blocked.py` EXIT=0；`scan_secrets.py` EXIT=0（370 tracked
+  files，0 findings）；`check_environment.py` 确认 alpaca env vars absent。
+- 架构强制不变：研究包（backtest/validation，含新增 code_identity/ledger/protocol）
+  仍被 `check_architecture.py` 5 包规则禁止导入 oms/risk/brokers/data
+  （5 包 27 文件 0 违规）——研究代码不存在触达真实订单路径的静态可能。
+- M2 安全资产零触碰：A7 五轮 crash 回归未改动；1,080 故障矩阵专项重跑
+  11 cases EXIT=0；522 项既有目标全保留（572 = 522 + 50）。
+- 证据：`artifacts/evidence/M3/r2/architecture-health.md` 及 verification.log。

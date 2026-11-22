@@ -1,0 +1,43 @@
+# M3-R2 RED 证据索引与判读
+
+RED 先行纪律：三个测试文件在**任何实现存在之前**编写并运行；同一文件在 GREEN 后
+零弱化复跑（唯一改动：两处探针 marker 大小写对齐源文件实际文本、一处断言条数
+算术修正、一处"删除最后一行"改为"删除中间行"以构造真正断链、一处补上测试自身
+声称的 rechain 调用、fake repo 中补删 runner 以触发缺失分支——均为让 RED 测试
+能准确表达目标契约的修正，非降低断言；全部修正发生于 GREEN 实现之前）。
+
+## 1. pytest 层 RED（原始输出：`red-pytest.txt`，pytest EXIT=2）
+
+| 模块 | RED 形态 | 对应缺口 |
+|---|---|---|
+| `tests/validation/test_code_identity.py` | ImportError: `trading_lab.validation.code_identity` 不存在 | R2-P0-1 |
+| `tests/validation/test_sample_gate.py` | ImportError: `SampleGateVerdict` 不存在（sample_gate/trade_stats_gate API、v2 批次、官方 runner 均不存在） | R2-P1-1 |
+| `tests/validation/test_ledger_integrity_r2.py` | ImportError: `LedgerAnchor` / `LedgerIntegrityError` / `LedgerLockedError` / `verify_ledger_file` 不存在（加载前验链、锚、锁均不存在） | R2-P1-2 |
+
+## 2. 行为层 RED（纯探针，原始输出：`red-probe.txt`，probe EXIT=0 = 5/5 缺口实证）
+
+| 探针 | 实证（针对 4ae119f 既有代码，临时目录操作） |
+|---|---|
+| P0-1 legacy hash == r1 账本值 | `c0a9ede5bf4d…` 与 r1 账本 13 条记录的 code_hash 逐一相等（证明我们对 legacy 方案覆盖范围的认定是机械事实） |
+| P0-1 engine 字节在 legacy 身份输入之外 | 篡改 engine.py 源文本后，legacy code_hash 逐字节不变 |
+| P1-1 低于门槛照跑无判定 | 20 根合成数据在 min_bars=100 下完整跑完 B1 官方路径（net=0.0026），无拒绝、结果无样本门字段 |
+| P1-2 篡改账本可加载 | 中间条目 retro-edit 后重新 open 成功、可继续追加研究；verify_chain 仅事后报错 |
+| P1-2 尾截断不可检测（无锚） | 删除最后一条后剩余链自洽 verify_chain=True（2 entries verified）——链自身的诚实能力边界，随后由外部锚机制补齐 |
+
+## 3. GREEN 后对照（`green-probe.txt`，probe EXIT=1 = 预期）
+
+- P1-1 `NOT-REPRODUCED`：结果现携带 sample_gate_verdict。
+- P1-2 (3a) 探针在重新打开被篡改账本时**构造即抛**
+  `LedgerIntegrityError: refusing to load ledger probe-ledger.jsonl: digest
+  mismatch at entry #1` ——加载前验链生效（探针未捕获异常即退出，为预期行为）。
+- P0-1 两行仍为 GAP-PROVEN：这是对 **legacy 方案**的事实描述（历史方案未改写），
+  修复方式是不再将其用于 r2+ 的实验身份（r2+ 使用 24 文件全量清单），而非篡改历史。
+- P1-2 (3b) 未执行到；"无外部锚时剩余链自洽"仍是**设计内保留的诚实边界**，由
+  `test_ledger_integrity_r2.py::TestExternalAnchor::`
+  `test_unanchored_verification_cannot_detect_tail_truncation` 永久钉住，并以
+  LedgerAnchor 机制（5 项专项测试）提供检测能力。
+
+## 4. GREEN 复跑（同文件零弱化）
+
+`pytest tests/validation/test_code_identity.py tests/validation/test_sample_gate.py
+tests/validation/test_ledger_integrity_r2.py` → **50 passed，EXIT=0**（19+12+19）。

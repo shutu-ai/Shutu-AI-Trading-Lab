@@ -77,3 +77,27 @@ M3 引入研究层（`trading_lab.backtest` / `trading_lab.validation`）。3505
 - `tests/validation/test_protocol.py`（25 项）：hash 确定性/受控变更→新 hash（9 节探针）/
   fail-closed/运行时不可变/诚实门/预算结构/封存登记。
 - `tests/backtest/`、`tests/validation/` 其余套件见 T3–T5 证据。
+
+---
+
+## 附记（M3-R2，2026-11-21）：协议 v2 与研究证据完整性补强
+
+- 现行冻结版本为 **v2**（`m3-synthetic-engineering-v2`，
+  `protocol_hash=8afb5207819bcd51ee66072f95d85355ed91b0e73d52e8ed24cc3fcd1ed43901`）。
+  变更：新增受控节 `experiment_batches`（批次血缘注册）+ description 声明
+  样本门强制语义；**全部既有阈值与预算结构零改动**（min_bars=100 不降）。
+  审计链 v1.0 → v1.1 → v2 双旧 hash 留痕于 `artifacts/evidence/M3/r1/protocol-freeze.md`
+  与 `artifacts/evidence/M3/r2/protocol-change-and-budget.md`。
+- r1 官方 20-bar 批次注册为 `SYNTHETIC_SMOKE_ONLY_LEGACY`（sample_gate=
+  INSUFFICIENT_SAMPLE，永不支撑 min_bars PASS）；官方工程运行必须样本门 SATISFIED
+  （运行前 `OfficialRunRefused` 拒绝 + 结果层强制携带 sample_bars /
+  sample_gate_verdict / trade_stats_status；`min_trades_for_stats` 不足 → 交易统计
+  如实 N_A，不判工程无效）。
+- 研究代码身份：官方实验的 `code_hash` 自 R2 起为全量清单
+  （`validation.code_identity`，schema `research-code-identity-v1`：runner +
+  backtest + validation + contracts + security 全包 + 顶层 init，24 文件，
+  换行归一化保证跨 OS 一致）；r1 的 runner-only 值 `c0a9ede5…` 钉为
+  `RUNNER_ONLY_LEGACY`，不重签不改写。
+- 实验账本（R2 后契约）：加载前验证（链/身份/计数一致性 fail-closed）、单写者
+  锁、`LedgerAnchor` 外部锚（尾截断/整文件替换/清空的检测依赖**独立存放**的锚；
+  无独立锚的 JSONL 不具备不可抵赖性——能力边界如实声明）。

@@ -1,0 +1,13 @@
+[GAP-PROVEN] P0-1 legacy hash == r1 ledger value: legacy=c0a9ede5bf4d recorded={'c0a9ede5bf4d'}
+[GAP-PROVEN] P0-1 engine bytes outside legacy identity input: mutating engine source cannot move the legacy code_hash
+[GAP-PROVEN] P1-1 below-gate run completes with NO refusal and NO verdict: min_bars=100 bars=20 ran to net_return=0.0026 sample_gate_verdict_field=False
+[GAP-PROVEN] P1-2 tampered history loads; verification only fails later: tampered file RE-OPENED and accepted entries; verify_chain now says False (digest mismatch at entry #1) ¡ª load-time verify-before-replay is missing
+[GAP-PROVEN] P1-2 tail truncation undetectable without external anchor: last entry deleted; remaining chain self-verifies: True (2 entries verified) ¡ª no head/entry-count anchor exists
+
+-- summary --
+  GAP-PROVEN  P0-1 legacy hash == r1 ledger value
+  GAP-PROVEN  P0-1 engine bytes outside legacy identity input
+  GAP-PROVEN  P1-1 below-gate run completes with NO refusal and NO verdict
+  GAP-PROVEN  P1-2 tampered history loads; verification only fails later
+  GAP-PROVEN  P1-2 tail truncation undetectable without external anchor
+probe exit=0 (5/5 gaps proven)

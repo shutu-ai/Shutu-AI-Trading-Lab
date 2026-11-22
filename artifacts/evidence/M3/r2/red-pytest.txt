@@ -1,0 +1,38 @@
+
+=================================== ERRORS ====================================
+___________ ERROR collecting tests/validation/test_code_identity.py ___________
+ImportError while importing test module 'D:\dev-projects\Shutu-AI-Trading-Lab\tests\validation\test_code_identity.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\swx1536744\AppData\Local\Python\pythoncore-3.13-64\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\validation\test_code_identity.py:38: in <module>
+    from trading_lab.validation.code_identity import (  # noqa: E402
+E   ModuleNotFoundError: No module named 'trading_lab.validation.code_identity'
+____________ ERROR collecting tests/validation/test_sample_gate.py ____________
+ImportError while importing test module 'D:\dev-projects\Shutu-AI-Trading-Lab\tests\validation\test_sample_gate.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\swx1536744\AppData\Local\Python\pythoncore-3.13-64\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\validation\test_sample_gate.py:43: in <module>
+    from trading_lab.validation.protocol import SampleGateVerdict  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   ImportError: cannot import name 'SampleGateVerdict' from 'trading_lab.validation.protocol' (D:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\validation\protocol.py)
+________ ERROR collecting tests/validation/test_ledger_integrity_r2.py ________
+ImportError while importing test module 'D:\dev-projects\Shutu-AI-Trading-Lab\tests\validation\test_ledger_integrity_r2.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\swx1536744\AppData\Local\Python\pythoncore-3.13-64\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\validation\test_ledger_integrity_r2.py:35: in <module>
+    from trading_lab.validation.ledger import (  # noqa: E402
+E   ImportError: cannot import name 'LedgerAnchor' from 'trading_lab.validation.ledger' (D:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\validation\ledger.py)
+=========================== short test summary info ===========================
+ERROR tests/validation/test_code_identity.py
+ERROR tests/validation/test_sample_gate.py
+ERROR tests/validation/test_ledger_integrity_r2.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 3 errors during collection !!!!!!!!!!!!!!!!!!!
