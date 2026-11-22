@@ -6,7 +6,9 @@ import oms/risk/brokers/data — they consume admitted facts ONLY through
 ``trading_lab.contracts`` plus ``trading_lab.security`` canonicalization.
 
 Machine-executable, stdlib-only AST check over
-``src/trading_lab/{data,risk,oms,backtest,validation}/``.
+``src/trading_lab/{data,risk,oms,backtest,validation}/`` and (M3.5 S6)
+the Shadow application layer ``apps/trading_daemon/`` (no broker
+machinery, no trading planes, no network modules, no POC/artifacts).
 
 Coverage and honest boundaries:
 
@@ -52,6 +54,34 @@ FORBIDDEN_ROOTS = (
     "trading_lab.validation",
 )
 FORBIDDEN_FRAGMENTS = ("artifacts", "poc")
+
+# M3.5 daemon plane rules (task M3.5-SHADOW-FORWARD-ENGINEERING-001 S6):
+# apps/trading_daemon is the offline Shadow application layer. It must
+# never touch broker machinery, the trading planes, ANY network module,
+# or POC/artifact code — the daemon's whole safety argument is that its
+# import path contains no broker write and no network egress.
+DAEMON_PACKAGE_NAME = "apps.trading_daemon"
+DAEMON_PACKAGE_DIR = REPO / "apps" / "trading_daemon"
+DAEMON_FORBIDDEN_ROOTS = (
+    # broker machinery and the trading planes (no write path, no fence
+    # borrowing, no risk engine re-entry from the app layer)
+    "trading_lab.brokers",
+    "trading_lab.oms",
+    "trading_lab.risk",
+    # network egress (stdlib + third-party names)
+    "socket",
+    "ssl",
+    "urllib",
+    "http",
+    "ftplib",
+    "smtplib",
+    "telnetlib",
+    "xmlrpc",
+    "requests",
+    "websockets",
+    "aiohttp",
+    "alpaca",
+)
 
 # M2 plane rules (task §8): each package additionally forbids importing its
 # sibling planes directly — decisions/broker access flow one way only.
@@ -172,16 +202,18 @@ def _intra_package(candidate: str, package: str) -> bool:
     return candidate == package or candidate.startswith(package + ".")
 
 
-def check_file(path: Path, package: str = TARGET_PACKAGE_NAME) -> list[str]:
-    extra_roots = PLANE_RULES.get(package, ())
+def check_file(path: Path, package: str = TARGET_PACKAGE_NAME,
+               extra_roots: tuple[str, ...] | None = None) -> list[str]:
     violations: list[str] = []
+    roots = extra_roots if extra_roots is not None \
+        else PLANE_RULES.get(package, ())
     tree = ast.parse(path.read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
                 if _intra_package(alias.name, package):
                     continue
-                if module_forbidden(alias.name, extra_roots):
+                if module_forbidden(alias.name, roots):
                     violations.append(f"{path}:line {node.lineno}: import {alias.name}")
         elif isinstance(node, ast.ImportFrom):
             candidates = _candidate_modules(node, package)
@@ -195,7 +227,7 @@ def check_file(path: Path, package: str = TARGET_PACKAGE_NAME) -> list[str]:
             for candidate in candidates:
                 if _intra_package(candidate, package):
                     continue
-                if module_forbidden(candidate, extra_roots):
+                if module_forbidden(candidate, roots):
                     violations.append(
                         f"{path}:line {node.lineno}: from {node.module or '.' * node.level} "
                         f"import {', '.join(a.name for a in node.names)} ({candidate})"
@@ -209,11 +241,19 @@ def check_file(path: Path, package: str = TARGET_PACKAGE_NAME) -> list[str]:
             )
             if is_dynamic and node.args and isinstance(node.args[0], ast.Constant):
                 target = str(node.args[0].value)
-                if not _intra_package(target, package) and module_forbidden(target, extra_roots):
+                if not _intra_package(target, package) and module_forbidden(target, roots):
                     violations.append(
                         f"{path}:line {node.lineno}: dynamic import of {node.args[0].value!r}"
                     )
     return violations
+
+
+def check_daemon_file(path: Path) -> list[str]:
+    """The daemon plane rule set (see DAEMON_FORBIDDEN_ROOTS). Package
+    boundary semantics match the src planes; intra-package imports are
+    always legal; dynamic imports with constant targets are checked."""
+    return check_file(path, package=DAEMON_PACKAGE_NAME,
+                      extra_roots=DAEMON_FORBIDDEN_ROOTS)
 
 
 def main() -> int:
@@ -228,6 +268,11 @@ def main() -> int:
         scanned += len(files)
         for py in sorted(files):
             violations.extend(check_file(py, package=package))
+    if DAEMON_PACKAGE_DIR.exists():
+        daemon_files = list(DAEMON_PACKAGE_DIR.rglob("*.py"))
+        scanned += len(daemon_files)
+        for py in sorted(daemon_files):
+            violations.extend(check_daemon_file(py))
     for v in violations:
         print(f"ARCH_VIOLATION:{v}")
     print(f"check_architecture: scanned {len(packages)} packages ({scanned} files), {len(violations)} violations")

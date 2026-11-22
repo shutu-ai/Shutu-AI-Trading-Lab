@@ -1,0 +1,154 @@
+# Forward observation preregistration — M3.5 Shadow forward harness.
+#
+# PRE-REGISTERED BEFORE ANY FORWARD RUN (v2.1 §4.5 discipline). This file
+# is part of the forward-daemon identity manifest: ANY change to ANY field
+# produces a new code identity; there is no in-place edit of a frozen
+# preregistration. The daemon refuses to run against a preregistration
+# that authorizes anything beyond the offline synthetic scope.
+#
+# GOVERNANCE:
+# - mode is SYNTHETIC_REPLAY_ONLY. Real market observation (S8) requires a
+#   separately authorized preregistration version; this file can never be
+#   "upgraded" in place to a real-observation run.
+# - source authorization is NONE: no licensed real market data exists.
+#   M1 BLOCKED_DATA (full-market history) and U-1 (VendorFacts capability
+#   fields unresolved) remain in force; nothing here unblocks them.
+# - Synthetic replay outcomes are engineering proofs only. They are NEVER
+#   real forward trading days and never back E=PASS for the forward gate.
+
+schema: forward-observation-preregistration-v1
+forward_protocol_id: m35-shadow-synthetic-replay-v1
+mode: SYNTHETIC_REPLAY_ONLY
+description: >
+  M3.5 minimal offline Shadow forward engineering: a frozen transparent
+  B2 rule locks predictions BEFORE observations arrive; events are
+  idempotent; restarts and crash recovery are exactly-once; the journal
+  is an append-only hash chain with an external anchor. All events come
+  from the deterministic synthetic fixture declared below.
+
+environment_must_equal: SYNTHETIC_REPLAY
+
+# ---------------------------------------------------------------------------
+# source authorization — the permission switches (task S1/S3)
+# ---------------------------------------------------------------------------
+source_authorization:
+  real_market_data: NONE          # no licensed real source: BLOCKED_DATA stays
+  broker_credentials: FORBIDDEN   # APCA_*/ALPACA_* must never be read or used
+  vendor_capability_claims_accepted: false   # U-1: no VendorFacts bypass
+  admitted_sources: [synthetic]
+
+# ---------------------------------------------------------------------------
+# strategy lineage — frozen BEFORE any forward run (task S0.4)
+# ---------------------------------------------------------------------------
+lineage:
+  parent_identity_schema: research-code-identity-v1
+  parent_code_hash: af7ff10c425c0f153b2e7c1d1a86c6185267438610a81fa39a268a0f8d15f611
+  parent_runner: scripts/run_m3_r2_baselines.py
+  parent_protocol_id: m3-synthetic-engineering-v2
+  parent_protocol_hash: 8afb5207819bcd51ee66072f95d85355ed91b0e73d52e8ed24cc3fcd1ed43901
+  note: >
+    B2 parameters were selected ONCE on the m3-r2-batch-1 Train/Validation
+    slice under the budgeted selection procedure and frozen. No forward
+    result may feed back into parameter selection; a new selection is a
+    new protocol AND a new preregistration.
+
+strategy:
+  arm: B2_single_rule
+  rule: >
+    Transparent MA cross: hold (LONG) while MA(short_n) > MA(long_n),
+    FLAT otherwise; decisions use only closes with
+    ts_available <= decision_at (PIT gate).
+  short_n: 2
+  long_n: 4
+  warmup_bars: 4                  # = long_n; no predictions before warmup
+  prediction_content: exposure decision (LONG/FLAT) + reference close digest
+  scoring_rule: >
+    A LONG slot scores HIT when the observation event's close is strictly
+    above the locked reference close, MISS when strictly below, and FLAT
+    when equal; a FLAT slot scores NO_CLAIM (no directional claim was
+    made). Verdicts are engineering stability counters only — never alpha.
+
+# ---------------------------------------------------------------------------
+# admitted fixture (SYNTHETIC_REPLAY only)
+# ---------------------------------------------------------------------------
+admitted_datasets:
+  - name: m35-shadow-replay-v1
+    source: synthetic
+    symbol: SYN-ETF
+    interval: 1d
+    dataset_hash: e55de024dc2cb605e6fe8a8afadaabe932ee9e55fa38be4f14538b923e13b10c
+    sessions: 30
+    recipe: apps.trading_daemon.fixture (deterministic formula, no randomness)
+
+# ---------------------------------------------------------------------------
+# event contract and ordering (task S1)
+# ---------------------------------------------------------------------------
+event_contract:
+  required_fields: [event_id, source, dataset_hash, symbol, interval,
+                    ts_event, ts_available, received_at, close]
+  timestamps_tz_aware: true
+  available_not_before_event: true        # ts_available >= ts_event
+  ordering: per-source ts_event non-decreasing
+  duplicate_policy: IDEMPOTENT_SAME_PAYLOAD_REJECT_DIFFERENT
+  duplicate_identity_fields: [event_id, source, dataset_hash, symbol,
+                              interval, ts_event, ts_available, close]
+  # received_at is transport metadata: first receipt wins, redelivery of
+  # the SAME logical payload is an idempotent duplicate, not a conflict.
+  ttl:
+    max_events_wait: 3        # slot expires if not observed within 3 events
+    max_synthetic_seconds: 604800   # 7 synthetic days
+  environment_mismatch: REJECT          # any other claimed environment
+
+# ---------------------------------------------------------------------------
+# market clock — fixture calendar only (NOT a claim about real sessions)
+# ---------------------------------------------------------------------------
+market_clock:
+  validate: true
+  calendar_source: PREREGISTERED_SYNTHETIC_TABLE
+  holidays: []                    # synthetic convention; real holiday
+  half_days: []                   # feeds need separately authorized data (S8)
+  session_window_et: ["09:30", "16:00"]
+  note: >
+    The daemon validates event timestamps against THIS declared table and
+    correct ET/DST conversion. It must never infer real market hours from
+    a synthetic fixture.
+
+# ---------------------------------------------------------------------------
+# journal — reuse of security.audit.AuditLog (append-only hash chain)
+# ---------------------------------------------------------------------------
+journal:
+  backbone: security.audit.AuditLog
+  head_record: true               # .head file detects tail truncation
+  anchor_file: journal-anchor.json
+  scoring_exactly_once: >
+    A SCORED entry in the chain is the persistent scored record; rebuilds
+    refuse to score a slot twice, and a stored observation without a
+    score is completed exactly once on recovery.
+
+# ---------------------------------------------------------------------------
+# real forward window eligibility (task S5) — machine states, NOT runnable
+# ---------------------------------------------------------------------------
+real_window:
+  enabled: false                  # requires separately authorized source
+  min_trading_days: 5             # actual observable US sessions, or a
+  # preregistered equivalent event window approved in a future version
+  requirements:
+    - real-arrived events with prediction_locked_at < observation_available_at
+      from the arrival records themselves
+    - at least one disconnect/restart recovery and one duplicate-event
+      recovery inside the real window
+    - zero unauthorized broker orders; zero duplicate broker orders
+    - full replay/identity/cost/data-quality audits passing
+  paper_orders: PAPER_NOT_RUN     # no Paper authorization in this stage
+  blocked_reason: >
+    No licensed real market source exists (BLOCKED_DATA); the environment
+    has no market-data subscription and no broker credentials (BLOCKED_ENV
+    for any real-observation attempt). Synthetic windows can never
+    substitute: PENDING_FORWARD_WINDOW requires real arrival records.
+
+eligibility_states:
+  - OFFLINE_HARNESS_PASS_WITH_SCOPE   # synthetic fixture proof only
+  - BLOCKED_ENV                        # environment blocks collection/harness
+  - BLOCKED_DATA                       # no legal data access
+  - PENDING_FORWARD_WINDOW             # real window accumulating, not full
+  - PASS                               # full M3.5 forward E-Gate (real 5 days)
