@@ -32,7 +32,11 @@ class TestProtocolLoadAndHash:
         from trading_lab.validation.protocol import EvaluationProtocol
 
         p = EvaluationProtocol.load(PROTOCOL_PATH)
-        assert p.protocol_id == "m3-synthetic-engineering-v1"
+        # v1 id `m3-synthetic-engineering-v1` moved to v2 by the sanctioned
+        # M3-R2 batch-registry protocol change (new hash, r1 evidence and
+        # its v1.1 hash remain pinned in the experiment_batches registry)
+        assert p.protocol_id == "m3-synthetic-engineering-v2"
+        assert p.protocol_version == 2
         assert len(p.protocol_hash) == 64  # sha256 hex
 
     def test_hash_is_deterministic_across_reloads(self):

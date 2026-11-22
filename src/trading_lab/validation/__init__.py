@@ -2,7 +2,12 @@
 sealed-holdout gate, experiment ledger. Research plane — must not import
 oms/risk/brokers/data (enforced by scripts/check_architecture.py).
 """
-from trading_lab.validation.protocol import ArmSpec, EvaluationProtocol, ProtocolError
+from trading_lab.validation.protocol import (
+    ArmSpec,
+    EvaluationProtocol,
+    ProtocolError,
+    SampleGateVerdict,
+)
 from trading_lab.validation.cohorts import (
     CohortError,
     CohortRole,
@@ -11,7 +16,13 @@ from trading_lab.validation.cohorts import (
     OverlapReport,
 )
 from trading_lab.validation.holdout import HoldoutError, HoldoutRole, SealedHoldout
-from trading_lab.validation.ledger import BudgetExceeded, ExperimentLedger
+from trading_lab.validation.ledger import (
+    BudgetExceeded,
+    ExperimentLedger,
+    LedgerAnchor,
+    LedgerIntegrityError,
+    LedgerLockedError,
+)
 
 __all__ = [
     "ArmSpec",
@@ -24,7 +35,11 @@ __all__ = [
     "ForwardCohort",
     "HoldoutError",
     "HoldoutRole",
+    "LedgerAnchor",
+    "LedgerIntegrityError",
+    "LedgerLockedError",
     "OverlapReport",
     "ProtocolError",
+    "SampleGateVerdict",
     "SealedHoldout",
 ]

@@ -67,6 +67,12 @@ class ArmResult:
     fees_total: Decimal
     final_equity: Decimal
     selection_note: str
+    # M3-R2-T2 sample-gate stamping: sample_bars counts dataset SESSIONS
+    # (independent bars — never equity-curve points); the gate verdict and
+    # trade-statistics status are protocol-derived, stamped on every result.
+    sample_bars: int
+    sample_gate_verdict: str        # SATISFIED | INSUFFICIENT_SAMPLE
+    trade_stats_status: str         # OK | N_A_INSUFFICIENT_TRADES
     evidence_class: str = EVIDENCE_CLASS
 
     def as_dict(self) -> dict:
@@ -83,6 +89,9 @@ class ArmResult:
             "fees_total": str(self.fees_total),
             "final_equity": str(self.final_equity),
             "selection_note": self.selection_note,
+            "sample_bars": self.sample_bars,
+            "sample_gate_verdict": self.sample_gate_verdict,
+            "trade_stats_status": self.trade_stats_status,
             "evidence_class": self.evidence_class,
             "cost_multiplier": self.cost_multiplier,
             "protocol_hash": self.protocol_hash,
@@ -192,6 +201,11 @@ def _finish(eng: BacktestEngine, arm_id: str, dataset: SyntheticDataset,
     max_dd, tail = _drawdown_and_tail(curve_pts)
     counts = _event_counts(eng)
     final_equity = curve_pts[-1]
+    # sample gate + trade-stats honesty (M3-R2-T2): the gate counts
+    # dataset SESSIONS (independent bars), never curve points
+    sessions = len({b.ts_event_utc for series in dataset.bars.values()
+                    for b in series})
+    gate = protocol.sample_gate(sessions)
     return ArmResult(
         arm_id=arm_id, seed=seed,
         protocol_hash=protocol.protocol_hash,
@@ -209,6 +223,9 @@ def _finish(eng: BacktestEngine, arm_id: str, dataset: SyntheticDataset,
         fees_total=eng.account.fees_total,
         final_equity=final_equity.quantize(Decimal("0.0001")),
         selection_note=selection_note,
+        sample_bars=gate.n_bars,
+        sample_gate_verdict=gate.verdict,
+        trade_stats_status=protocol.trade_stats_gate(counts["fills"]),
     )
 
 

@@ -13,14 +13,18 @@
 #   risk filter is claimed. Synthetic results are engineering proofs only.
 
 schema_version: 1
-protocol_id: m3-synthetic-engineering-v1
-protocol_version: 1
+protocol_id: m3-synthetic-engineering-v2
+protocol_version: 2
 canonical_rule: sorted_keys_utf8_no_whitespace
 description: >
-  M3 synthetic engineering validation: B0 cash, B1 ETF buy-and-hold,
-  B2 transparent single-rule strategy. Synthetic data only — results are
-  engineering proofs (conservation/PIT/determinism/cohort hygiene), NOT
-  alpha, NOT OOS, NOT deployable evidence.
+  M3 synthetic engineering validation, v2 batch registry (M3-R2): B0 cash,
+  B1 ETF buy-and-hold, B2 transparent single-rule strategy. OFFICIAL
+  engineering runs require the pre-registered sample gate
+  (validation.min_bars) SATISFIED before any engineering verdict is
+  issued; the 20-bar r1 dataset stays registered as SYNTHETIC_SMOKE_ONLY
+  legacy evidence and can never back a min_bars PASS. Synthetic data only
+  — results are engineering proofs (conservation/PIT/determinism/cohort
+  hygiene), NOT alpha, NOT OOS, NOT deployable evidence.
 
 data_scope: SYNTHETIC_ENGINEERING_ONLY
 max_claimable_evidence: ENGINEERING_ONLY
@@ -167,6 +171,49 @@ multiplicity:
     Bootstrap/Reality Check) are applied only when the method fits the
     sample structure; otherwise the report states the raw count and
     INCONCLUSIVE — never an uncorrected PASS.
+
+# M3-R2 batch registry — experiment lineage is FIRST-CLASS governance.
+# History is append-only across protocol versions: a legacy batch keeps
+# its restricted status and consumed budget; no batch may be cleared,
+# renamed or re-counted into another batch's ledger.
+experiment_batches:
+  m3-r1-batch-1:
+    status: SYNTHETIC_SMOKE_ONLY_LEGACY
+    sample_gate: INSUFFICIENT_SAMPLE
+    dataset_bars: 20
+    dataset_hash: 441980e3a64a5494fa90376dd23edf10ca79a777984f9bc1469225491d0eb435
+    protocol_revision: v1.1
+    protocol_hash: 48dee8613dd727b3fce04230851c75062c9a6e85e634709d8bab09df1cf6ed83
+    code_hash_scope: RUNNER_ONLY_LEGACY
+    code_hash: c0a9ede5bf4dea02e5a4141f3a494c29291039d678ed3aae2380619d510a8d0f
+    ledger: artifacts/evidence/M3/r1/experiment-ledger.jsonl
+    consumed_budget:
+      queries: 4
+      trials: 9
+      per_arm_trials:
+        B0_cash: 3
+        B1_buy_hold: 3
+        B2_single_rule: 3
+    verdict: INSUFFICIENT_SAMPLE_SMOKE_ONLY
+    note: >
+      The r1 official run predates the sample-gate enforcement and the
+      full code identity. Its 20-bar evidence remains valid ONLY as
+      functional smoke proof (SYNTHETIC_SMOKE_ONLY); it never satisfies
+      validation.min_bars=100 and never backs an official engineering
+      PASS. Its ledger file is read-only history.
+  m3-r2-batch-1:
+    status: OFFICIAL_SYNTHETIC_ENFORCE_SAMPLE_GATE
+    dataset_bars_min: 100
+    ledger: artifacts/evidence/M3/r2/experiment-ledger.jsonl
+    code_hash_scope: FULL_RESEARCH_MANIFEST
+    per_arm_trials: 3
+    budget_note: >
+      Fresh equal-trial budget for this batch (one official run per cost
+      multiplier x1/x2/x3 at the first protocol seed). The r1 batch's
+      9 trials + 4 queries stay registered in their own ledger and are
+      NOT erased, renamed, or re-counted as r2 runs; family-cumulative
+      consumption is disclosed in
+      artifacts/evidence/M3/r2/protocol-change-and-budget.md.
 
 # M9 one-shot final Holdout — candidate-selection rule pre-registered NOW.
 # Real market data is BLOCKED_DATA in M3: nothing is materialized, and no

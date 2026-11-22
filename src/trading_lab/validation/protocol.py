@@ -33,6 +33,7 @@ __all__ = [
     "ArmSpec",
     "EvaluationProtocol",
     "ProtocolError",
+    "SampleGateVerdict",
 ]
 
 #: every controlled top-level section; all are REQUIRED (fail closed).
@@ -55,6 +56,7 @@ CONTROLLED_SECTIONS: tuple[str, ...] = (
     "budget",
     "multiplicity",
     "holdout",
+    "experiment_batches",
 )
 
 
@@ -68,6 +70,19 @@ class ArmSpec:
     enabled: bool
     definition: str
     budget_trials: int | None
+
+
+@dataclasses.dataclass(frozen=True)
+class SampleGateVerdict:
+    """Mechanical result of the pre-registered sample-size gate
+    (``validation.min_bars``). Counts DATASET SESSIONS (independent bars),
+    never equity-curve points. An unsatisfied gate licenses smoke runs
+    ONLY — official engineering verdicts are refused downstream."""
+    n_bars: int
+    min_bars: int
+    satisfied: bool
+    verdict: str            # SATISFIED | INSUFFICIENT_SAMPLE
+    role: str               # OFFICIAL_ENGINEERING_RUN | SMOKE_ONLY
 
 
 def _freeze(obj: Any) -> Any:
@@ -268,6 +283,51 @@ class EvaluationProtocol:
 
     def holdout_registration(self) -> Mapping[str, Any]:
         return self._frozen_payload["holdout"]
+
+    # ------------------------------------------------------------------
+    # experiment batches (M3-R2-T2: batch registry + sample gate)
+    # ------------------------------------------------------------------
+
+    @property
+    def experiment_batches(self) -> Mapping[str, Any]:
+        """Frozen batch registry: legacy batches keep their restricted
+        status and consumed budget; official batches declare their sample
+        gate requirement. A protocol change is a new version — never an
+        in-place edit of batch history."""
+        return self._frozen_payload["experiment_batches"]
+
+    def sample_gate(self, n_bars: int) -> SampleGateVerdict:
+        """Evaluate the pre-registered sample gate (``validation.min_bars``)
+        over n DATASET SESSIONS (independent bars — never equity-curve
+        points, which double-count the final mark)."""
+        if not isinstance(n_bars, int) or isinstance(n_bars, bool) \
+                or n_bars < 0:
+            raise ProtocolError(
+                f"n_bars must be a non-negative int, got {n_bars!r}")
+        min_bars = int(self._frozen_payload["validation"]["min_bars"])
+        if min_bars <= 0:
+            raise ProtocolError(
+                f"protocol min_bars must be positive, got {min_bars}")
+        if n_bars >= min_bars:
+            return SampleGateVerdict(
+                n_bars=n_bars, min_bars=min_bars, satisfied=True,
+                verdict="SATISFIED", role="OFFICIAL_ENGINEERING_RUN")
+        return SampleGateVerdict(
+            n_bars=n_bars, min_bars=min_bars, satisfied=False,
+            verdict="INSUFFICIENT_SAMPLE", role="SMOKE_ONLY")
+
+    def trade_stats_gate(self, n_trades: int) -> str:
+        """Honest trade-statistics status under
+        ``validation.min_trades_for_stats``: an arm with fewer trades has
+        its trade statistics reported N_A (not computable) — never as
+        failed engineering, and never with fabricated statistics."""
+        if not isinstance(n_trades, int) or isinstance(n_trades, bool) \
+                or n_trades < 0:
+            raise ProtocolError(
+                f"n_trades must be a non-negative int, got {n_trades!r}")
+        min_trades = int(
+            self._frozen_payload["validation"]["min_trades_for_stats"])
+        return "OK" if n_trades >= min_trades else "N_A_INSUFFICIENT_TRADES"
 
     # ------------------------------------------------------------------
     # canonical payload access (for evidence records)

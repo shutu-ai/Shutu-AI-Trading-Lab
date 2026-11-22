@@ -17,6 +17,8 @@ sys.path.insert(0, str(REPO_ROOT / "tests"))
 from trading_lab.validation.ledger import (  # noqa: E402
     BudgetExceeded,
     ExperimentLedger,
+    LedgerIntegrityError,
+    verify_ledger_file,
 )
 
 LIMITS = {
@@ -132,12 +134,14 @@ class TestHashChainIntegrity:
         # prev-pointer no longer matches
         del lines[1]
         p.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        led2 = ExperimentLedger(p, limits=LIMITS, protocol_hash="p" * 32,
-                                code_hash="c" * 32)
-        ok, msg = led2.verify_chain()
+        # M3-R2 verify-before-replay: the tampered file is REFUSED at load
+        # (stronger than detect-after-load; same purpose, tighter contract)
+        with pytest.raises(LedgerIntegrityError, match="chain break"):
+            ExperimentLedger(p, limits=LIMITS, protocol_hash="p" * 32,
+                             code_hash="c" * 32)
+        ok, msg = verify_ledger_file(p)
         assert not ok
         assert "chain break" in msg
-        led2.close()
 
     def test_history_edit_breaks_chain(self, tmp_path):
         led = make_ledger(tmp_path)
@@ -149,12 +153,12 @@ class TestHashChainIntegrity:
         text = p.read_text(encoding="utf-8").replace(
             "the-failure", "nothing-happened")
         p.write_text(text, encoding="utf-8")
-        led2 = ExperimentLedger(p, limits=LIMITS, protocol_hash="p" * 32,
-                                code_hash="c" * 32)
-        ok, msg = led2.verify_chain()
+        with pytest.raises(LedgerIntegrityError, match="digest mismatch"):
+            ExperimentLedger(p, limits=LIMITS, protocol_hash="p" * 32,
+                             code_hash="c" * 32)
+        ok, msg = verify_ledger_file(p)
         assert not ok
         assert "digest mismatch" in msg
-        led2.close()
 
     def test_restart_preserves_monotone_counts(self, tmp_path):
         led = make_ledger(tmp_path)
