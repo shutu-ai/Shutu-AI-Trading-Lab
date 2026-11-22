@@ -201,11 +201,17 @@ class ShadowForwardEngine:
                 "SOURCE_NOT_ADMITTED",
                 f"source {ev.source!r} is not preregistered; vendor "
                 "capability claims are not evidence (M1 U-1 stays)", ev=ev)
-        if ev.dataset_hash not in self.prereg.admitted_dataset_hashes:
-            return self._reject(
-                "DATASET_NOT_ADMITTED",
-                f"dataset_hash {ev.dataset_hash} is not the preregistered "
-                "fixture", ev=ev)
+        if getattr(self.prereg, "dataset_admission", "pinned") == "pinned":
+            if ev.dataset_hash not in self.prereg.admitted_dataset_hashes:
+                return self._reject(
+                    "DATASET_NOT_ADMITTED",
+                    f"dataset_hash {ev.dataset_hash} is not the preregistered "
+                    "fixture", ev=ev)
+        # receipt_content_hash scope (S8 real shadow only): the digest is
+        # computed by the collector from the arriving payload — a
+        # preregistered fixture pin cannot exist for live-arriving data.
+        # Traceability is enforced by the collector's receipt chain, which
+        # the S8 runner cross-verifies against this journal (fail closed).
         if self.prereg.admitted_symbols and \
                 ev.symbol not in self.prereg.admitted_symbols:
             return self._reject(
@@ -281,7 +287,8 @@ class ShadowForwardEngine:
         #    record — the chain is the source of truth across restarts)
         self.journal.append("EVENT_CONSUMED", {
             "event_id": ev.event_id, "source": ev.source,
-            "payload_digest": digest, "symbol": ev.symbol,
+            "payload_digest": digest, "dataset_hash": ev.dataset_hash,
+            "symbol": ev.symbol,
             "ts_event": ev.ts_event.isoformat(),
             "ts_available": ev.ts_available.isoformat(),
             "close": str(ev.close),

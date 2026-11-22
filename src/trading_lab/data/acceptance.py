@@ -31,6 +31,19 @@ class DataAcceptanceConfigError(ValueError):
     pass
 
 
+class VendorFactsError(DataAcceptanceConfigError):
+    """A VendorFacts capability field carries an illegal vocabulary value.
+
+    Fail-closed by design (M1 U-1, fixed under the S8 read-only approval of
+    2026-11-22): before this guard, an out-of-vocabulary string such as a
+    vendor marketing claim (``"PIT-ready (marketing claim)"``, ``"partially"``,
+    ``"YES"``) constructed fine and slipped past every ``==`` check in
+    :func:`evaluate_purpose` into ``ACCEPT``. There is no fallback to
+    "capable": an unparseable capability claim is a blocked/failed fact,
+    never an optimistic one."""
+
+
+
 class PurposeRequirements(BaseModel):
     """One purpose's pre-declared requirements. Every threshold field is
     mandatory (``...`` defaults) — the config cannot be vague.
@@ -92,6 +105,12 @@ class PurposeRequirements(BaseModel):
 AVAILABLE_AT_RULES = frozenset({"bar_ts_plus_0", "bar_ts_plus_15min", "announced_or_published_before_use"})
 _EVENT_LEVEL_RULES = frozenset({"announced_or_published_before_use"})
 
+# M1 U-1: closed vocabularies for VendorFacts capability fields (S8-T1).
+# These are the ONLY values evaluate_purpose's frozen comparison matrix
+# understands; anything else is a malformed fact, not a capability.
+COVERAGE_FACT_VALUES = frozenset({"yes", "no", "unknown"})
+PIT_AVAILABILITY_VALUES = frozenset({"event_level", "eod_only", "none", "unknown"})
+
 
 class DataAcceptanceConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -122,7 +141,22 @@ def load_acceptance_config(path: str | Path) -> DataAcceptanceConfig:
 @dataclass(frozen=True)
 class VendorFacts:
     """Trusted, evidence-backed answers about a vendor for the required
-    coverage dimensions — sourced from data-vendors.md, not from marketing."""
+    coverage dimensions — sourced from data-vendors.md, not from marketing.
+
+    The capability fields are **closed vocabularies** (M1 U-1 fix,
+    S8-T1 RED->GREEN, approval record
+    ``artifacts/evidence/M3.5/s8/authorization-check.md``):
+
+    - ``history_membership_coverage`` / ``delisting_coverage`` /
+      ``corporate_actions_coverage`` ∈ ``{yes, no, unknown}``
+    - ``pit_availability`` ∈ ``{event_level, eod_only, none, unknown}``
+
+    Any other value — including casing variants, marketing strings,
+    whitespace padding, ``None`` or non-string types — raises
+    :class:`VendorFactsError` at construction, before any admission
+    decision can be influenced by it. ``evaluate_purpose`` keeps its
+    frozen semantics: ``unknown`` -> BLOCKED_DATA, known-absent ->
+    ``on_fail``."""
 
     license_scope: str                       # e.g. "personal_research" / "unknown"
     license_confirmed: bool                  # False = terms not verified
@@ -130,6 +164,23 @@ class VendorFacts:
     delisting_coverage: str                  # yes / no / unknown
     corporate_actions_coverage: str          # yes / no / unknown
     pit_availability: str                    # event_level / eod_only / none / unknown
+
+    def __post_init__(self) -> None:
+        for name in ("history_membership_coverage",
+                     "delisting_coverage",
+                     "corporate_actions_coverage"):
+            value = getattr(self, name)
+            if value not in COVERAGE_FACT_VALUES:
+                raise VendorFactsError(
+                    f"VendorFacts.{name}={value!r} is outside the closed "
+                    f"vocabulary {sorted(COVERAGE_FACT_VALUES)} — fail "
+                    "closed, no optimistic fallback (M1 U-1)")
+        if self.pit_availability not in PIT_AVAILABILITY_VALUES:
+            raise VendorFactsError(
+                f"VendorFacts.pit_availability={self.pit_availability!r} is "
+                f"outside the closed vocabulary "
+                f"{sorted(PIT_AVAILABILITY_VALUES)} — fail closed, no "
+                "optimistic fallback (M1 U-1)")
 
 
 @dataclass(frozen=True)
@@ -254,10 +305,13 @@ def evaluate_purpose(
 
 __all__ = [
     "AcceptanceDecision",
+    "COVERAGE_FACT_VALUES",
     "DataAcceptanceConfig",
     "DataAcceptanceConfigError",
+    "PIT_AVAILABILITY_VALUES",
     "PurposeRequirements",
     "VendorFacts",
+    "VendorFactsError",
     "evaluate_purpose",
     "load_acceptance_config",
 ]

@@ -13,6 +13,7 @@ from .acceptance import (
     DataAcceptanceConfigError,
     PurposeRequirements,
     VendorFacts,
+    VendorFactsError,
     evaluate_purpose,
     load_acceptance_config,
 )
@@ -81,6 +82,7 @@ __all__ = [
     "SourceRecord",
     "UTC",
     "VendorFacts",
+    "VendorFactsError",
     "adjust_series",
     "bar_completeness",
     "build_snapshot",

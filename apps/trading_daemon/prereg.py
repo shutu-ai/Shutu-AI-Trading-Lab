@@ -122,6 +122,16 @@ class Preregistration:
                      if d.get("symbol"))
 
     @property
+    def dataset_admission(self) -> str:
+        """How ``dataset_hash`` admission is policed. ``pinned`` (this
+        synthetic preregistration): every event must carry a
+        preregistered fixture hash. ``receipt_content_hash`` (S8 real
+        scope, only on the separately-authorized real preregistration
+        class): the digest is computed by the collector from the arriving
+        payload and cross-verified against the receipt chain."""
+        return "pinned"
+
+    @property
     def ttl(self) -> Mapping[str, int]:
         return self._payload["event_contract"]["ttl"]  # type: ignore
 

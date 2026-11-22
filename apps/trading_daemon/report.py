@@ -28,12 +28,16 @@ def build_status_report(summary, *, prereg, harness: dict[str, Any],
             real_window_facts={"trading_days_observed": 0})
     counters = summary.counters
     status = getattr(summary, "last_status", {}) or {}
+    environment = str(prereg.payload["environment_must_equal"])
+    evidence_level = ("SHADOW_REAL_OBSERVED"
+                      if environment == "REAL_SHADOW_READ_ONLY"
+                      else "SYNTHETIC_REPLAY")
     return {
         # -- mandated S4 fields -----------------------------------------
-        "mode": "SYNTHETIC_REPLAY",
+        "mode": environment,
         "source_authorization_status": str(
             prereg.payload["source_authorization"]["real_market_data"]),
-        "source_evidence_level": "SYNTHETIC_REPLAY",
+        "source_evidence_level": evidence_level,
         "cohort_id": summary.cohort_id,
         "event_id": status.get("event_id"),
         "strategy_hash": status.get("strategy_hash"),
@@ -51,7 +55,7 @@ def build_status_report(summary, *, prereg, harness: dict[str, Any],
         "gap_count": counters.get("held", 0),
         "clock_skew": status.get("clock_skew_seconds"),
         "recovery_status": summary.recovery_status,
-        "account_environment": "SYNTHETIC_REPLAY",
+        "account_environment": environment,
         "no_broker_writes": summary.no_broker_writes,
         # -- explicit denominators and anomaly counts --------------------
         "counters": counters,
@@ -63,7 +67,8 @@ def build_status_report(summary, *, prereg, harness: dict[str, Any],
         "real_forward_window": {
             "status": eligibility["forward_window_status"],
             "authorized_source": eligibility["real_source"],
-            "trading_days_observed": 0,
+            "trading_days_observed": int(
+                eligibility.get("trading_days_observed", 0)),
             "min_trading_days": int(
                 prereg.payload["real_window"]["min_trading_days"]),
             "paper_orders": eligibility["paper_orders"],

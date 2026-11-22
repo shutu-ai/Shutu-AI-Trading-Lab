@@ -83,6 +83,37 @@ DAEMON_FORBIDDEN_ROOTS = (
     "alpaca",
 )
 
+# S8 gateway plane rules (approval S8_DATA_READ_ONLY=APPROVED_WITH_SCOPE,
+# 2026-11-22): apps/market_gateway is the ONLY network-enabled plane — the
+# read-only real market-data collector. It keeps the broker/trading-plane
+# ban (no write path exists), bans every third-party SDK AND the raw
+# stdlib network primitives (socket/ssl/http.client direct use) so ALL
+# traffic must flow through the guarded client in http_client.py, and —
+# uniquely for this plane — ALLOWS urllib (the guarded client is built on
+# it). Trading-API hosts are additionally refused at runtime on every
+# request (TRADING_HOST_FORBIDDEN), independently of configuration.
+GATEWAY_PACKAGE_NAME = "apps.market_gateway"
+GATEWAY_PACKAGE_DIR = REPO / "apps" / "market_gateway"
+GATEWAY_FORBIDDEN_ROOTS = (
+    "trading_lab.brokers",
+    "trading_lab.oms",
+    "trading_lab.risk",
+    # raw stdlib network primitives: HTTP only via the guarded client
+    "socket",
+    "ssl",
+    "http",
+    "ftplib",
+    "smtplib",
+    "telnetlib",
+    "xmlrpc",
+    # third-party network / broker SDKs: stdlib-only collector
+    "requests",
+    "websockets",
+    "aiohttp",
+    "httpx",
+    "alpaca",
+)
+
 # M2 plane rules (task §8): each package additionally forbids importing its
 # sibling planes directly — decisions/broker access flow one way only.
 #   data       -> no risk/oms/brokers + no research packages (M1 rule,
@@ -256,6 +287,15 @@ def check_daemon_file(path: Path) -> list[str]:
                       extra_roots=DAEMON_FORBIDDEN_ROOTS)
 
 
+def check_gateway_file(path: Path) -> list[str]:
+    """The S8 gateway plane rule set (see GATEWAY_FORBIDDEN_ROOTS). Same
+    package-boundary semantics as the other planes; urllib is the ONLY
+    permitted network root (the guarded client), socket/ssl/http.* and
+    every third-party SDK stay banned."""
+    return check_file(path, package=GATEWAY_PACKAGE_NAME,
+                      extra_roots=GATEWAY_FORBIDDEN_ROOTS)
+
+
 def main() -> int:
     violations: list[str] = []
     scanned = 0
@@ -273,6 +313,11 @@ def main() -> int:
         scanned += len(daemon_files)
         for py in sorted(daemon_files):
             violations.extend(check_daemon_file(py))
+    if GATEWAY_PACKAGE_DIR.exists():
+        gateway_files = list(GATEWAY_PACKAGE_DIR.rglob("*.py"))
+        scanned += len(gateway_files)
+        for py in sorted(gateway_files):
+            violations.extend(check_gateway_file(py))
     for v in violations:
         print(f"ARCH_VIOLATION:{v}")
     print(f"check_architecture: scanned {len(packages)} packages ({scanned} files), {len(violations)} violations")

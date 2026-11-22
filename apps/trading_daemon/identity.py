@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import dataclasses
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 from trading_lab.security.canonical import canonical_json_bytes, sha256_hex
 
@@ -33,6 +33,13 @@ IDENTITY_SCHEMA = "forward-daemon-identity-v1"
 DAEMON_PACKAGE_DIR = "apps/trading_daemon"
 DEFAULT_RUNNER = "scripts/run_m35_shadow_replay.py"
 CONFIG_FILE = "configs/forward_observation.yaml"
+
+# S8 read-only real-shadow identity scope (separately authorized; the
+# synthetic scope above stays untouched and remains the default build).
+S8_RUNNER = "scripts/run_m35_s8_shadow_real.py"
+S8_CONFIG_FILE = "configs/forward_observation_s8_real.yaml"
+S8_GATEWAY_PACKAGE = "apps/market_gateway"
+S8_SELFTEST_FIXTURE = "apps/market_gateway/fixtures/selftest_bars.json"
 
 #: top-level first-party file that executes on import
 _TOP_LEVEL_FILES = ("src/trading_lab/__init__.py",)
@@ -52,8 +59,13 @@ PARENT_IDENTITY = {
 
 __all__ = [
     "IDENTITY_SCHEMA",
+    "S8_CONFIG_FILE",
+    "S8_GATEWAY_PACKAGE",
+    "S8_RUNNER",
+    "S8_SELFTEST_FIXTURE",
     "ForwardIdentity",
     "build_forward_identity",
+    "build_s8_forward_identity",
 ]
 
 
@@ -96,14 +108,28 @@ class ForwardIdentity:
         }
 
 
+def _require_repo_relative(path: Path) -> None:
+    if path.is_absolute() or ".." in path.parts:
+        raise IdentityError(
+            f"identity scope member must be repo-relative, got {path!s}")
+
+
 def build_forward_identity(repo_root: Path | str, *,
                            runner: str = DEFAULT_RUNNER,
                            git_commit: str | None = None,
-                           git_tree: str | None = None) -> ForwardIdentity:
+                           git_tree: str | None = None,
+                           extra_files: Sequence[str] = (),
+                           extra_packages: Sequence[str] = ()) -> ForwardIdentity:
+    """Build the forward-daemon identity.
+
+    ``extra_files`` / ``extra_packages`` extend the hashed scope (S8:
+    the real preregistration YAML and the market-gateway package). The
+    default call hashes exactly the offline synthetic scope.
+    """
     root = Path(repo_root)
     runner_rel = Path(runner)
-    if runner_rel.is_absolute() or ".." in runner_rel.parts or \
-            runner_rel.parts[:1] != ("scripts",):
+    _require_repo_relative(runner_rel)
+    if runner_rel.parts[:1] != ("scripts",):
         raise IdentityError(
             f"runner must be a repo-relative scripts/*.py path, got {runner!r}")
     collected: dict[str, Path] = {}
@@ -116,8 +142,13 @@ def build_forward_identity(repo_root: Path | str, *,
             continue
         collected[py.relative_to(root).as_posix()] = py
 
-    for required in (runner_rel, Path(CONFIG_FILE),
-                     *(Path(t) for t in _TOP_LEVEL_FILES)):
+    required_files = [runner_rel, Path(CONFIG_FILE),
+                      *(Path(t) for t in _TOP_LEVEL_FILES)]
+    for extra in extra_files:
+        extra_rel = Path(extra)
+        _require_repo_relative(extra_rel)
+        required_files.append(extra_rel)
+    for required in required_files:
         p = root / required
         if not p.is_file():
             raise IdentityError(f"declared identity source missing: {required}")
@@ -128,6 +159,18 @@ def build_forward_identity(repo_root: Path | str, *,
         if not pkg_dir.is_dir():
             raise IdentityError(
                 f"declared identity package missing: src/trading_lab/{pkg}")
+        for py in sorted(pkg_dir.rglob("*.py")):
+            if "__pycache__" in py.parts:
+                continue
+            collected[py.relative_to(root).as_posix()] = py
+
+    for pkg in extra_packages:
+        pkg_rel = Path(pkg)
+        _require_repo_relative(pkg_rel)
+        pkg_dir = root / pkg_rel
+        if not pkg_dir.is_dir():
+            raise IdentityError(
+                f"declared identity package missing: {pkg_rel.as_posix()}")
         for py in sorted(pkg_dir.rglob("*.py")):
             if "__pycache__" in py.parts:
                 continue
@@ -147,6 +190,20 @@ def build_forward_identity(repo_root: Path | str, *,
         schema=IDENTITY_SCHEMA, runner=runner_rel.as_posix(), files=files,
         code_hash=code_hash, parent=dict(PARENT_IDENTITY),
         git_commit=git_commit, git_tree=git_tree)
+
+
+def build_s8_forward_identity(repo_root: Path | str, *,
+                              git_commit: str | None = None,
+                              git_tree: str | None = None) -> ForwardIdentity:
+    """The S8 read-only real-shadow scope: daemon core + gateway package +
+    the real preregistration + the offline selftest fixture + the S8
+    runner (same schema and parent linkage; a DIFFERENT hash from the
+    synthetic-scope identity)."""
+    return build_forward_identity(
+        repo_root, runner=S8_RUNNER, git_commit=git_commit,
+        git_tree=git_tree,
+        extra_files=(S8_CONFIG_FILE, S8_SELFTEST_FIXTURE),
+        extra_packages=(S8_GATEWAY_PACKAGE,))
 
 
 def git_facts(repo_root: Path | str) -> tuple[str | None, str | None]:
