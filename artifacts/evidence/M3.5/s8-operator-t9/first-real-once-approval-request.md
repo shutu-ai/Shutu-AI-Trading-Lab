@@ -8,10 +8,15 @@
 
 ## 1. 操作者前提状态（申请时点如实填写；当前全为 PENDING_OPERATOR）
 
+> **2026-11-22 T9.7 修订**：B 项的签署前置是**独立的授权 1（B-only 无网络
+> 凭证注入核验）**——它与本申请（授权 2）完全分离、单独审批；B-only 批准
+> 绝不预授权本申请。依赖顺序见
+> `../s8-operator-t9-7/operator-gate-reconciliation.md` §3 决策图。
+
 | 项 | 状态 | 签署依据（操作者本地 attestation，不入仓库） |
 |---|---|---|
 | A 账户与许可 | **PENDING_OPERATOR** | ＿＿（签署后填本地模板版本/日期） |
-| B 凭证操作 | **PENDING_OPERATOR** | ＿＿（PREPARED 不算签署事实） |
+| B 凭证操作 | **PENDING_OPERATOR** | ＿＿（PREPARED / B_PLAN_READY 不算签署事实；须先有授权 1 的 B-only 批准 + 本人执行记录） |
 | C 出口隔离 | **PENDING_OPERATOR**（`HOST_EGRESS_ISOLATION_UNVERIFIED`） | ＿＿（须 §C 全矩阵 VERIFIED） |
 
 ## 2. 执行环境标识（预填工程事实；操作者执行时补环境标识与 hash）
@@ -68,6 +73,19 @@
 - Paper 下单、M4、付费升级与本申请完全无关，永不附带。
 
 ## 6. 授权请求（明确、独立、范围限一次）
+
+> **2026-11-22 T9.7 修订**：提交本申请前，操作者须完成以下前置核验清单
+> （全部成立才可提交；本草案任何时候都不是授权）：
+> - [ ] A / B / C 的人工签署记录实际成立（B 须先经独立的授权 1 B-only
+>       批准并本人执行、签署）
+> - [ ] 环境身份与签署时一致（`../s8-operator-t9-7/operator-gate-reconciliation.md`
+>       §5 登记表标识未变；变化 = C 全矩阵重验）
+> - [ ] 跨日状态连续性就绪：持久状态卷按
+>       `../s8-operator-t9-7/operator-gate-reconciliation.md` §6 要求落实
+>       （独占/权限/加密/备份摘要），如窗口跨多交易日，重建程序与链验证
+>       步骤已备
+> - [ ] CI 基线一致（HEAD 对应的远端 CI 绿；基线漂移需重新核验）
+> - [ ] 异常停止规则知悉（reconciliation §8：疑似并发/链漂移/进程异常即停）
 
 申请人（账户所有者）请求：**仅一次** `collect --once` 真实只读采集周期，
 在上述已签署环境内执行；该授权不覆盖第二个周期、不覆盖 `--complete`、
