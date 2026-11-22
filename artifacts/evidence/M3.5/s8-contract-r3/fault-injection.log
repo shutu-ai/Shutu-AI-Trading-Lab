@@ -1,0 +1,87 @@
+T8 FAULT-INJECTION LOG — M35-S8-T8-TERMINAL-FENCE-OFFLINE-RECOVERY-AND-CI-BACKFILL-R1-20261122
+LOCAL_ONLY, 2026-11-22. All states are synthetic fixture windows in temp dirs
+(SIMULATED_REAL_SHAPE_TEST_ONLY). Sentinel feed (collect_once records and
+returns an empty answer — never a network byte), sealed socket.socket for
+"nothing may run" assertions, recorded preflight for credential-visibility
+ordering. No real state dir, evidence set, credential, or network endpoint
+was touched (REAL_API_CALLS=0).
+
+EXIT-CODE CONTRACT (full table in scripts/run_m35_s8_shadow_real.py docstring;
+T8 addition in bold):
+  0 EXIT_OK / 1 EXIT_FAILURE / 3 BLOCKED_ENV / 4 AUTHORIZATION_REFUSED /
+  5 LEGACY_CONTRACT / 6 INTEGRITY_FAILURE / 7 COMPLETION_INCOMPLETE
+  8 EXIT_TERMINAL_WINDOW (T8) — the target window is sealed by a committed
+    WINDOW_COMPLETED receipt: collect --once / --complete refuse BEFORE any
+    credential read, network client or feed access, zero disk writes.
+
+=== A. pytest fence/repair suite (tests/s8_gateway/test_terminal_collection_fence.py) ===
+RED  (pre-fix):  14 failed, 2 passed — r3/red-run-full.log
+  (the 2 passing are legal-path guards: in-progress + empty-state collection
+   still reach the cycle — they must pass in BOTH phases)
+GREEN (post-fix): 16 passed — see full-regression.log
+  RED failures precisely map to P1-A (collect --once / --complete on a sealed
+  window reached the sentinel feed, mutated the journal, exited 0) and
+  P1-B (repair-completion did not exist: argparse exit 2 on all 9 repair
+  contracts).
+
+=== B. CLI-level demonstration transcript (fresh temp state, 2026-11-22) ===
+=== T8 fence/repair CLI demonstration (simulated state in t8-faultdemo-ho3u58ii ) ===
+1. completed window, status -> 0 COMPLETE_VERIFIED
+2. snapshot deleted -> status 7 CHAIN_COMMITTED_SNAPSHOT_MISSING
+3. repair-completion -> 0 REPAIRED_SNAPSHOT
+   status after repair -> 0 COMPLETE_VERIFIED
+4. repair again -> 0 ALREADY_COMPLETE_NOOP
+5. collect --once on sealed window -> 8 TERMINAL_WINDOW_REFUSED | repair_hint present: True
+6. collect --complete on sealed window -> 8 TERMINAL_WINDOW_REFUSED
+7. collect on empty state (no token) -> 4 AUTHORIZATION_REFUSED
+8. repair on empty state -> 1 NO_COMMITTED_COMPLETION
+9. invariants: records = 1 | snapshot digest stable: True
+
+  note on (7): the fence sits BEFORE the authorization gate but passes
+  legal open windows through unchanged — an empty state still reaches the
+  existing operator-token gate (exit 4), proving the fence never seals a
+  live or future window.
+
+=== C. sentinel coverage (committed tests, GREEN phase) ===
+  collect --once on sealed window: preflight NOT called, collect_once NOT
+    called, socket sealed, journal bytes unchanged, receipt count unchanged,
+    snapshot bytes unchanged, exit 8      [test_collect_once_after_completion_refuses_before_credentials_and_writes]
+  collect --complete on sealed window: same + no second completion receipt,
+    snapshot untouched                     [test_collect_complete_after_completion_refuses_before_collecting]
+  corrupt chain at the gate: exit 6 before any access, tampered file not
+    rewritten, journal unchanged           [test_collect_refused_on_corrupt_chain_before_any_access]
+  repeated sealed invocations (x2): inert — 1 receipt, digest stable
+                                           [test_repeated_terminal_invocations_are_inert]
+  repair never touches network/feed/credentials: in-process with all three
+    sentinels armed                        [test_repair_completion_never_touches_network_feed_or_credentials]
+
+=== D. repair-completion refusal matrix (all committed tests) ===
+  no committed completion (in-progress) -> 1 NO_COMMITTED_COMPLETION, zero writes
+                                          [test_repair_completion_refuses_without_committed_completion]
+  empty state                           -> 1 NO_COMMITTED_COMPLETION
+                                          [test_repair_completion_refuses_empty_state]
+  corrupt receipt chain                 -> 6 REFUSED_CHAIN_CORRUPT, no snapshot written
+                                          [test_repair_completion_refuses_corrupt_chain]
+  digest drift (new chain events)       -> 6 REFUSED_DIGEST_DRIFT, no snapshot
+                                          [test_repair_completion_refuses_digest_drift]
+  cross-protocol config                 -> 6 REFUSED_PROTOCOL_MISMATCH
+                                          [test_repair_completion_refuses_cross_protocol]
+  duplicate/conflicting completions     -> 6 REFUSED_INTEGRITY (DUPLICATE_COMPLETION)
+  tampered existing snapshot            -> 6 REFUSED_INTEGRITY (never overwritten)
+                                          [test_repair_completion_tampered_existing_snapshot_is_refused]
+  atomic-write failure (temp path blocked by a directory — fails
+  identically on Windows/POSIX)         -> 7 REPAIR_WRITE_FAILED, no fake
+  COMPLETE (status stays exit 7); after unblocking -> 0 REPAIRED_SNAPSHOT,
+  still exactly 1 receipt               [test_repair_completion_write_failure_is_recoverable]
+  missing snapshot + committed receipt  -> 0 REPAIRED_SNAPSHOT, receipts
+  byte-unchanged, status -> 0 COMPLETE_VERIFIED
+                                          [test_repair_completion_repairs_missing_snapshot_offline]
+  verified snapshot present             -> 0 ALREADY_COMPLETE_NOOP, zero byte change
+                                          [test_repair_completion_noop_on_verified_completion]
+
+=== E. TOCTOU posture (T8.2; documented residual risk in review.md) ===
+  gate check runs twice (entry + immediately before the cycle) shrinking
+  the race to the cycle itself; the read-check-write flow is NOT covered by
+  a single cross-process lock (the session lease protects journal sessions
+  only, not receipt appends or the gate). Precise risk recorded, not
+  claimed away.

@@ -1,0 +1,21 @@
+== artifacts/evidence/M2/a5-true-process-race/process_concurrent_50.log
+  blob old=aa25474aa63a new=80170a633c4c (changed=True)
+  sha256 old=12bde33c48668ce9 new=e710756b299f9a45
+  invariants old: OK
+  invariants new: OK
+  run-identity-masked structure identical: True
+== artifacts/evidence/M2/a6-strict-process-proof/barrier_50_rounds.jsonl
+  blob old=c3fc3b1759fc new=a987dddc8ec4 (changed=True)
+  sha256 old=5de3332339c155d6 new=4bdc80a70c0c17d5
+  invariants old: OK
+  invariants new: OK
+  run-identity-masked structure identical: True
+== artifacts/evidence/M2/final-send-claim/a2-quantitative-close/process_50_rounds.log
+  blob old=714c18bcef9f new=0f336e4e7351 (changed=True)
+  sha256 old=9afc0a5bfeff4fd2 new=771c28163d679dfe
+  invariants old: OK
+  invariants new: OK
+  run-identity-masked structure identical: True
+== 2a60864 discloses regeneration in subject: True (subject: chore(M3.5-S8 R1): regenerate A2/A5/A6 self-rewriting evidence logs
+)
+AUDIT: ALL PROTOCOL INVARIANTS HOLD ON BOTH VERSIONS; differences confined to run-identity facts; regeneration disclosed in the commit subject; old versions traceable in git history (git show a3bf463:<path>)

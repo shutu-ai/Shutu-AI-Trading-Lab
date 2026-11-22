@@ -82,11 +82,22 @@
 3. 不因 5 个日历日过去而认定窗口完成：计数只认**全覆盖真实交易日**
    （`day_counting_rule: full_coverage`）；断连恢复、重复事件恢复必须真实发生
    并留链证，**不准故意制造线上断连、不准向真实链混入合成证据**。
-4. 真实采集期间 `status` 的退出码语义（T7 起）：
+4. 真实采集期间 `status` 的退出码语义（T7 起；T8 修订）：
    - `0` = 命令完成且完整性核验通过（**不是**资格 PASS；资格看 JSON 字段）；
    - `6` = 完整性失败（快照篡改/未绑定/链损坏/重复完成）→ 停止采集并人工复核；
-   - `7` = 完成流程未收尾（崩溃窗口）→ 重跑 `collect --complete` 幂等修复。
-5. Paper 下单是完全独立的未来签批（`PAPER_WRITE=NOT_AUTHORIZED` 保持）；M4 不自动启动。
+   - `7` = 完成流程未收尾（崩溃窗口）；
+   - `8` = 窗口已被 `WINDOW_COMPLETED` 收据封存（T8 起）→ 普通 `collect --once` /
+     `collect --complete` 在任何凭证读取、网络客户端、feed 访问**之前**拒绝，
+     零磁盘写入。
+5. **快照修复（T8 修订）**：`CHAIN_COMMITTED_SNAPSHOT_MISSING` 只用纯离线的
+   `repair-completion --state-dir <dir>` 修复——不读凭证、不建网络客户端、不采集、
+   不新增收据/会话/事件；只接受"恰一条可验证已提交完成收据 + 快照缺失 + 摘要/
+   协议/eligibility 独立重算匹配"。`collect --complete` **只**服务尚未封存窗口的
+   首次受控完成，**不是**离线修复入口（T8 起对已封存窗口直接拒绝，exit 8）。
+   （T7 版本曾写"`7` → 重跑 `collect --complete` 幂等修复"——按 T8 终态语义
+   废止该指引，修订依据见 `s8-contract-r3/red-green.md` 与
+   `docs/reviews/M3.5-s8-terminal-collection-fence-r3.md`。）
+6. Paper 下单是完全独立的未来签批（`PAPER_WRITE=NOT_AUTHORIZED` 保持）；M4 不自动启动。
 
 ## 本轮已离线核验（LOCAL_ONLY，全部在临时目录/合成数据上）
 

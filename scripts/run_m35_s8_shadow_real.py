@@ -14,13 +14,26 @@ Subcommands:
   honest ``BLOCKED_ENV`` outcome (exit 3), a wrong/missing token is
   ``AUTHORIZATION_REFUSED`` (exit 4). One cycle per invocation
   (``--once``); the operator schedules cycles across the real window and
-  completes it explicitly (``--complete``).
+  completes it explicitly (``--complete``). A window sealed by a
+  committed ``WINDOW_COMPLETED`` receipt is TERMINAL: both ``--once``
+  and ``--complete`` refuse BEFORE any credential read, network client
+  or feed access, with zero disk writes (exit 8) — the first completion
+  is the only completion, and ``collect --complete`` is never an
+  implicit collect-then-repair path.
 - ``status``: window facts + eligibility from the chains (no claim).
   Integrity is fail-closed: when the persisted completion evidence
   (evaluation snapshot + its committed ``WINDOW_COMPLETED`` chain
   record) fails verification, ``status`` exits non-zero — exit codes are
   part of the machine contract and must never be interpreted as
   "eligible" (eligibility is a JSON field, an exit code is not).
+- ``repair-completion``: PURE-OFFLINE recovery of a MISSING evaluation
+  snapshot bound to exactly one verifiably committed completion receipt
+  (no credential values read, no network, no ``collect_once``, no
+  ``run_collection_cycle``, no new receipts/sessions/events; requires an
+  explicit ``--state-dir``). It never mints a first completion, never
+  overwrites a snapshot that fails verification, and never disguises a
+  corrupted chain as recoverable. Exit 0 means the repair (or verified
+  no-op) succeeded — never an E-Gate PASS.
 
 Exit codes (stable, distinguishable; the T7 contract):
 
@@ -35,12 +48,20 @@ Exit codes (stable, distinguishable; the T7 contract):
   failed verification: snapshot digest/protocol mismatch, snapshot not
   bound to a committed completion record, non-idempotent duplicate or
   conflicting completions, or corrupted snapshot/journal/receipt chain.
+  Also: the collection gate refuses on a corrupted receipt chain before
+  any credential/network access.
 - ``7`` ``EXIT_COMPLETION_INCOMPLETE`` — the completion procedure did
   not finish: receipt persistence failed (no snapshot written), the
-  snapshot persistence failed after a committed receipt, or the chain
-  carries a committed completion whose snapshot is missing. All three
-  are recoverable by re-running ``collect --complete`` (idempotent);
-  none may ever be reported as a completed window.
+  snapshot persistence failed after a committed receipt, the chain
+  carries a committed completion whose snapshot is missing, or the
+  offline ``repair-completion`` write failed. All are recoverable
+  (re-run ``repair-completion`` / ``collect --complete``); none may ever
+  be reported as a completed window.
+- ``8`` ``EXIT_TERMINAL_WINDOW`` — the target window is SEALED by a
+  committed ``WINDOW_COMPLETED`` receipt: ordinary ``collect --once`` /
+  ``collect --complete`` are refused before any credential read, network
+  client or feed access, with zero disk writes. Offline snapshot repair
+  is the separate ``repair-completion`` subcommand.
 
 STRICT READ-ONLY: no broker adapter exists in this plane; the guarded
 client cannot reach a trading-API host or send a non-GET request even if
@@ -102,6 +123,7 @@ EXIT_LEGACY_CONTRACT = 5
 EXIT_FAILURE = 1
 EXIT_INTEGRITY_FAILURE = 6
 EXIT_COMPLETION_INCOMPLETE = 7
+EXIT_TERMINAL_WINDOW = 8
 
 
 def _print_json(payload: dict) -> None:
@@ -233,6 +255,14 @@ def cmd_collect(state_dir: Path, once: bool, complete: bool,
             "protocol_id": prereg.forward_protocol_id,
         })
         return EXIT_LEGACY_CONTRACT
+    # T8 terminal fence — read-only, BEFORE any credential visibility
+    # audit, network client, or feed access: a window sealed by a
+    # committed WINDOW_COMPLETED receipt refuses ordinary collection with
+    # zero disk writes; a corrupted chain refuses everything (fail
+    # closed). Legal not-started / in-progress windows pass unchanged.
+    gate_code = _terminal_gate(state_dir, prereg)
+    if gate_code is not None:
+        return gate_code
     identity = _identity()
     try:
         gate = preflight(operator_authorization=os.environ.get(
@@ -270,6 +300,15 @@ def cmd_collect(state_dir: Path, once: bool, complete: bool,
             schema=identity.schema, code_hash=identity.code_hash))
 
     session_index = _completed_sessions(state_dir) + 1
+    # TOCTOU narrowing: re-run the read-only terminal check immediately
+    # before the cycle. The read-check-write flow is NOT covered by one
+    # cross-process lock (the session lease protects journal sessions
+    # only, not receipt appends or this gate), so the race cannot be
+    # fully excluded here — this re-check shrinks it to the cycle itself;
+    # the precise residual risk is recorded in s8-contract-r3/review.md.
+    gate_code = _terminal_gate(state_dir, prereg)
+    if gate_code is not None:
+        return gate_code
     result = run_collection_cycle(
         feed=feed, prereg=prereg, state_dir=state_dir, identity=identity,
         session_index=session_index)
@@ -333,6 +372,68 @@ def _atomic_write_text(path: Path, text: str) -> None:
         fh.flush()
         os.fsync(fh.fileno())
     os.replace(tmp, path)
+
+
+def _snapshot_text(prereg, facts: dict, facts_digest: str,
+                   eligibility: dict, claim: str | None,
+                   claim_error: str | None) -> str:
+    """The byte-stable evaluation snapshot body — ONE writer shape shared
+    by first completion, idempotent repair, and offline ``repair
+    -completion`` (LF newlines are forced by ``_atomic_write_text``)."""
+    return json.dumps({
+        "schema": "s8-forward-window-evaluation-v1",
+        "facts_digest": facts_digest,
+        "facts": facts,
+        "eligibility": eligibility,
+        "claim_attempt": claim,
+        "claim_error": claim_error,
+        "protocol_hash": prereg.hash,
+    }, indent=2, sort_keys=True, default=str) + "\n"
+
+
+def _refuse_collect_chain_corrupt(state_dir: Path) -> int:
+    _print_json({
+        "collect": "CHAIN_CORRUPT_REFUSED",
+        "reason": "the receipt chain failed verification; the collection "
+                  "gate refuses before any credential visibility audit, "
+                  "network client, feed access, or chain write "
+                  "(fail closed)",
+        "state_dir": str(state_dir),
+    })
+    return EXIT_INTEGRITY_FAILURE
+
+
+def _refuse_collect_terminal_window(state_dir: Path,
+                                    committed: int) -> int:
+    _print_json({
+        "collect": "TERMINAL_WINDOW_REFUSED",
+        "reason": "the target window is sealed by a committed "
+                  "WINDOW_COMPLETED receipt: ordinary collection is "
+                  "refused and nothing on disk was read or written "
+                  "besides this read-only check — a completed window can "
+                  "never drift through the collection gate",
+        "committed_completions": committed,
+        "repair_hint": "run repair-completion --state-dir <dir> to "
+                       "restore a MISSING evaluation snapshot offline "
+                       "(a pure-local path; collect --complete is never "
+                       "an implicit collect-then-repair network path)",
+        "state_dir": str(state_dir),
+    })
+    return EXIT_TERMINAL_WINDOW
+
+
+def _terminal_gate(state_dir: Path, prereg) -> int | None:
+    """The read-only terminal review of T8: refuses sealed or
+    integrity-broken windows BEFORE credentials/network/writes. Returns
+    the refusal exit code, or None when the window is open for legal
+    collection."""
+    chain_ok, committed = read_completion_records(
+        state_dir, prereg.environment)
+    if not chain_ok:
+        return _refuse_collect_chain_corrupt(state_dir)
+    if committed:
+        return _refuse_collect_terminal_window(state_dir, len(committed))
+    return None
 
 
 def _window_harness(facts: dict) -> dict:
@@ -441,15 +542,9 @@ def _complete_window(state_dir: Path, prereg, identity,
         claim = "PASS" if facts["trading_days_observed"] >= \
             prereg.min_trading_days else None
         try:
-            _atomic_write_text(state_dir / SNAPSHOT_NAME, json.dumps({
-                "schema": "s8-forward-window-evaluation-v1",
-                "facts_digest": facts_digest,
-                "facts": facts,
-                "eligibility": eligibility,
-                "claim_attempt": claim,
-                "claim_error": claim_error,
-                "protocol_hash": prereg.hash,
-            }, indent=2, sort_keys=True, default=str) + "\n")
+            _atomic_write_text(state_dir / SNAPSHOT_NAME, _snapshot_text(
+                prereg, facts, facts_digest, eligibility, claim,
+                claim_error))
         except OSError as exc:
             return {
                 "completion": "SNAPSHOT_WRITE_FAILED",
@@ -513,15 +608,9 @@ def _complete_window(state_dir: Path, prereg, identity,
                 "evidence behind (P0-A, fail closed)")
             return payload
         try:
-            _atomic_write_text(state_dir / SNAPSHOT_NAME, json.dumps({
-                "schema": "s8-forward-window-evaluation-v1",
-                "facts_digest": facts_digest,
-                "facts": facts,
-                "eligibility": eligibility,
-                "claim_attempt": claim,
-                "claim_error": claim_error,
-                "protocol_hash": prereg.hash,
-            }, indent=2, sort_keys=True, default=str) + "\n")
+            _atomic_write_text(state_dir / SNAPSHOT_NAME, _snapshot_text(
+                prereg, facts, facts_digest, eligibility, claim,
+                claim_error))
         except OSError as exc:
             payload["completion"] = "SNAPSHOT_WRITE_FAILED"
             payload["reason"] = (
@@ -682,6 +771,147 @@ def cmd_status(state_dir: Path, config_path: Path) -> int:
     return EXIT_OK
 
 
+def cmd_repair_completion(state_dir: Path, config_path: Path) -> int:
+    """Pure-offline completion-snapshot repair (T8) — restores a MISSING
+    evaluation snapshot bound to EXACTLY ONE verifiably committed
+    ``WINDOW_COMPLETED`` receipt. Reads credential ENV NAMES never;
+    builds no network client; never calls ``collect_once``,
+    ``run_collection_cycle`` or ``run_replay`` — no new receipts,
+    sessions, or events; the receipt and journal chains are never
+    appended to. Refusals: no committed completion (never "helpfully
+    completes" a window), corrupted chain, cross-protocol record,
+    digest drift, duplicate records, or an existing snapshot that fails
+    verification (overwriting verified evidence is never a repair).
+    Exit 0 = REPAIRED_SNAPSHOT / ALREADY_COMPLETE_NOOP — a repair
+    success, NEVER an E-Gate PASS (eligibility is a JSON field)."""
+    prereg = PreregistrationReal.load(config_path)
+    state_dir = Path(state_dir)
+    chain_ok, records = read_completion_records(
+        state_dir, prereg.environment)
+    if not chain_ok:
+        _print_json({
+            "repair": "REFUSED_CHAIN_CORRUPT",
+            "reason": "the receipt chain failed verification; nothing is "
+                      "recoverable without operator review (fail closed)",
+            "state_dir": str(state_dir),
+        })
+        return EXIT_INTEGRITY_FAILURE
+    if not records:
+        _print_json({
+            "repair": "NO_COMMITTED_COMPLETION",
+            "reason": "no committed WINDOW_COMPLETED receipt exists; "
+                      "repair never completes a window — the FIRST "
+                      "completion is exclusive to the operator-gated "
+                      "collect --complete path",
+            "state_dir": str(state_dir),
+        })
+        return EXIT_FAILURE
+    if len(records) > 1:
+        _print_json({
+            "repair": "REFUSED_INTEGRITY",
+            "problems": ["DUPLICATE_COMPLETION"],
+            "reason": f"{len(records)} WINDOW_COMPLETED records are "
+                      "committed; a non-idempotent duplicate completion "
+                      "requires operator review",
+            "state_dir": str(state_dir),
+        })
+        return EXIT_INTEGRITY_FAILURE
+    record = records[0]
+    try:
+        facts = window_facts_from_journal(state_dir, prereg,
+                                          events_synthetic=False)
+    except (ValueError, OSError, KeyError) as exc:
+        _print_json({
+            "repair": "REFUSED_INTEGRITY",
+            "problems": ["JOURNAL_UNREADABLE"],
+            "reason": f"{type(exc).__name__}: {exc}",
+        })
+        return EXIT_INTEGRITY_FAILURE
+    journal_path = state_dir / FORWARD_STATE_SUBDIR / "journal.jsonl"
+    from trading_lab.security.canonical import canonical_digest
+    facts_digest = canonical_digest(facts)
+    snapshot_path = state_dir / SNAPSHOT_NAME
+    if snapshot_path.exists():
+        completion_state, verify_problems, _snapshot = \
+            _verify_completion_evidence(state_dir, prereg, facts,
+                                        facts_digest, chain_ok=chain_ok,
+                                        records=records)
+        if completion_state != "COMPLETE_VERIFIED":
+            _print_json({
+                "repair": "REFUSED_INTEGRITY",
+                "problems": verify_problems or [completion_state],
+                "reason": "an existing snapshot failed verification; "
+                          "overwriting evidence that fails verification "
+                          "is never a repair — operator review required",
+                "state_dir": str(state_dir),
+            })
+            return EXIT_INTEGRITY_FAILURE
+        _print_json({
+            "repair": "ALREADY_COMPLETE_NOOP",
+            "completion_state": completion_state,
+            "facts_digest": facts_digest,
+            "note": "a verified snapshot already exists; not one byte "
+                    "was modified",
+        })
+        return EXIT_OK
+    problems: list[str] = []
+    if journal_path.exists() and not facts["journal_verified"]:
+        problems.append("JOURNAL_CORRUPT")
+    if str(record.get("protocol_hash")) != str(prereg.hash):
+        problems.append("PROTOCOL_MISMATCH")
+    if str(record.get("facts_digest")) != facts_digest:
+        problems.append("DIGEST_DRIFT")
+    if problems:
+        label = "REFUSED_PROTOCOL_MISMATCH" \
+            if "PROTOCOL_MISMATCH" in problems else "REFUSED_DIGEST_DRIFT"
+        _print_json({
+            "repair": label,
+            "problems": problems,
+            "reason": "the committed completion receipt does not vouch "
+                      "for the current chain state; refusing to write a "
+                      "snapshot it cannot verify (fail closed)",
+            "committed_digest": str(record.get("facts_digest")),
+            "current_digest": facts_digest,
+        })
+        return EXIT_INTEGRITY_FAILURE
+    eligibility, claim_error = _evaluate_with_claim(prereg, facts)
+    claim = "PASS" if facts["trading_days_observed"] >= \
+        prereg.min_trading_days else None
+    if str(record.get("eligibility")) != \
+            str(eligibility["eligibility"]) or \
+            str(record.get("forward_window_status")) != \
+            str(eligibility["forward_window_status"]):
+        _print_json({
+            "repair": "REFUSED_INTEGRITY",
+            "problems": ["ELIGIBILITY_DRIFT"],
+            "reason": "the independently recomputed eligibility differs "
+                      "from the committed record; human review required",
+            "committed_eligibility": str(record.get("eligibility")),
+            "recomputed_eligibility": str(eligibility["eligibility"]),
+        })
+        return EXIT_INTEGRITY_FAILURE
+    try:
+        _atomic_write_text(snapshot_path, _snapshot_text(
+            prereg, facts, facts_digest, eligibility, claim, claim_error))
+    except OSError as exc:
+        _print_json({
+            "repair": "REPAIR_WRITE_FAILED",
+            "reason": f"the receipt IS committed but the snapshot write "
+                      f"failed: {exc} — re-run repair-completion "
+                      "(idempotent; no fake COMPLETE was written)",
+        })
+        return EXIT_COMPLETION_INCOMPLETE
+    _print_json({
+        "repair": "REPAIRED_SNAPSHOT",
+        "facts_digest": facts_digest,
+        "completion_state": "COMPLETE_VERIFIED",
+        "note": "exit 0 means the repair succeeded, never an E-Gate "
+                "PASS (eligibility is a JSON field); no receipt, "
+                "session, or event was created",
+    })
+    return EXIT_OK
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="run_m35_s8_shadow_real",
@@ -717,6 +947,17 @@ def main(argv: list[str] | None = None) -> int:
         "status", help="window facts + eligibility from the chains")
     p_sta.add_argument("--state-dir", type=Path, default=DEFAULT_STATE_DIR)
     p_sta.add_argument("--config", type=Path, default=PREREG_PATH)
+    p_rep = sub.add_parser(
+        "repair-completion",
+        help="PURE-OFFLINE repair of a MISSING evaluation snapshot bound "
+             "to a committed completion (no credentials, no network, no "
+             "collection); refuses anything that is not exactly one "
+             "verifiable committed WINDOW_COMPLETED receipt + missing "
+             "snapshot")
+    p_rep.add_argument("--state-dir", type=Path, required=True,
+                       help="the state directory to repair (explicit — "
+                            "repair never guesses a target)")
+    p_rep.add_argument("--config", type=Path, default=PREREG_PATH)
     args = parser.parse_args(argv)
 
     if args.command == "check-config":
@@ -730,6 +971,8 @@ def main(argv: list[str] | None = None) -> int:
                            complete=args.complete, config_path=args.config)
     if args.command == "status":
         return cmd_status(args.state_dir, args.config)
+    if args.command == "repair-completion":
+        return cmd_repair_completion(args.state_dir, args.config)
     return EXIT_FAILURE
 
 

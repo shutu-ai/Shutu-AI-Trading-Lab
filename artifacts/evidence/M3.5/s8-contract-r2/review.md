@@ -71,3 +71,17 @@ M4=NOT_STARTED
 ```
 
 **停止点：本地提交后停止（`PUSH_AUTHORIZATION_REQUIRED`），等待下一次人工审批。**
+
+---
+
+## 追加回填（T8.4，2026-11-22，追加式——上文成文时的事实保持不变）
+
+上文 "T7_CI=REMOTE_PENDING" 为成文时（本地提交 `0b1f3b7` 之前）的事实。
+其后经用户单独授权推送 `a0b1f58..0b1f3b7`，GitHub Actions run
+[`45031453603`](https://github.com/shutu-ai/Shutu-AI-Trading-Lab/actions/runs/45031453603)
+（head `0b1f3b7900b9fe385bf4579e8126f1641f15d5ca`，完整 SHA 与 job 细节见
+`r3/remote-ci-backfill.md`）双平台 **944 passed**（ubuntu 63.26s /
+windows 517.75s），静态门全绿 → **`T7_CI=REMOTE_VERIFIED`**。
+该 run 只证明 T7 代码（既有 926 + 18 个 T7 测试），不证明 T8 及之后的代码，
+也不证明真实 API 行为。T8 之后的验证状态见
+`artifacts/evidence/M3.5/s8-contract-r3/`（`T8_CI=REMOTE_PENDING`）。

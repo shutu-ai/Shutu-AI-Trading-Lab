@@ -1,0 +1,564 @@
+..FFFFFFFFFFFFFF                                                         [100%]
+================================== FAILURES ===================================
+__ test_collect_once_after_completion_refuses_before_credentials_and_writes ___
+
+tmp_path = WindowsPath('C:/Users/swx1536744/AppData/Local/Temp/pytest-of-sWX1536744/pytest-1231/test_collect_once_after_comple0')
+ranged_prereg = <apps.market_gateway.prereg_real.PreregistrationReal object at 0x0000013AC6DFD940>
+s8_identity = ForwardIdentity(schema='forward-daemon-identity-v1', runner='scripts/run_m35_s8_shadow_real.py', files=(('apps/market_...ef69eafe2cd78', 'recorded_in': 'artifacts/evidence/M3/r2/code-identity-manifest.json'}, git_commit=None, git_tree=None)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000013AC7086C30>
+preflight_recorder = ['preflight'], sealed_network = None
+
+    def test_collect_once_after_completion_refuses_before_credentials_and_writes(
+            tmp_path, ranged_prereg, s8_identity, monkeypatch,
+            preflight_recorder, sealed_network):
+        state = _simulated_window(tmp_path / "state", ranged_prereg,
+                                  s8_identity)
+        _complete(state, ranged_prereg, s8_identity)
+        snapshot_bytes = (state / SNAPSHOT_NAME).read_bytes()
+        journal_bytes = _journal_bytes(state)
+        records_before = len(_window_records(state))
+    
+        feed_sentinel = make_feed_sentinel(monkeypatch)
+        import scripts.run_m35_s8_shadow_real as runner
+        code = runner.cmd_collect(state, once=True, complete=False,
+                                  config_path=CONFIG_V2)
+    
+>       assert code == EXIT_TERMINAL_WINDOW, (
+            f"sealed window: collect --once exited {code} (must be "
+            f"{EXIT_TERMINAL_WINDOW}) ！ a completed window must never be "
+            "silently accepted by the collection gate")
+E       AssertionError: sealed window: collect --once exited 0 (must be 8) ！ a completed window must never be silently accepted by the collection gate
+E       assert 0 == 8
+
+tests\s8_gateway\test_terminal_collection_fence.py:252: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{
+  "collect": "CYCLE_DONE",
+  "collect_status": "MARKET_CLOSED",
+  "credential_env_visible": [],
+  "engine_counters": {
+    "consumed": 0,
+    "duplicates": 0,
+    "events_delivered": 0,
+    "expired": 0,
+    "held": 0,
+    "locked": 0,
+    "observed": 0,
+    "rejected": 0,
+    "scored": {
+      "flat_close": 0,
+      "hit": 0,
+      "miss": 0,
+      "no_claim": 0,
+      "total": 0
+    }
+  },
+  "events_emitted": 0,
+  "quality_rejects": [],
+  "receipts_appended": 0,
+  "score_sequence": [
+    "no_claim",
+    "hit",
+    "miss",
+    "miss"
+  ],
+  "session_date": null,
+  "transport_errors": []
+}
+______ test_collect_complete_after_completion_refuses_before_collecting _______
+
+tmp_path = WindowsPath('C:/Users/swx1536744/AppData/Local/Temp/pytest-of-sWX1536744/pytest-1231/test_collect_complete_after_co0')
+ranged_prereg = <apps.market_gateway.prereg_real.PreregistrationReal object at 0x0000013AC6DFD940>
+s8_identity = ForwardIdentity(schema='forward-daemon-identity-v1', runner='scripts/run_m35_s8_shadow_real.py', files=(('apps/market_...ef69eafe2cd78', 'recorded_in': 'artifacts/evidence/M3/r2/code-identity-manifest.json'}, git_commit=None, git_tree=None)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000013AC6D66360>
+preflight_recorder = ['preflight'], sealed_network = None
+
+    def test_collect_complete_after_completion_refuses_before_collecting(
+            tmp_path, ranged_prereg, s8_identity, monkeypatch,
+            preflight_recorder, sealed_network):
+        """collect --complete must never become an implicit
+        collect-then-repair network path for an already completed window."""
+        state = _simulated_window(tmp_path / "state", ranged_prereg,
+                                  s8_identity)
+        _complete(state, ranged_prereg, s8_identity)
+        snapshot_bytes = (state / SNAPSHOT_NAME).read_bytes()
+        journal_bytes = _journal_bytes(state)
+    
+        feed_sentinel = make_feed_sentinel(monkeypatch)
+        import scripts.run_m35_s8_shadow_real as runner
+        code = runner.cmd_collect(state, once=True, complete=True,
+                                  config_path=CONFIG_V2)
+    
+>       assert code == EXIT_TERMINAL_WINDOW
+E       assert 0 == 8
+
+tests\s8_gateway\test_terminal_collection_fence.py:282: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{
+  "collect": "CYCLE_DONE",
+  "collect_status": "MARKET_CLOSED",
+  "credential_env_visible": [],
+  "engine_counters": {
+    "consumed": 0,
+    "duplicates": 0,
+    "events_delivered": 0,
+    "expired": 0,
+    "held": 0,
+    "locked": 0,
+    "observed": 0,
+    "rejected": 0,
+    "scored": {
+      "flat_close": 0,
+      "hit": 0,
+      "miss": 0,
+      "no_claim": 0,
+      "total": 0
+    }
+  },
+  "events_emitted": 0,
+  "quality_rejects": [],
+  "receipts_appended": 0,
+  "score_sequence": [
+    "no_claim",
+    "hit",
+    "miss",
+    "miss"
+  ],
+  "session_date": null,
+  "transport_errors": []
+}
+{
+  "window_completion": {
+    "completion": "COMPLETE_VERIFIED",
+    "evidence_copy": "D:\\dev-projects\\Shutu-AI-Trading-Lab\\artifacts\\evidence\\M3.5\\s8-contract-r1\\real-forward-window-status.json",
+    "facts": {
+      "audits_passed": true,
+      "cycles_after_feed_error": 12,
+      "days_full_coverage": 5,
+      "days_partial": 0,
+      "disconnect_recoveries": 1,
+      "duplicate_broker_orders": 0,
+      "duplicate_events": 2,
+      "duplicate_recoveries": 2,
+      "events_synthetic": false,
+      "feed_errors": 2,
+      "journal_verified": true,
+      "protocol_binding_ok": true,
+      "quality_rejects": 0,
+      "receipt_binding_mismatched": [],
+      "receipt_binding_missing": [],
+      "receipt_evidence_ok": true,
+      "receipts_verified": true,
+      "scored": {
+        "hit": 1,
+        "miss": 2,
+        "no_claim": 1
+      },
+      "symbols_expected": 2,
+      "trading_days_observed": 5,
+      "unauthorized_broker_orders": 0
+    },
+    "facts_digest": "6bb6ecf156ba589e19717d765c856a5e62206f71e7328f361e6501744c6d9485",
+    "repaired_snapshot": true,
+    "window_completed_receipt": true
+  }
+}
+___________ test_collect_refused_on_corrupt_chain_before_any_access ___________
+
+tmp_path = WindowsPath('C:/Users/swx1536744/AppData/Local/Temp/pytest-of-sWX1536744/pytest-1231/test_collect_refused_on_corrup0')
+ranged_prereg = <apps.market_gateway.prereg_real.PreregistrationReal object at 0x0000013AC6DFD940>
+s8_identity = ForwardIdentity(schema='forward-daemon-identity-v1', runner='scripts/run_m35_s8_shadow_real.py', files=(('apps/market_...ef69eafe2cd78', 'recorded_in': 'artifacts/evidence/M3/r2/code-identity-manifest.json'}, git_commit=None, git_tree=None)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000013AC6FBEBE0>
+preflight_recorder = ['preflight'], sealed_network = None
+
+    def test_collect_refused_on_corrupt_chain_before_any_access(
+            tmp_path, ranged_prereg, s8_identity, monkeypatch,
+            preflight_recorder, sealed_network):
+        state = _simulated_window(tmp_path / "state", ranged_prereg,
+                                  s8_identity)
+        _complete(state, ranged_prereg, s8_identity)
+        receipt_path = state / RECEIPTS_NAME
+        lines = receipt_path.read_text(encoding="utf-8").splitlines()
+        record = json.loads(lines[0])
+        record["payload"]["payload_digest"] = "1" * 64
+        lines[0] = json.dumps(record, sort_keys=True)
+        tampered = "\n".join(lines) + "\n"
+        receipt_path.write_text(tampered, encoding="utf-8")
+        journal_bytes = _journal_bytes(state)
+    
+        feed_sentinel = make_feed_sentinel(monkeypatch)
+        import scripts.run_m35_s8_shadow_real as runner
+        code = runner.cmd_collect(state, once=True, complete=False,
+                                  config_path=CONFIG_V2)
+    
+>       assert code == EXIT_INTEGRITY_FAILURE, (
+            f"corrupt receipt chain at the gate exited {code}")
+E       AssertionError: corrupt receipt chain at the gate exited 0
+E       assert 0 == 6
+
+tests\s8_gateway\test_terminal_collection_fence.py:312: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{
+  "collect": "CYCLE_DONE",
+  "collect_status": "MARKET_CLOSED",
+  "credential_env_visible": [],
+  "engine_counters": {
+    "consumed": 0,
+    "duplicates": 0,
+    "events_delivered": 0,
+    "expired": 0,
+    "held": 0,
+    "locked": 0,
+    "observed": 0,
+    "rejected": 0,
+    "scored": {
+      "flat_close": 0,
+      "hit": 0,
+      "miss": 0,
+      "no_claim": 0,
+      "total": 0
+    }
+  },
+  "events_emitted": 0,
+  "quality_rejects": [],
+  "receipts_appended": 0,
+  "score_sequence": [
+    "no_claim",
+    "hit",
+    "miss",
+    "miss"
+  ],
+  "session_date": null,
+  "transport_errors": []
+}
+________________ test_repeated_terminal_invocations_are_inert _________________
+
+tmp_path = WindowsPath('C:/Users/swx1536744/AppData/Local/Temp/pytest-of-sWX1536744/pytest-1231/test_repeated_terminal_invocat0')
+ranged_prereg = <apps.market_gateway.prereg_real.PreregistrationReal object at 0x0000013AC6DFD940>
+s8_identity = ForwardIdentity(schema='forward-daemon-identity-v1', runner='scripts/run_m35_s8_shadow_real.py', files=(('apps/market_...ef69eafe2cd78', 'recorded_in': 'artifacts/evidence/M3/r2/code-identity-manifest.json'}, git_commit=None, git_tree=None)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000013AC701E950>
+preflight_recorder = ['preflight'], sealed_network = None
+
+    def test_repeated_terminal_invocations_are_inert(
+            tmp_path, ranged_prereg, s8_identity, monkeypatch,
+            preflight_recorder, sealed_network):
+        state = _simulated_window(tmp_path / "state", ranged_prereg,
+                                  s8_identity)
+        _complete(state, ranged_prereg, s8_identity)
+        snapshot_bytes = (state / SNAPSHOT_NAME).read_bytes()
+        journal_bytes = _journal_bytes(state)
+        snapshot_digest = json.loads(snapshot_bytes.decode("utf-8"))[
+            "facts_digest"]
+    
+        feed_sentinel = make_feed_sentinel(monkeypatch)
+        import scripts.run_m35_s8_shadow_real as runner
+        for _ in range(2):
+>           assert runner.cmd_collect(state, once=True, complete=False,
+                                      config_path=CONFIG_V2) == \
+                EXIT_TERMINAL_WINDOW
+E           AssertionError: assert 0 == 8
+E            +  where 0 = <function cmd_collect at 0x0000013AC70B2D40>(WindowsPath('C:/Users/swx1536744/AppData/Local/Temp/pytest-of-sWX1536744/pytest-1231/test_repeated_terminal_invocat0/state'), once=True, complete=False, config_path=WindowsPath('D:/dev-projects/Shutu-AI-Trading-Lab/configs/forward_observation_s8_real_v2.yaml'))
+E            +    where <function cmd_collect at 0x0000013AC70B2D40> = <module 'scripts.run_m35_s8_shadow_real' from 'D:\\dev-projects\\Shutu-AI-Trading-Lab\\scripts\\run_m35_s8_shadow_real.py'>.cmd_collect
+
+tests\s8_gateway\test_terminal_collection_fence.py:334: AssertionError
+---------------------------- Captured stdout call -----------------------------
+{
+  "collect": "CYCLE_DONE",
+  "collect_status": "MARKET_CLOSED",
+  "credential_env_visible": [],
+  "engine_counters": {
+    "consumed": 0,
+    "duplicates": 0,
+    "events_delivered": 0,
+    "expired": 0,
+    "held": 0,
+    "locked": 0,
+    "observed": 0,
+    "rejected": 0,
+    "scored": {
+      "flat_close": 0,
+      "hit": 0,
+      "miss": 0,
+      "no_claim": 0,
+      "total": 0
+    }
+  },
+  "events_emitted": 0,
+  "quality_rejects": [],
+  "receipts_appended": 0,
+  "score_sequence": [
+    "no_claim",
+    "hit",
+    "miss",
+    "miss"
+  ],
+  "session_date": null,
+  "transport_errors": []
+}
+___________ test_repair_completion_repairs_missing_snapshot_offline ___________
+
+tmp_path = WindowsPath('C:/Users/swx1536744/AppData/Local/Temp/pytest-of-sWX1536744/pytest-1231/test_repair_completion_repairs0')
+ranged_prereg = <apps.market_gateway.prereg_real.PreregistrationReal object at 0x0000013AC6DFD940>
+s8_identity = ForwardIdentity(schema='forward-daemon-identity-v1', runner='scripts/run_m35_s8_shadow_real.py', files=(('apps/market_...ef69eafe2cd78', 'recorded_in': 'artifacts/evidence/M3/r2/code-identity-manifest.json'}, git_commit=None, git_tree=None)
+
+    def test_repair_completion_repairs_missing_snapshot_offline(
+            tmp_path, ranged_prereg, s8_identity):
+        state = _simulated_window(tmp_path / "state", ranged_prereg,
+                                  s8_identity)
+        _complete(state, ranged_prereg, s8_identity)
+        _chain_committed_missing_snapshot(state)
+        receipts_before = (state / RECEIPTS_NAME).read_bytes()
+    
+        proc = _run_cli(["repair-completion", "--state-dir", str(state),
+                         "--config", str(CONFIG_V2)])
+>       assert proc.returncode == 0, proc.stdout + proc.stderr
+E       AssertionError: usage: run_m35_s8_shadow_real [-h] {check-config,selftest,collect,status} ...
+E         run_m35_s8_shadow_real: error: argument command: invalid choice: 'repair-completion' (choose from 'check-config', 'selftest', 'collect', 'status')
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['D:\\dev-projects\\Shutu-AI-Trading-Lab\\.venv\\Scripts\\python.exe', 'D:\\dev-projects\\Shutu-...argument command: invalid choice: 'repair-completion' (choose from 'check-config', 'selftest', 'collect', 'status')\n").returncode
+
+tests\s8_gateway\test_terminal_collection_fence.py:365: AssertionError
+_____________ test_repair_completion_noop_on_verified_completion ______________
+
+tmp_path = WindowsPath('C:/Users/swx1536744/AppData/Local/Temp/pytest-of-sWX1536744/pytest-1231/test_repair_completion_noop_on0')
+ranged_prereg = <apps.market_gateway.prereg_real.PreregistrationReal object at 0x0000013AC6DFD940>
+s8_identity = ForwardIdentity(schema='forward-daemon-identity-v1', runner='scripts/run_m35_s8_shadow_real.py', files=(('apps/market_...ef69eafe2cd78', 'recorded_in': 'artifacts/evidence/M3/r2/code-identity-manifest.json'}, git_commit=None, git_tree=None)
+
+    def test_repair_completion_noop_on_verified_completion(
+            tmp_path, ranged_prereg, s8_identity):
+        state = _simulated_window(tmp_path / "state", ranged_prereg,
+                                  s8_identity)
+        _complete(state, ranged_prereg, s8_identity)
+        snapshot_bytes = (state / SNAPSHOT_NAME).read_bytes()
+    
+        proc = _run_cli(["repair-completion", "--state-dir", str(state),
+                         "--config", str(CONFIG_V2)])
+>       assert proc.returncode == 0
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['D:\\dev-projects\\Shutu-AI-Trading-Lab\\.venv\\Scripts\\python.exe', 'D:\\dev-projects\\Shutu-...argument command: invalid choice: 'repair-completion' (choose from 'check-config', 'selftest', 'collect', 'status')\n").returncode
+
+tests\s8_gateway\test_terminal_collection_fence.py:388: AssertionError
+_________ test_repair_completion_refuses_without_committed_completion _________
+
+tmp_path = WindowsPath('C:/Users/swx1536744/AppData/Local/Temp/pytest-of-sWX1536744/pytest-1231/test_repair_completion_refuses0')
+ranged_prereg = <apps.market_gateway.prereg_real.PreregistrationReal object at 0x0000013AC6DFD940>
+s8_identity = ForwardIdentity(schema='forward-daemon-identity-v1', runner='scripts/run_m35_s8_shadow_real.py', files=(('apps/market_...ef69eafe2cd78', 'recorded_in': 'artifacts/evidence/M3/r2/code-identity-manifest.json'}, git_commit=None, git_tree=None)
+
+    def test_repair_completion_refuses_without_committed_completion(
+            tmp_path, ranged_prereg, s8_identity):
+        """repair-completion must never 'helpfully complete' a window that
+        was never completed ！ that would mint a first WINDOW_COMPLETED
+        outside the controlled operator path."""
+        state = _simulated_window(tmp_path / "state", ranged_prereg,
+                                  s8_identity)
+        assert not (state / SNAPSHOT_NAME).exists()
+        receipts_before = (state / RECEIPTS_NAME).read_bytes()
+        journal_before = _journal_bytes(state)
+    
+        proc = _run_cli(["repair-completion", "--state-dir", str(state),
+                         "--config", str(CONFIG_V2)])
+        assert proc.returncode != 0
+>       assert _last_json(proc.stdout)["repair"] == "NO_COMMITTED_COMPLETION"
+               ^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\s8_gateway\test_terminal_collection_fence.py:408: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+stdout = ''
+
+    def _last_json(stdout: str) -> dict:
+        lines = stdout.strip().splitlines()
+>       start = max(i for i, line in enumerate(lines) if line.startswith("{"))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ValueError: max() iterable argument is empty
+
+tests\s8_gateway\test_terminal_collection_fence.py:198: ValueError
+_________________ test_repair_completion_refuses_empty_state __________________
+
+tmp_path = WindowsPath('C:/Users/swx1536744/AppData/Local/Temp/pytest-of-sWX1536744/pytest-1231/test_repair_completion_refuses1')
+ranged_prereg = <apps.market_gateway.prereg_real.PreregistrationReal object at 0x0000013AC6DFD940>
+s8_identity = ForwardIdentity(schema='forward-daemon-identity-v1', runner='scripts/run_m35_s8_shadow_real.py', files=(('apps/market_...ef69eafe2cd78', 'recorded_in': 'artifacts/evidence/M3/r2/code-identity-manifest.json'}, git_commit=None, git_tree=None)
+
+    def test_repair_completion_refuses_empty_state(
+            tmp_path, ranged_prereg, s8_identity):
+        proc = _run_cli(["repair-completion", "--state-dir",
+                         str(tmp_path / "empty"), "--config", str(CONFIG_V2)])
+        assert proc.returncode != 0
+>       assert _last_json(proc.stdout)["repair"] == "NO_COMMITTED_COMPLETION"
+               ^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\s8_gateway\test_terminal_collection_fence.py:419: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+stdout = ''
+
+    def _last_json(stdout: str) -> dict:
+        lines = stdout.strip().splitlines()
+>       start = max(i for i, line in enumerate(lines) if line.startswith("{"))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ValueError: max() iterable argument is empty
+
+tests\s8_gateway\test_terminal_collection_fence.py:198: ValueError
+________________ test_repair_completion_refuses_corrupt_chain _________________
+
+tmp_path = WindowsPath('C:/Users/swx1536744/AppData/Local/Temp/pytest-of-sWX1536744/pytest-1231/test_repair_completion_refuses2')
+ranged_prereg = <apps.market_gateway.prereg_real.PreregistrationReal object at 0x0000013AC6DFD940>
+s8_identity = ForwardIdentity(schema='forward-daemon-identity-v1', runner='scripts/run_m35_s8_shadow_real.py', files=(('apps/market_...ef69eafe2cd78', 'recorded_in': 'artifacts/evidence/M3/r2/code-identity-manifest.json'}, git_commit=None, git_tree=None)
+
+    def test_repair_completion_refuses_corrupt_chain(
+            tmp_path, ranged_prereg, s8_identity):
+        state = _simulated_window(tmp_path / "state", ranged_prereg,
+                                  s8_identity)
+        _complete(state, ranged_prereg, s8_identity)
+        _chain_committed_missing_snapshot(state)
+        receipt_path = state / RECEIPTS_NAME
+        lines = receipt_path.read_text(encoding="utf-8").splitlines()
+        record = json.loads(lines[0])
+        record["payload"]["payload_digest"] = "1" * 64
+        lines[0] = json.dumps(record, sort_keys=True)
+        receipt_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    
+        proc = _run_cli(["repair-completion", "--state-dir", str(state),
+                         "--config", str(CONFIG_V2)])
+>       assert proc.returncode == EXIT_INTEGRITY_FAILURE
+E       assert 2 == 6
+E        +  where 2 = CompletedProcess(args=['D:\\dev-projects\\Shutu-AI-Trading-Lab\\.venv\\Scripts\\python.exe', 'D:\\dev-projects\\Shutu-...argument command: invalid choice: 'repair-completion' (choose from 'check-config', 'selftest', 'collect', 'status')\n").returncode
+
+tests\s8_gateway\test_terminal_collection_fence.py:437: AssertionError
+_________________ test_repair_completion_refuses_digest_drift _________________
+
+tmp_path = WindowsPath('C:/Users/swx1536744/AppData/Local/Temp/pytest-of-sWX1536744/pytest-1231/test_repair_completion_refuses3')
+ranged_prereg = <apps.market_gateway.prereg_real.PreregistrationReal object at 0x0000013AC6DFD940>
+s8_identity = ForwardIdentity(schema='forward-daemon-identity-v1', runner='scripts/run_m35_s8_shadow_real.py', files=(('apps/market_...ef69eafe2cd78', 'recorded_in': 'artifacts/evidence/M3/r2/code-identity-manifest.json'}, git_commit=None, git_tree=None)
+
+    def test_repair_completion_refuses_digest_drift(
+            tmp_path, ranged_prereg, s8_identity):
+        """New chain events after the committed completion change the facts:
+        the repair must refuse instead of writing a snapshot the receipt does
+        not vouch for."""
+        state = _simulated_window(tmp_path / "state", ranged_prereg,
+                                  s8_identity)
+        _complete(state, ranged_prereg, s8_identity)
+        _chain_committed_missing_snapshot(state)
+        fixture = load_fixture_table(FIXTURE_V2)
+        feed, client, clock = build_selftest_feed(
+            prereg=ranged_prereg, fixture=fixture, identity=s8_identity)
+        client.set_cycle(1)
+        clock.sync_with(client)
+        run_collection_cycle(feed=feed, prereg=ranged_prereg, state_dir=state,
+                             identity=s8_identity, session_index=99)
+    
+        proc = _run_cli(["repair-completion", "--state-dir", str(state),
+                         "--config", str(CONFIG_V2)])
+>       assert proc.returncode == EXIT_INTEGRITY_FAILURE
+E       assert 2 == 6
+E        +  where 2 = CompletedProcess(args=['D:\\dev-projects\\Shutu-AI-Trading-Lab\\.venv\\Scripts\\python.exe', 'D:\\dev-projects\\Shutu-...argument command: invalid choice: 'repair-completion' (choose from 'check-config', 'selftest', 'collect', 'status')\n").returncode
+
+tests\s8_gateway\test_terminal_collection_fence.py:462: AssertionError
+________________ test_repair_completion_refuses_cross_protocol ________________
+
+tmp_path = WindowsPath('C:/Users/swx1536744/AppData/Local/Temp/pytest-of-sWX1536744/pytest-1231/test_repair_completion_refuses4')
+ranged_prereg = <apps.market_gateway.prereg_real.PreregistrationReal object at 0x0000013AC6DFD940>
+s8_identity = ForwardIdentity(schema='forward-daemon-identity-v1', runner='scripts/run_m35_s8_shadow_real.py', files=(('apps/market_...ef69eafe2cd78', 'recorded_in': 'artifacts/evidence/M3/r2/code-identity-manifest.json'}, git_commit=None, git_tree=None)
+
+    def test_repair_completion_refuses_cross_protocol(
+            tmp_path, ranged_prereg, s8_identity):
+        state = _simulated_window(tmp_path / "state", ranged_prereg,
+                                  s8_identity)
+        _complete(state, ranged_prereg, s8_identity)
+        _chain_committed_missing_snapshot(state)
+    
+        proc = _run_cli(["repair-completion", "--state-dir", str(state),
+                         "--config", str(CONFIG_LEGACY)])
+>       assert proc.returncode == EXIT_INTEGRITY_FAILURE
+E       assert 2 == 6
+E        +  where 2 = CompletedProcess(args=['D:\\dev-projects\\Shutu-AI-Trading-Lab\\.venv\\Scripts\\python.exe', 'D:\\dev-projects\\Shutu-...argument command: invalid choice: 'repair-completion' (choose from 'check-config', 'selftest', 'collect', 'status')\n").returncode
+
+tests\s8_gateway\test_terminal_collection_fence.py:476: AssertionError
+_____________ test_repair_completion_write_failure_is_recoverable _____________
+
+tmp_path = WindowsPath('C:/Users/swx1536744/AppData/Local/Temp/pytest-of-sWX1536744/pytest-1231/test_repair_completion_write_f0')
+ranged_prereg = <apps.market_gateway.prereg_real.PreregistrationReal object at 0x0000013AC6DFD940>
+s8_identity = ForwardIdentity(schema='forward-daemon-identity-v1', runner='scripts/run_m35_s8_shadow_real.py', files=(('apps/market_...ef69eafe2cd78', 'recorded_in': 'artifacts/evidence/M3/r2/code-identity-manifest.json'}, git_commit=None, git_tree=None)
+
+    def test_repair_completion_write_failure_is_recoverable(
+            tmp_path, ranged_prereg, s8_identity):
+        state = _simulated_window(tmp_path / "state", ranged_prereg,
+                                  s8_identity)
+        _complete(state, ranged_prereg, s8_identity)
+        _chain_committed_missing_snapshot(state)
+        blocker = state / SNAPSHOT_NAME
+        blocker.mkdir()
+    
+        proc = _run_cli(["repair-completion", "--state-dir", str(state),
+                         "--config", str(CONFIG_V2)])
+>       assert proc.returncode == EXIT_COMPLETION_INCOMPLETE
+E       assert 2 == 7
+E        +  where 2 = CompletedProcess(args=['D:\\dev-projects\\Shutu-AI-Trading-Lab\\.venv\\Scripts\\python.exe', 'D:\\dev-projects\\Shutu-...argument command: invalid choice: 'repair-completion' (choose from 'check-config', 'selftest', 'collect', 'status')\n").returncode
+
+tests\s8_gateway\test_terminal_collection_fence.py:492: AssertionError
+______ test_repair_completion_never_touches_network_feed_or_credentials _______
+
+tmp_path = WindowsPath('C:/Users/swx1536744/AppData/Local/Temp/pytest-of-sWX1536744/pytest-1231/test_repair_completion_never_t0')
+ranged_prereg = <apps.market_gateway.prereg_real.PreregistrationReal object at 0x0000013AC6DFD940>
+s8_identity = ForwardIdentity(schema='forward-daemon-identity-v1', runner='scripts/run_m35_s8_shadow_real.py', files=(('apps/market_...ef69eafe2cd78', 'recorded_in': 'artifacts/evidence/M3/r2/code-identity-manifest.json'}, git_commit=None, git_tree=None)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000013AC701E450>
+preflight_recorder = [], sealed_network = None
+
+    def test_repair_completion_never_touches_network_feed_or_credentials(
+            tmp_path, ranged_prereg, s8_identity, monkeypatch,
+            preflight_recorder, sealed_network):
+        """In-process proof: the repair path performs pure file work only."""
+        state = _simulated_window(tmp_path / "state", ranged_prereg,
+                                  s8_identity)
+        _complete(state, ranged_prereg, s8_identity)
+        _chain_committed_missing_snapshot(state)
+        feed_sentinel = make_feed_sentinel(monkeypatch)
+        import scripts.run_m35_s8_shadow_real as runner
+>       code = runner.cmd_repair_completion(state, CONFIG_V2)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'scripts.run_m35_s8_shadow_real' has no attribute 'cmd_repair_completion'
+
+tests\s8_gateway\test_terminal_collection_fence.py:517: AttributeError
+________ test_repair_completion_tampered_existing_snapshot_is_refused _________
+
+tmp_path = WindowsPath('C:/Users/swx1536744/AppData/Local/Temp/pytest-of-sWX1536744/pytest-1231/test_repair_completion_tampere0')
+ranged_prereg = <apps.market_gateway.prereg_real.PreregistrationReal object at 0x0000013AC6DFD940>
+s8_identity = ForwardIdentity(schema='forward-daemon-identity-v1', runner='scripts/run_m35_s8_shadow_real.py', files=(('apps/market_...ef69eafe2cd78', 'recorded_in': 'artifacts/evidence/M3/r2/code-identity-manifest.json'}, git_commit=None, git_tree=None)
+
+    def test_repair_completion_tampered_existing_snapshot_is_refused(
+            tmp_path, ranged_prereg, s8_identity):
+        """A snapshot that exists but fails verification is an integrity
+        failure for human review ！ the repair never overwrites it."""
+        state = _simulated_window(tmp_path / "state", ranged_prereg,
+                                  s8_identity)
+        _complete(state, ranged_prereg, s8_identity)
+        snapshot = json.loads((state / SNAPSHOT_NAME).read_text(encoding="utf-8"))
+        snapshot["facts_digest"] = "9" * 64
+        (state / SNAPSHOT_NAME).write_text(json.dumps(snapshot),
+                                           encoding="utf-8")
+    
+        proc = _run_cli(["repair-completion", "--state-dir", str(state),
+                         "--config", str(CONFIG_V2)])
+>       assert proc.returncode == EXIT_INTEGRITY_FAILURE
+E       assert 2 == 6
+E        +  where 2 = CompletedProcess(args=['D:\\dev-projects\\Shutu-AI-Trading-Lab\\.venv\\Scripts\\python.exe', 'D:\\dev-projects\\Shutu-...argument command: invalid choice: 'repair-completion' (choose from 'check-config', 'selftest', 'collect', 'status')\n").returncode
+
+tests\s8_gateway\test_terminal_collection_fence.py:538: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/s8_gateway/test_terminal_collection_fence.py::test_collect_once_after_completion_refuses_before_credentials_and_writes
+FAILED tests/s8_gateway/test_terminal_collection_fence.py::test_collect_complete_after_completion_refuses_before_collecting
+FAILED tests/s8_gateway/test_terminal_collection_fence.py::test_collect_refused_on_corrupt_chain_before_any_access
+FAILED tests/s8_gateway/test_terminal_collection_fence.py::test_repeated_terminal_invocations_are_inert
+FAILED tests/s8_gateway/test_terminal_collection_fence.py::test_repair_completion_repairs_missing_snapshot_offline
+FAILED tests/s8_gateway/test_terminal_collection_fence.py::test_repair_completion_noop_on_verified_completion
+FAILED tests/s8_gateway/test_terminal_collection_fence.py::test_repair_completion_refuses_without_committed_completion
+FAILED tests/s8_gateway/test_terminal_collection_fence.py::test_repair_completion_refuses_empty_state
+FAILED tests/s8_gateway/test_terminal_collection_fence.py::test_repair_completion_refuses_corrupt_chain
+FAILED tests/s8_gateway/test_terminal_collection_fence.py::test_repair_completion_refuses_digest_drift
+FAILED tests/s8_gateway/test_terminal_collection_fence.py::test_repair_completion_refuses_cross_protocol
+FAILED tests/s8_gateway/test_terminal_collection_fence.py::test_repair_completion_write_failure_is_recoverable
+FAILED tests/s8_gateway/test_terminal_collection_fence.py::test_repair_completion_never_touches_network_feed_or_credentials
+FAILED tests/s8_gateway/test_terminal_collection_fence.py::test_repair_completion_tampered_existing_snapshot_is_refused
+14 failed, 2 passed in 10.92s
