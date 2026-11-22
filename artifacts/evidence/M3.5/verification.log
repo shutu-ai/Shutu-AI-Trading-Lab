@@ -1,0 +1,64 @@
+=== M3.5 S7 final verification â€” 2026-11-22T08:53:43Z ===
+python: Python 3.13.15
+base: 572 passed pre-change (baseline-pytest.txt)
+
+--- pytest (full suite incl. new suites) ---
+......................................                                   [100%]
+686 passed in 178.86s (0:02:58)
+EXIT_PYTEST=0
+
+--- pytest fault matrix (M2) ---
+...........                                                              [100%]
+11 passed in 127.12s (0:02:07)
+EXIT_MATRIX=0
+
+--- check_environment ---
+pydantic: 2.14.4
+cryptography: 50.0.2
+alpaca env vars: absent (expected for M0 ¡ª no broker access)
+EXIT_ENV=0
+
+--- check_architecture ---
+check_architecture: scanned 5 packages (41 files), 0 violations
+EXIT_ARCH=0
+
+--- scan_secrets ---
+scan_secrets: scanned 393 tracked files, 0 findings
+EXIT_SECRETS=0
+
+--- verify_live_blocked ---
+paper config ok: configs\paper\runtime.example.yaml (PAPER/PAPER_TEST_ACCOUNT)
+verify_live_blocked: paper runtime contains no live artifacts ¡ª PASS
+EXIT_LIVE=0
+
+--- smoke_mock ---
+over-quota request on valid release -> allow=False reasons=('NONCE_REPLAY:nonce=11111111111111111111111111111111', 'CAPITAL_CAP_EXCEEDED:requested=5000.00,signed=1000.00')
+brokers plane is fake-only (zero network/real-broker imports)
+SMOKE PASS: paper gate + kill switch + mock live verification all behaved fail-closed
+EXIT_SMOKE=0
+
+--- git diff --check ---
+warning: in the working copy of 'docs/reviews/M3-engineering.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'pyproject.toml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'scripts/check_architecture.py', LF will be replaced by CRLF the next time Git touches it
+EXIT_DIFFCHECK=0
+
+--- git status --short (summary) ---
+ M artifacts/evidence/M2/a5-true-process-race/process_concurrent_50.log
+ M artifacts/evidence/M2/a6-strict-process-proof/barrier_50_rounds.jsonl
+ M artifacts/evidence/M2/final-send-claim/a2-quantitative-close/process_50_rounds.log
+ M docs/reviews/M3-engineering.md
+ M pyproject.toml
+ M scripts/check_architecture.py
+?? Shutu_AI_Trading_Lab_M3_5_Shadow_Forward_Codex_Task.md
+?? Shutu_AI_Trading_Lab_M3_R1_Independent_Review_20261121.md
+?? Shutu_AI_Trading_Lab_M3_R2_Research_Evidence_Integrity_Codex_Task.md
+?? apps/
+?? artifacts/evidence/M3.5/
+?? configs/forward_observation.yaml
+?? docs/reviews/M3.5-engineering.md
+?? docs/reviews/M3.5-real-capital.md
+?? docs/reviews/M3.5-strategy.md
+?? scripts/run_m35_shadow_replay.py
+?? tests/architecture/test_daemon_plane_rules.py
+?? tests/forward_smoke/

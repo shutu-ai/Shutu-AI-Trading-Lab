@@ -1,0 +1,73 @@
+# M3.5 负例与故障注入测试记录（S3）
+
+执行环境: Python 3.13.15（`.venv-m35-review`，Windows 11，本地执行）
+测试套件: `tests/forward_smoke/`（90 项）+ `tests/architecture/test_daemon_plane_rules.py`（24 项）
+RED 证据: `red-run.log`（实现模块不存在时的原始失败输出，收集错误 = ModuleNotFoundError: apps.trading_daemon.prereg）
+GREEN 证据: `verification.log`（全量回归，含本套件）
+
+## RED → GREEN 纪律说明
+
+本阶段全部为新增行为（daemon 之前不存在），无"旧行为"可标 ALREADY_SAFE 的场景中，唯一
+ALREADY_SAFE 项为：审计链/头部记录/外部锚机制本身（`security.audit.AuditLog`，M0 建成，
+已有 `tests/security/test_audit.py` 覆盖），本阶段只做消费与补充锚检查。其余负例均为
+RED（实现缺失 → 收集失败，见 red-run.log）→ 实现 → GREEN（全量回归）。
+
+## 崩溃时刻矩阵（S3 第一组）
+
+| 崩溃点 | 期望 | 测试 | 结果 |
+|---|---|---|---|
+| 预测已生成未持久化 | 重启后正常锁定一次 | `test_restart_recovery.py::test_crash_after_partial_stream_then_recover`（真子进程 os._exit + 锁残留 + 租约接管） | PASS |
+| 预测已锁定未评分 | 重启续跑，恰好一次评分 | 同上（session open 状态恢复） | PASS |
+| 观察已入库评分前 | 恢复补分恰好一次（recovered=true） | `test_resume_observed_but_unscored_slot`（手工构造两个 append 之间的持久状态） | PASS |
+| 评分后重启 | 纯重复，不重评分 | `test_full_run_then_restart_all_duplicates` | PASS |
+| 未持久任何数据即崩溃 | CLEAN_START，无幽灵锁定 | `test_crash_before_any_persistence_is_clean_start` | PASS |
+
+## 异常事件矩阵（S3 第二组）
+
+| 异常 | 处置 | 测试 | 结果 |
+|---|---|---|---|
+| 重复事件（同 id 同逻辑载荷） | 幂等 DUPLICATE，计数+审计 | `test_idempotency.py::test_redelivery_same_payload_is_idempotent_duplicate` | PASS |
+| 同 id 不同载荷 | REJECTED_CONFLICT + 保守挂起 | `test_same_event_id_different_payload_is_conflict`, `test_engine_suspended_after_conflict_refuses_further_work` | PASS |
+| 乱序事件 | HELD（不消费、不静默重排） | `test_negative_events.py::test_out_of_order_held_not_consumed` | PASS |
+| 晚到回填（>1 天） | HELD + late_backfill 标记 | 同上（details.late_backfill=True） | PASS |
+| 未来可得时间（超出时域） | HELD_FUTURE_STAMP（时钟检查前判定） | `test_future_stamp_beyond_horizon_held` | PASS |
+| 超出 TTL（事件数） | EXPIRED_TTL_EVENTS + 分母计数 | `test_ttl_expiry_of_open_slot` | PASS |
+| 会话结束仍未观察 | EXPIRED_SESSION_END | `test_time_lock.py::test_lock_precedes_observation_precedes_score`（末槽位） | PASS |
+| 空/损坏事件 | REJECTED_MALFORMED | `test_empty_and_corrupt_payloads_rejected`；envelope 负例组（naive 时间戳/available<event/坏哈希/浮点 close/缺失字段） | PASS |
+| 未准入数据集/来源/符号 | REJECTED_*_NOT_ADMITTED | `test_unadmitted_source_rejected` / `test_unadmitted_dataset_hash_rejected` / `test_unadmitted_symbol_rejected` | PASS |
+| 非法市场时钟（非交易日） | REJECTED_MARKET_CLOCK | `test_weekend_session_clock_rejected` | PASS |
+| 非法市场时钟（场外时段） | REJECTED_MARKET_CLOCK | `test_off_session_clock_rejected` | PASS |
+| 环境/账户混用（声称 PAPER） | REJECTED_ENV_MISMATCH | `test_environment_mismatch_rejected` | PASS |
+| 账本尾截断（head 不符） | 拒绝启动 | `test_journal_integrity.py::test_tail_truncation_detected_via_head_record` | PASS |
+| 账本中部篡改 | 拒绝启动 | `test_middle_edit_detected` | PASS |
+| 整文件替换/缩短（锚不符） | 拒绝启动 | `test_external_anchor_detects_whole_file_replacement` / `test_shorter_journal_than_anchor_refused` / `test_anchor_tampering_detected` | PASS |
+| 无锁定观察（时间倒流构造） | 完整性错误，拒绝打开 | `test_time_lock.py::test_observation_without_lock_is_integrity_failure` | PASS |
+| 陈旧锁（未到期） | 保守拒绝启动 | `test_session_lock.py::test_second_acquire_while_held_refused` + `test_dual_process_conflict`（真双进程） | PASS |
+| 陈旧锁（已到期） | 审计后接管（STALE_LEASE_TAKEOVER 入链） | `test_expired_lease_allows_audited_takeover` + 崩溃恢复组 | PASS |
+| 断网模拟 | socket 挂断路器，回放全程零使用 | `test_no_broker_writes.py::test_replay_refuses_network_even_if_attempted` | PASS |
+| 断源模拟 | complete=False 会话挂起（`driver.run_replay(complete=False)`，崩溃恢复组消费同一语义） | `test_restart_recovery.py` 全组 | PASS |
+
+## 券商写监视（S3 第三组）
+
+| 检查 | 期望 | 测试 | 结果 |
+|---|---|---|---|
+| BrokerPort/FakeBroker submit/cancel 计数 | 全程 0 | `test_replay_makes_zero_broker_calls_with_monitor_wired`, `test_wired_fakebroker_is_never_called_and_never_is_execution_evidence` | PASS |
+| FakeBroker ACK 不计执行证据 | 摘要无 ack/fill/execution/order 字段 | `test_wired_fakebroker_...`（键扫描断言） | PASS |
+| 环境出现 APCA/ALPACA 凭证 | 只记录可见性（审计），从不读取值、从不连接 | `test_broker_credentials_visible_but_never_used` + `test_daemon_sources_never_read_environment_values`（AST：禁止 os.environ 取值） | PASS |
+| daemon 导入路径静态无 brokers/oms/risk/网络 | 0 违规 | `test_daemon_sources_have_no_broker_or_network_imports` + `tests/architecture/test_daemon_plane_rules.py`（14 拒绝 + 9 合法用例 + 实包扫描） | PASS |
+
+## M1 U-1 隔离（S3 第四组）
+
+| 检查 | 期望 | 测试 | 结果 |
+|---|---|---|---|
+| VendorFacts 式能力声明冒充 | 不可经 Shadow 准入旁路；来源拒绝 | `test_vendor_capability_claim_cannot_bypass_admission` | PASS |
+| 预注册接受能力声明 | 加载即拒绝 | `test_prereg.py::test_vendor_capability_claims_refused` | PASS |
+| M1 原始 BLOCKED_DATA | 保持不变（本阶段未触碰 data 准入） | 本文件声明 + `git diff 906bf6f..HEAD` 无 data/ 准入变更；M3 身份重算一致（`test_identity.py::test_m3_r2_identity_recomputes_unchanged_at_current_head`） | PASS |
+
+## 明确分母与零样本诚实性（S4 联动）
+
+- `test_report.py::test_denominators_explicit_no_zero_sample_percent_claims`：任何 `_pct` 数值必须带正分母；
+- scored 桶 hit/miss/no_claim/flat_close 之和 == total；
+- 0 重复注入的会话如实报 `duplicates=0`，不宣称 100% 检出率。
+
+总计：负例/故障/恢复相关测试 114 项全绿；无 skip、无 xfail、无阈值下调。

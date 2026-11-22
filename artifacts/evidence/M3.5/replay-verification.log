@@ -1,0 +1,22 @@
+# M3.5 replay verification log
+
+- preregistration: m35-shadow-synthetic-replay-v1 `protocol_hash=91b2671901f2e7a2b3d3181258771d8dc5fc51bed3374994d2658b3a47d1d8b1`
+- identity: forward-daemon-identity-v1 `code_hash=2c7f98a9c3abd3305186b7415caee2944e962426b420eaa3f61429c0356bf91b` files=44 runner=scripts/run_m35_shadow_replay.py
+- git: commit=e1301c5ebd5eff7c307ec500849b8d8fd83c9525 tree=3e309b8ffddcbc3cc83c74321ae46b6485a84d28
+- fixture: m35-shadow-replay-v1 dataset_hash=e55de024dc2cb605e6fe8a8afadaabe932ee9e55fa38be4f14538b923e13b10c sessions=30
+
+## Run 1 — fresh replay
+- counters: {'events_delivered': 30, 'consumed': 30, 'locked': 26, 'observed': 25, 'scored': {'total': 25, 'hit': 5, 'miss': 9, 'no_claim': 11, 'flat_close': 0}, 'expired': 1, 'rejected': 0, 'held': 0, 'duplicates': 0}
+- score_sequence: ['hit', 'miss', 'miss', 'miss', 'no_claim', 'no_claim', 'no_claim', 'no_claim', 'no_claim', 'hit', 'hit', 'miss', 'miss', 'miss', 'no_claim', 'no_claim', 'no_claim', 'no_claim', 'no_claim', 'hit', 'hit', 'miss', 'miss', 'miss', 'no_claim']
+- logical_digest: `e2e8fdd64c2fc30a6a46b0b399cfa4a40f99522227f3f49f6bafcde929177c6e`
+- journal verify after run 1: ok=True (109 entries verified)
+
+## Run 2 — identical replay, fresh state (S2.4)
+- logical_digest equal: True
+- score_sequence equal: True
+- counters equal: True
+
+## Run 3 — full redelivery onto the same journal (S1/S3)
+- duplicates: 30 (expected 30)
+- new scores this session: 0 (expected 0)
+- journal verify after run 3: ok=True (141 entries verified)

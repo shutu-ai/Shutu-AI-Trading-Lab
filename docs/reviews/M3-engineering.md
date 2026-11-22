@@ -67,3 +67,20 @@
 | R2-P1-2 账本 | FIXED：加载前验链 + 身份/计数一致性 fail-closed + 单写者锁 + 外部锚；尾截断/替换/清空经锚可检测；**诚实边界钉住**：无独立锚的 JSONL 不具备不可抵赖性 |
 | 测试分母 | 522 → **572**（+50，0 删/跳/xfail；3 处既有测试更新均非弱化，逐处声明见 r2 evidence）；1,080 矩阵专项重跑 11 cases EXIT=0；architecture 5 包 27 文件 0 违规 |
 | next_gate | 不变：M3_GATE=USER_PENDING；push/M3 关闭/M3.5/M4 需用户分别签批 |
+
+---
+
+# M3 关闭签批记录（2026-11-22，追加不改史）
+
+> 本节为追加记录，不改动上文任何历史事实与状态行。
+
+- **2026-11-22**：用户在 M3.5 执行授权会话中明确签批
+  `M3_GATE=CLOSED_WITH_SCOPE(SYNTHETIC_ENGINEERING_ONLY)` 与 `M3.5_START=APPROVED`
+  （签批原话、核验过程与范围边界记录于 `artifacts/evidence/M3.5/authorization.md`）。
+- 关闭范围语义：M3 在**合成工程证据范围**内关闭（受测代码 `906bf6f`，CI run
+  `44998829308` 双矩阵 572 passed）；不解除 `BLOCKED_DATA`（全市场历史研究）、
+  不解除 `M1 U-1 UNRESOLVED`、不宣称任何真实 OOS/Alpha 证据；
+  M3 旧账本/旧锚/旧协议/历史预算零改写（M3.5 侧以身份重算测试持续证明，见
+  `tests/forward_smoke/test_identity.py`）。
+- M3.5 执行期间新增的守护：M3 `research-code-identity-v1` 身份在当前 HEAD 重算
+  仍等于 `af7ff10c…`（`test_m3_r2_identity_recomputes_unchanged_at_current_head`）。
