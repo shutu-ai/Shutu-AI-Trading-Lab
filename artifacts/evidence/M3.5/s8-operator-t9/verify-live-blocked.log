@@ -1,0 +1,2 @@
+paper config ok: configs\paper\runtime.example.yaml (PAPER/PAPER_TEST_ACCOUNT)
+verify_live_blocked: paper runtime contains no live artifacts ¡ª PASS

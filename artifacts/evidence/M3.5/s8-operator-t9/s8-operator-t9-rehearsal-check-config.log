@@ -1,0 +1,42 @@
+{
+  "calendar": {
+    "half_days": [
+      "2026-11-27",
+      "2026-12-24"
+    ],
+    "holidays": [
+      "2026-11-26",
+      "2026-12-25",
+      "2027-01-01"
+    ],
+    "valid_from": "2026-11-23",
+    "valid_until": "2027-01-08"
+  },
+  "contract_legacy": false,
+  "data_contract": {
+    "adjustment": "raw",
+    "bars_endpoint": "ranged_daily_bars",
+    "limit": 10000,
+    "page_cap": 5,
+    "timeframe": "1Day",
+    "window_bounds": "session_midnight_et_to_received_at"
+  },
+  "dataset_admission": "receipt_content_hash",
+  "environment": "REAL_SHADOW_READ_ONLY",
+  "feed": "iex",
+  "identity_code_hash": "edf61501ffc3decd1919af0ea72a3b1b7c0c783364f67882806aadfdffeb6d94",
+  "identity_files": 55,
+  "identity_schema": "forward-daemon-identity-v1",
+  "min_trading_days": 5,
+  "mode": "REAL_SHADOW_READ_ONLY",
+  "paper_write": "NOT_AUTHORIZED",
+  "plan": "basic_free",
+  "protocol_hash": "f373b83468aed302866a2e73ec37614ad8916ebd98579ab5bf4404e284a02019",
+  "protocol_id": "m35-s8-real-shadow-readonly-v2",
+  "read_only": true,
+  "schema": "forward-observation-preregistration-v3",
+  "symbols": [
+    "SPY",
+    "QQQ"
+  ]
+}

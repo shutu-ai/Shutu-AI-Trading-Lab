@@ -78,3 +78,17 @@ NEXT_APPROVAL_REQUIRED=separate push approval, then operator A-C and later one-c
 ```
 
 **停止点：本地提交后停止（`PUSH_AUTHORIZATION_REQUIRED`），等待下一次人工授权。**
+
+---
+
+## 追加回填（T9.1，2026-11-22，追加式——上文成文时的事实保持不变）
+
+上文 "T8_CI=REMOTE_PENDING" 为成文时（本地提交 `ca74989` 之前）的事实。
+其后经用户单独授权推送 `0b1f3b7..ca74989`，GitHub Actions run
+[`45035699101`](https://github.com/shutu-ai/Shutu-AI-Trading-Lab/actions/runs/45035699101)
+（head `ca749890521ce0d16f31b0984a3f4f0518176369`）双平台 **960 passed**
+（ubuntu 75.73s / windows 331.30s），静态门全绿 →
+**`T8_CI=REMOTE_VERIFIED`**。完整核验依据（含 job ID、原始 pytest 行、
+门步骤原句）见 `../s8-operator-t9/remote-ci-backfill.md`。
+该 run 只证明 T8 代码，不证明真实 Alpaca API 行为或主机出口隔离；
+`API_VERIFIED=NONE` 不变。

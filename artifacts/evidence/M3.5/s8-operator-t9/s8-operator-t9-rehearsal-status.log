@@ -1,0 +1,40 @@
+{
+  "completion_problems": [],
+  "completion_state": "NOT_STARTED",
+  "eligibility": {
+    "broker_writes": 0,
+    "eligibility": "BLOCKED_ENV",
+    "forward_window_status": "NOT_STARTED",
+    "paper_orders": "PAPER_NOT_RUN",
+    "r": "NOT_STARTED",
+    "real_source": "ALPACA_IEX_BASIC_READ_ONLY",
+    "reason": "offline harness incomplete: journal_verified",
+    "s": "INCONCLUSIVE",
+    "trading_days_observed": 0
+  },
+  "evaluation_snapshot": {
+    "present": false
+  },
+  "facts": {
+    "audits_passed": false,
+    "cycles_after_feed_error": 0,
+    "days_full_coverage": 0,
+    "days_partial": 0,
+    "disconnect_recoveries": 0,
+    "duplicate_broker_orders": 0,
+    "duplicate_events": 0,
+    "duplicate_recoveries": 0,
+    "events_synthetic": false,
+    "feed_errors": 0,
+    "journal_verified": false,
+    "protocol_binding_ok": false,
+    "quality_rejects": 0,
+    "receipt_evidence_ok": false,
+    "receipts_verified": false,
+    "scored": {},
+    "symbols_expected": 2,
+    "trading_days_observed": 0,
+    "unauthorized_broker_orders": 0
+  },
+  "facts_digest": "6df4ffd557c04489aed226b02891b9fe00e6b549a05d25e8834065694727c01c"
+}
