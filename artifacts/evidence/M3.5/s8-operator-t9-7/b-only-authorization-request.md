@@ -17,6 +17,24 @@
 
 环境标识（非敏感）：＿＿＿＿＿＿＿＿＿＿　state dir 标识/hash：＿＿＿＿＿＿＿＿
 
+> **2026-11-23 T9.8 修订（直连受限试点例外——上述 §1 前置不删除，新增可
+> 验证替代分支）**：经用户批示（`Shutu_M35_S8_T9_8_Windows_Direct_Limited_
+> Pilot_Approval.md`；审批记录见 `../s8-operator-t9-8/windows-direct-pilot-
+> approval-record.md`），C 前置出现**政策例外分支**。现行门语义：
+>
+> `A_verified AND ((C_verified AND environment_frozen) OR
+>  (direct_pilot_exception_approved AND local_risk_acceptance_signed AND
+>   environment_frozen))`
+>
+> - 替代分支下 C 保持**实测原值** `OPERATOR_PREFLIGHT_C=BLOCKED`
+>   （2026-11-23 直连主机 F-2 失败）、`HOST_EGRESS_ISOLATION_UNVERIFIED`
+>   保持——例外**不写成** `C=VERIFIED_BY_OPERATOR`、`F-2=PASS`；
+> - 走替代分支的申请须随附：T9.8 批示 + 例外审批记录引用 +
+>   **本人已签署的本地直连残余风险接受记录**（approval-record §8.2，
+>   签署副本仅存本地，仓库内只填非敏感索引）；
+> - 原 §1 全矩阵路径（C=VERIFIED）**保持可用、未被废除**；本修订不改变
+>   §2 范围、§3 诚实边界与两授权独立性，本身不构成任何执行授权。
+
 ## 2. 申请范围（严格有限，逐条）
 
 1. 在指定环境的**一个受控子进程**中，由本人注入

@@ -5,6 +5,23 @@
 > 证据永远留在操作者本地，不入仓库、不交 Agent）。本卡不含任何可自动执行
 > 真实调用的脚本。
 
+> **2026-11-23 T9.8 修订（直连受限试点例外——顺序不变，步骤 2/4 前置出现
+> 可验证替代分支）**：经用户批示（根目录
+> `Shutu_M35_S8_T9_8_Windows_Direct_Limited_Pilot_Approval.md`；审批记录
+> `../s8-operator-t9-8/windows-direct-pilot-approval-record.md`）：
+> - 步骤 2（C 全矩阵）在直连主机上实测 **F-2 失败**，现势状态
+>   `OPERATOR_PREFLIGHT_C=BLOCKED`（本文原记录 `PENDING_OPERATOR` 系
+>   T9.7 时点，不另改写）；`HOST_EGRESS_ISOLATION_UNVERIFIED` 保持；
+> - 直连试点走**例外分支**时，步骤 3 之后、步骤 4 之前须插入：
+>   本人签署本地「直连残余风险接受记录」（approval-record §8.2）；
+> - 步骤 4 前置由"A=VERIFIED、C=VERIFIED"扩展为：
+>   `A_verified AND ((C_verified AND environment_frozen) OR
+>    (direct_pilot_exception_approved AND local_risk_acceptance_signed AND
+>     environment_frozen))`——例外分支下申请须随附 T9.8 批示与风险接受
+>   记录的非敏感索引；
+> - C 全矩阵原路径保持可用；铁律不变：步骤 4/7 批准互相独立，任何
+>   BLOCKED/异常即停，判据不为推进而放宽。
+
 | # | 步骤 | 谁执行 | 前置 | 记录栏（执行时填） | 状态 |
 |---|---|---|---|---|---|
 | 1 | A 账户与许可核对（attestation §A1–A5；官方条款页本人阅读当期版本） | 账户所有者 | — | 状态：＿＿ 时间：＿＿ 证据索引：＿＿ | PENDING_OPERATOR |

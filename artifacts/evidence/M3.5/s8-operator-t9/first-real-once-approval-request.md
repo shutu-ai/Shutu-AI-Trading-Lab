@@ -13,6 +13,15 @@
 > 绝不预授权本申请。依赖顺序见
 > `../s8-operator-t9-7/operator-gate-reconciliation.md` §3 决策图。
 
+> **2026-11-23 T9.8 修订（直连受限试点例外）**：上表 C 行的
+> `PENDING_OPERATOR` 系 T9.7 时点记录，保留不改；2026-11-23 直连主机实测
+> F-2 失败，现势状态 `OPERATOR_PREFLIGHT_C=BLOCKED`、
+> `HOST_EGRESS_ISOLATION_UNVERIFIED` 保持。经用户批示（根目录
+> `Shutu_M35_S8_T9_8_Windows_Direct_Limited_Pilot_Approval.md`；审批记录
+> `../s8-operator-t9-8/windows-direct-pilot-approval-record.md`），C 前置
+> 出现可验证替代分支（下方 §6）；例外**不写成** `C=VERIFIED_BY_OPERATOR`
+> 或 `F-2=PASS`。B-only 成功（本人签署）后才可提交本申请的顺序不变。
+
 | 项 | 状态 | 签署依据（操作者本地 attestation，不入仓库） |
 |---|---|---|
 | A 账户与许可 | **PENDING_OPERATOR** | ＿＿（签署后填本地模板版本/日期） |
@@ -86,6 +95,19 @@
 >       步骤已备
 > - [ ] CI 基线一致（HEAD 对应的远端 CI 绿；基线漂移需重新核验）
 > - [ ] 异常停止规则知悉（reconciliation §8：疑似并发/链漂移/进程异常即停）
+
+> **2026-11-23 T9.8 修订（前置不删除，新增可验证替代分支）**：上列
+> "A/B/C 的人工签署记录实际成立"中的 C 腿，在直连受限试点例外范围内可由
+> 下列**替代条件**满足（批示与审批记录见上方 T9.8 修订注）：
+>
+> `A_verified AND ((C_verified AND environment_frozen) OR
+>  (direct_pilot_exception_approved AND local_risk_acceptance_signed AND
+>   environment_frozen))`
+>
+> 替代分支要求本清单额外附上：T9.8 批示 + 例外审批记录引用 + 本人签署的
+> 本地直连残余风险接受记录（非敏感索引）+ 直连试点停止/撤销条款知悉
+> （approval-record §6）。原 C 全矩阵路径保持可用；本修订不改变申请的
+> "草案≠授权"性质，`FIRST_REAL_ONCE_READY=NO` 不变。
 
 申请人（账户所有者）请求：**仅一次** `collect --once` 真实只读采集周期，
 在上述已签署环境内执行；该授权不覆盖第二个周期、不覆盖 `--complete`、

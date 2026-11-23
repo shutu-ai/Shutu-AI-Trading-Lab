@@ -82,3 +82,19 @@
   仓库中出现签署副本即视为违规入库（应立即本地删除该副本并报告）。
 - A/B/C 三项相互独立：可以单独 VERIFIED；`FIRST_REAL_ONCE_READY` 只在三
   项全部 `VERIFIED_BY_OPERATOR` **且**用户另行单独授权后才可能升级。
+
+> **2026-11-23 T9.8 修订（直连受限试点例外——上一行门槛不删除，新增可
+> 验证替代分支）**：经用户批示（根目录
+> `Shutu_M35_S8_T9_8_Windows_Direct_Limited_Pilot_Approval.md`；审批记录
+> `../s8-operator-t9-8/windows-direct-pilot-approval-record.md`），在批示
+> 定义的直连受限只读试点范围内，"C 全部 VERIFIED"一腿可由替代条件满足：
+>
+> `A_verified AND ((C_verified AND environment_frozen) OR
+>  (direct_pilot_exception_approved AND local_risk_acceptance_signed AND
+>   environment_frozen))`
+>
+> 事实基线不变：2026-11-23 直连主机实测 F-2 失败，C 保持实测原值
+> `BLOCKED`（§C 判据与 `HOST_EGRESS_ISOLATION_UNVERIFIED` 规则照旧）；
+> 例外不写成 C `VERIFIED`、不虚构 F-1～F-8 证据、不要求修改 Windows 全局
+> 防火墙。A 与 B 的核验/签署要求**零降低**；§C 的负例矩阵仍是全矩阵路径
+> 与环境切换重验的判据。

@@ -155,3 +155,35 @@ VM 销毁，证据链断裂，窗口作废重来（且不得用任何复制摘�
   漂移（digest 不匹配、链 verify 失败、status exit 6/7）或采集进程异常，
   **立即停止后续采集**，人工复核后再决定是否继续；
 - 每次异常都如实记录时间/退出码/状态输出摘要到操作者本地记录。
+
+## 9. T9.8 附录：Windows 直连受限试点例外（2026-11-23，增量修订——§1–§8 原文保持不变）
+
+> 依据：用户批示（根目录 `Shutu_M35_S8_T9_8_Windows_Direct_Limited_Pilot_
+> Approval.md`）；审批记录
+> `../s8-operator-t9-8/windows-direct-pilot-approval-record.md`。
+> 批准：`S8_WINDOWS_DIRECT_PILOT_POLICY=APPROVED_WITH_SCOPE`、
+> `HOST_EGRESS_ISOLATION_EXCEPTION=APPROVED_WITH_SCOPE(WINDOWS_DIRECT_READ_ONLY_PILOT)`。
+
+1. **实测事实（2026-11-23，操作者直连主机）**：ActiveStore 三档
+   `DefaultOutboundAction=Allow`；`data/api/paper-api.alpaca.markets:443`
+   实测可达；网络层 **F-2 不成立**。现势状态：
+   `OPERATOR_PREFLIGHT_C=BLOCKED`（§2/§3 成文时的 `PENDING_OPERATOR` 为
+   T9.7 时点记录，保留不改）；`HOST_EGRESS_ISOLATION_UNVERIFIED` 保持。
+2. **例外分支（仅限批示定义的直连受限只读试点范围）**：单用户、非资金、
+   只读 IEX 日线、冻结标的（SPY/QQQ，最多原批准 3 个）、前台人工操作；
+   程序级守卫（GuardedGetClient 等）仍是必要纵深防御，**不等于**宿主
+   网络拦截或凭证只读。
+3. **准入门语义替代（不删除原门槛，改为可验证析取）**：
+   `A_verified AND ((C_verified AND environment_frozen) OR
+   (direct_pilot_exception_approved AND local_risk_acceptance_signed AND
+   environment_frozen))`。例外分支下，§3 决策图的步骤 2 以
+   "本人签署本地直连残余风险接受记录（approval-record §8.2）"替代
+   "C 全矩阵 VERIFIED"；步骤顺序 1→(2 或 2′)→3→4→5→6 与两授权独立性
+   不变。`environment_frozen` = §5 登记表完成 + §6 持久状态卷落实。
+4. **不变的禁令**：不改 C 原值（例外 ≠ `C=VERIFIED`/F-2=PASS）；不跳过
+   B-only 独立授权；不跳过首次 once 独立授权；不改写已冻结历史记录；
+   F-1～F-8 原始 FAIL/UNVERIFIED 证据不得虚构。
+5. **停止/撤销**：触发条件与动作见 approval-record §6——泄露迹象、交易域
+   访问、意外订单、环境改变、版本漂移等任一即停；Key 撤销/轮换由账户
+   所有者执行；证据不自动清除、不自动续采；用户可随时明示撤销例外，
+   撤销后回落到 §3 原全矩阵路径。
