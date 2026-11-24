@@ -914,3 +914,22 @@ docs/plans/Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md
 - `DESIGN_FREEZE_READY / ENGINEERING_START_APPROVAL_PENDING`：本次定向修订已准备好供本人签署工程启动批准；未经该批准不得启动 M-1。
 - 本次交付只包含两份 Markdown 文档；**未运行开源 POC、未执行 M-1、未开立/连接账户、未部署 Paper 或 Live、未创建有效实盘签名**。设计冻结候选准备完成，当前停在 `ENGINEERING_START_APPROVAL_PENDING`。
 - 审查通过后可另行授权执行 M-1；任何 M0–M11、实盘批准或资金操作均需在将来分别满足条件，不能由本次文档交付自动触发。
+
+---
+
+## 18. 2026-11-24 追加：历史研究并行补证交叉引用（M3-H，最小日期化说明）
+
+> 本节为日期化追加，不重写架构主干，不新增/修改任何阈值或准入状态。
+
+- M1 `BLOCKED_DATA` 的语义自 2026-11-24 起按**用途**细分治理：全市场研究维持
+  `BLOCKED_DATA`；"受限 ETF 日线历史研究"作为独立新增用途（H1，授权草案
+  `docs/reviews/M3-historical-readonly-data-authorization-draft-20261124.md`，
+  `AUTHORIZATION_PENDING`）按本方案 §4.1 供应商矩阵与 `configs/data_acceptance.yaml`
+  判定机制另行评估；阻塞项按用途登记于
+  `docs/reviews/M3-historical-data-blocker-register-20261124.md`。
+- 差距审计与双工作流（H0→H3）定义见
+  `docs/reviews/M3-historical-research-gap-audit-20261124.md` 与
+  `docs/plans/M3-historical-research-workstream-20261124.md`；执行顺序/阶段门/
+  阻塞治理以 Codex 执行计划附录 A3-H（2026-11-24）为准。
+- 每次阶段验收附 **Goal Alignment Check**（目标对齐报告，非第四准入状态，不改变
+  §0.4 三轨定义）。本节不改变 M9 最终 Holdout、M3.5 前向窗口与任何既有门。

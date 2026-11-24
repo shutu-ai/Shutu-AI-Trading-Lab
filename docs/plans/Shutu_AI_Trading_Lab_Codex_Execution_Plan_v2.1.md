@@ -270,3 +270,51 @@ docs/plans/Shutu_AI_Trading_Lab_Codex_Execution_Plan_v2.1.md
 4. **本次 v2.1 只进行文档修订**。最终状态 `DESIGN_FREEZE_READY / ENGINEERING_START_APPROVAL_PENDING`：不运行 M-1、不运行任何 mock/Paper 实验、不接触 Live、不生成真实签批、不自动推进阶段。
 
 **变更对照表**：完整 v2.0 → v2.1 十项矩阵见总体方案 §15，覆盖本任务书对应 M 阶段、工件路径、信任边界和验收负例。
+
+---
+
+## 附录 A3-H（2026-11-24 追加）：历史研究并行补证治理（M3-H 双工作流）
+
+> 本附录由任务书 `M3-HISTORICAL-RESEARCH-ROADMAP-CORRECTION-20261124-R1`（2026-11-24）建立。
+> **只追加执行顺序/准入分叉/阶段门/阻塞治理**：上文 M-1～M11 原表、E/S/R 三轨定义、
+> M9 最终 Holdout 与全部原始阈值**原样不变**。本附录不是第四种准入状态，不改变任何
+> 既有门语义，不建立平行权威；展开文档以
+> `docs/plans/M3-historical-research-workstream-20261124.md` 为准。
+
+### A3-H.1 双工作流准入分叉
+
+- **工作流 A（既有）**：M3.5 Forward Engineering——沿用已冻结 S8 协议与"每周期单独
+  授权"规则；真实前向天数只能自然积累，禁止历史回填/模拟事件替代。当前
+  `REAL_FORWARD_DAYS=1`、`eligibility=PENDING_FORWARD_WINDOW`、`M3.5_GATE=USER_PENDING`
+  （`docs/reviews/M3.5-S8-T9.9-First-Real-ReadOnly-Once.md`）。
+- **工作流 B（新增，独立补充）**：M3-H Historical Research Readiness——H0（离线治理，
+  已于 2026-11-24 完成）→ H1（受限只读历史数据试点，`AUTHORIZATION_PENDING`）→
+  H2（受限历史回测研究，`AUTHORIZATION_PENDING`）→ H3（M4 开工申请提案，
+  `AUTHORIZATION_PENDING`）。每级有独立进入条件/输出工件/客观验收判据/失败回退/
+  禁止清单/人工批准节点（见展开文档 §1–§4）。
+- 两流互不授权：A 的真实前向成功不解锁 B 的历史数据门；B 的历史试点不推进 A 的
+  前向窗口；两者都不构成 M4/Paper/Live 授权。
+
+### A3-H.2 阶段门与停止规则
+
+| 门 | 状态 | 通过条件 |
+|---|---|---|
+| H0 离线治理 | READY_FOR_OPERATOR_REVIEW | 四份文档 + 两处日期化追加 + 静态门 EXIT=0 + 一次 docs-only 本地提交 |
+| M3-H-H1-GATE | USER_PENDING | 用户签署 H1 授权草案后执行；证据按 API_VERIFIED 限定范围登记 |
+| M3-H-H2-GATE | USER_PENDING | H1 数据合格 + 用户签批 H2；上限证据等级 HIST_OOS_SUPPORTED |
+| M3-H-H3-GATE | USER_PENDING | 仅 H2 合格后可提出 M4 开工**申请提案**；M4 仍按本任务书 M4 行另行签批 |
+
+### A3-H.3 阻塞治理
+
+`BLOCKED_DATA` 类阻塞按用途登记于
+`docs/reviews/M3-historical-data-blocker-register-20261124.md`（首版 R1–R6），
+每项必含 `objective_unblock_condition` 与 `review_trigger`；状态更新为追加式。
+**记录阻塞 ≠ 解决阻塞**；解除以客观条件核验为准，供应商文档声明不算证据。
+
+### A3-H.4 Goal Alignment Check（目标对齐检查）
+
+自本附录起，每次阶段验收报告（E/S/R 三轨之外）必须附一节 **Goal Alignment Check**：
+对照原始产品目标（总体方案 §0.1）报告核心业务能力的推进或偏离（如：真实历史数据
+准入、真实前向窗口、策略证据等级的实际变化），并引用证据路径。
+**该检查不是第四种准入状态**：不产生 PASS/FAIL 门权，不得以测试计数、CI 绿替代
+真实能力进展的陈述，也不得据此自动推进任何阶段。
