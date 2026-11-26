@@ -21,7 +21,7 @@
 | A1 | 账户为用户本人的 Alpaca 账户（Paper/Basic 档即可，无需入金） | DOCUMENTED（T9.9 已有真实账户与只读成功事实） | 操作者确认账户仍有效 |
 | A2 | 该账户的数据许可允许**历史**数据用于**个人研究**（条款全文以账户协议当期文本为准） | **UNVERIFIED**（`data-vendors.md:41`；S8 草案已声明不能把可登录当许可验证） | 操作者亲自查阅账户协议行情条款并书面记录结论；不确认=BLOCKED_ACCESS 停止 |
 | A3 | 免费档（Basic）对 `feed=iex` 历史 ranged bars 的可用性 | DOCUMENTED 层：Basic $0、200 req/min、历史 bar 自 2016 起（`data-vendors.md:40-42`）；**IEX feed 的历史深度 = UNVERIFIED** | 以 H1 首批请求实测；深度不足则回退登记 |
-| A4 | 企业行为端点/复权因子在免费档的包含性 | **UNVERIFIED**（`data-vendors.md:39`） | H1 内单次只读探测端点存在性；不可用则 raw+披露（§4-Q3） |
+| A4 | 企业行为端点/复权因子在免费档的包含性 | **UNVERIFIED**（`data-vendors.md:39`） | **【2026-11-26 勘误 P0-2，取代原"H1 内单次只读探测端点存在性"】**CA 端点探测移出 H1 范围，延至**另行单独申请**；H1 严格 bars-only，本项在 H1 全程保持 UNVERIFIED；raw-only 的分红/拆股/总收益限制在 H2 候选研究范围强制披露 |
 | A5 | 凭证安全注入（值盲，同 T9.9 机制：脚本直读 `private/credentials.json`，Agent 上下文/日志/命令行零明文） | 已有成功先例（T9.9 授权链 E13） | 操作者复用同一机制；跑后环境清理核验 |
 
 ## 2. 授权范围（申请获批的确切边界）
@@ -32,10 +32,13 @@
 端点（唯一允许）: GET https://data.alpaca.markets/v2/stocks/{symbol}/bars
                  参数限定: timeframe=1Day, feed=iex, adjustment=raw,
                  start/end 为授权区间内日期, 逐页 next_page_token
+                 【2026-11-26 勘误 P0-2：H1 严格 bars-only——企业行为/CA 及
+                 任何其他数据端点不在本授权内，访问需另行签署扩展授权】
 查询日期范围:     候选 2017-01-01 .. 2025-12-31（ET 日历）；
                  ——最终起止必须在"实测 A3 IEX 深度 + 协议批准"后冻结，冻结前不得全量拉取
 请求预算:        ≤ 30 次 HTTP 请求/单日执行窗（分页按 1 页 ≤10000 根估算，
-                 全区间每标的约 1-3 页；预算含 ≤6 次质量/边界探测请求），
+                 全区间每标的约 1-3 页；预算含 ≤6 次质量/边界探测请求，
+                 探测仅限 bars 端点——2026-11-26 勘误 P0-2），
                  速率 ≤ 200 req/min（供应商 DOCUMENTED 限值以下留余量）
 执行窗:          批准后单次连续执行；中断即停，续跑需重新申请
 预算:            $0.00 —— 禁止任何付费升级/SIP/websocket/订阅（v2 加载器已拒绝付费计划，
@@ -69,12 +72,14 @@
 - 证据只含：请求参数、响应行（价格/量/时间戳）与其 hash、质量分母、布尔事实、请求数计数；**不含**任何密钥值、账户标识明文、个人身份信息。
 - 供应商事实表按 DOCUMENTED / API_VERIFIED(仅实测端点×参数×日期) / UNVERIFIED / BLOCKED_ACCESS 逐条登记，附检索/实测日期——T9.9 的升级范围不自动继承（E14）。
 - 全部结论可被第三方从本仓库文件+hash 复核。
+- 【2026-11-26 勘误 P1-4】历史 PIT 证据层级：`API_VERIFIED` 只证明返回值与覆盖，**不证明**逐日历史发布时点；模型假设（如"日线收盘于次交易日开盘可得"）一律标注 `PIT_ASSUMED_NOT_VERIFIED`，事实缺失标 `UNKNOWN/BLOCKED`；`research_admissible()` 只校验 manifest 完整性与声明可得时间早于 cutoff（`src/trading_lab/data/snapshot.py:135`），不得以快照 hash 有效冒充历史 PIT 已验证。三种时间严格区分：`ts_event_utc`（历史事件）、历史当时的实际/假设 `available_at`、2026 年下载的 `received_at_utc`——后者永不伪装成前者。
 
 ## 6. 明确不授权清单（签署本草案**不等于**批准以下任何一项）
 
 ```text
 - feed=sip 或任何付费计划/升级          - websocket 实时流
 - 第 3 只及以上标的                     - 分钟线/其他粒度
+- 企业行为/CA 或任何其他数据端点（2026-11-26 勘误 P0-2：延至另行申请）
 - collect --complete / 连续采集调度      - 写入 s8 前向账本或任何 journal/receipts
 - Paper 写（PAPER_WRITE=NOT_AUTHORIZED）- Live（PROHIBITED）
 - 购买 Sharadar/任何付费数据             - M4 启动
@@ -111,12 +116,32 @@
     requires_corporate_actions: false   # raw-only pilot; CA availability UNVERIFIED on Basic
     requires_history_membership: false  # fixed 2 surviving ETFs
     requires_delisting: false
-    available_at_rule: daily_close_available_next_open   # declared assumption, disclosed as unverified per-day
+    # 【2026-11-26 勘误 P0-1】原草案值 available_at_rule:
+    #   daily_close_available_next_open   # ← 原值保留备查（PROPOSED_NEW_RULE_NOT_IMPLEMENTED）
+    # 该值不在 src/trading_lab/data/acceptance.py 的 AVAILABLE_AT_RULES 内
+    # （acceptance.py:105，仅 bar_ts_plus_0 / bar_ts_plus_15min /
+    # announced_or_published_before_use）；2026-11-26 离线值盲探针实测
+    # ValidationError fail-closed。受控新增“次交易日开盘可得”规则需要后续
+    # 单独代码授权 + 交易日历/PIT/时区测试；在该规则实现并验收前，本用途行
+    # 不得提交进 configs/data_acceptance.yaml。不得仅改字符串为 bar_ts_plus_0
+    # 骗过配置门（二者 PIT 语义未经证明等价：bar_ts_plus_0 表示事件时刻即可得，
+    # 非次交易日开盘可得）。
+    available_at_rule: PROPOSED_NEW_RULE_NOT_IMPLEMENTED
     max_missing_rate: 0.001
     min_coverage_rate: 0.999
-    max_latency_seconds: 172800          # retrospective ingest: bounded, disclosed
+    # 【2026-11-26 勘误 P1-4】原草案值 max_latency_seconds:
+    #   172800  # ← 原值保留备查（48h，作废）
+    # 作废原因：该 48h 与“次交易日开盘可得”语义矛盾——周五 16:00 ET 收盘→
+    # 周一 09:30 ET 开盘 = 65.5h；感恩节周（仓库日历，source-license-and-feed.md:15）
+    # 周三 2026-11-25 16:00 收盘→下个开盘周一 2026-11-30 09:30 = 113.5h；
+    # 圣诞周周四 2026-12-24 13:00 早收→周一 2026-12-28 09:30 = 92.5h。
+    # 且 quality.latency_stats 计算的是 available−event（quality.py:130），
+    # 不是下载耗时。正确方案：H1 协议冻结时以交易日历驱动的
+    # “ts_event → 下一交易日开盘 + 预注册宽限”口径预注册阈值，不得在看到
+    # 真实数据失败后放宽，也不得把 2026 received_at 伪装成历史 available_at。
+    max_latency_seconds: PROPOSED_CALENDAR_DRIVEN_THRESHOLD_NOT_IMPLEMENTED
     required_license_scope: personal_research
     on_fail: RESTRICT_SCOPE
 ```
 
-（阈值先声明后执行；失败不降；`on_fail=RESTRICT_SCOPE` 而非 ACCEPT——试点级准入始终带范围限制，工作流文档 §2 验收⑤一致。）
+（阈值先声明后执行；失败不降；`on_fail=RESTRICT_SCOPE` 而非 ACCEPT——试点级准入始终带范围限制，工作流文档 §2 验收⑤一致。**【2026-11-26 勘误 P0-1/P1-4】**`available_at_rule` 与 `max_latency_seconds` 两字段现为 `PROPOSED_*_NOT_IMPLEMENTED` 占位（若照原样加载会 fail-closed，属有意状态）：在受控新规则获批实现并测试前，本用途行**不可**提交进 `configs/data_acceptance.yaml`，`H1_IMPLEMENTATION_READY=NO`。）

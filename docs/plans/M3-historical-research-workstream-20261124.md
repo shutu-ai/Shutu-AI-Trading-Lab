@@ -52,10 +52,10 @@
 | 字段 | 内容 |
 |---|---|
 | 进入条件（全部满足才可执行） | ① 用户签署授权草案（`docs/reviews/M3-historical-readonly-data-authorization-draft-20261124.md` 签名栏，或其逐字等价文本）；② 操作者完成草案 §A 账户/许可核对（本人）；③ `HEAD=origin/main` 且 CI 绿（执行轮重验）；④ 环境无协议/证据变更冲突 |
-| 输出工件 | `configs/data_acceptance.yaml` 新增 purpose 行 `historical_research_limited_etf`（阈值先声明，on_fail=RESTRICT_SCOPE，见授权草案 §C 草案文本）；`artifacts/evidence/M3-H/h1/`（原始回执 hash、质量报告、许可核对记录、快照 manifest + `research_admissible` 结果、IEX 深度/CA 实测事实表）；独立快照命名空间 `artifacts/datasets/historical_research/`（§5） |
+| 输出工件 | `configs/data_acceptance.yaml` 新增 purpose 行 `historical_research_limited_etf`（阈值先声明，on_fail=RESTRICT_SCOPE，见授权草案 §C 草案文本；**【2026-11-26 勘误 P0-1】**其中 `available_at_rule`/`max_latency_seconds` 为 `PROPOSED_*_NOT_IMPLEMENTED`——受控新规则需单独代码授权，实现前该用途行不得提交进 configs）；`artifacts/evidence/M3-H/h1/`（原始回执 hash、质量报告、许可核对记录、快照 manifest + `research_admissible` 结果、IEX 深度实测事实表）；独立快照命名空间 `artifacts/datasets/historical_research/`（§5） |
 | 验收判据（客观） | ① 用途行机器校验通过（全部阈值非空、非法词 fail-closed——U-1 词表语义延续）；② 采集请求数 ≤ 授权上限、全部只读 GET、`TRADING_API_HOSTS` 零命中；③ 质量门输出分母/缺失/覆盖率/延迟（零分母报 INCONCLUSIVE）；④ 每行数据带 `received_at_utc` ≠ 历史事件时间的披露字段；⑤ snapshot hash 可重算且 `evaluate_purpose` 给出 ACCEPT 或 RESTRICT_SCOPE 的**有据判定**（不满足即如实 BLOCKED_DATA）；⑥ 前向账本零写入（机器断言：与 `s8-receipts-v2` 链无共享条目）；⑦ `REAL_API_CALLS` 仅限授权草案范围内的只读 GET，`BROKER_ORDERS=0` |
 | 失败回退 | IEX 历史深度不足/CA 不可用/许可不符 → 如实登记 UNVERIFIED/BLOCKED，工作流 B 回退 H0 态；登记表更新（R2/R5 行），不降阈值、不改判定顺序（ADR-003 D5 冻结） |
-| 明确禁止 | `feed=sip`、付费升级、websocket、`--complete`、>2 标的、分钟线、任何 Trading API 主机/写路径、凭证值进入任何日志/上下文/git、把 H1 数据写入前向账本或合成账本、据 H1 宣称全市场能力 |
+| 明确禁止 | `feed=sip`、付费升级、websocket、`--complete`、>2 标的、分钟线、**企业行为/CA 或任何其他数据端点（2026-11-26 勘误 P0-2：H1 bars-only，CA 探测延至另行单独申请）**、任何 Trading API 主机/写路径、凭证值进入任何日志/上下文/git、把 H1 数据写入前向账本或合成账本、据 H1 宣称全市场能力 |
 | 人类批准节点 | 用户签署 H1 授权（一次性，范围=草案所列）；执行完成后停 `M3-H-H1-GATE=USER_PENDING` 审阅证据 |
 | 下一个任务 ID | `M3-H-H2-RESTRICTED-BACKTEST-STUDY-<YYYYMMDD>`（仅当 H1 判定合格后申请） |
 
@@ -113,7 +113,7 @@ artifacts/
 同一（SPY, 2026-11-23, 1Day）观测可能同时存在于：历史快照（若区间覆盖）、前向 cohort（T9.9 已采）、未来 Holdout（若 M9 区间覆盖）。契约：
 - 重叠报告按 **日期 × 资产 × 事件 ID × 数据版本** 四元组逐条列出三域成员关系（沿用 `validation/cohorts.py` 五维重叠检测的既有机制）；
 - 联合效应/置信度计算中同一观测**只计一次**；任何"独立证据"声称必须附去重说明（Arch:250,300）；
-- 机器可验收：H2 验收⑤的 `cohort-overlap-report` 必须包含 2026-11-23（两域已知必然重叠日）的显式条目。
+- 机器可验收（**【2026-11-26 勘误 P1-3，取代原"必须包含 2026-11-23 显式条目"**——H1 候选区间 2017–2025 与前向 cohort 日期不相交，强制该条目不可能成立且不得为满足检查扩大 H1 日期范围】：`cohort-overlap-report` 按**实际被授权并下载的日期 × 标的 × 事件/版本**计算历史↔前向交集；交集为空时如实输出 `NO_OVERLAP_VERIFIED`（不是失败、不伪造条目）；确有重叠时必须逐条披露、去重并限制独立性声称。保留合成正例测试：证明当重叠存在时披露/去重门必然触发。将 2026 日期纳入历史研究须提出新研究区间与新授权。）
 
 ### 5.3 `received_at` ≠ 历史 `available_at` 的回溯 PIT 披露
 
@@ -121,6 +121,7 @@ artifacts/
 - 历史快照每一行携带 `received_at_utc` 与"回溯 PIT 不确定性"标志；数据行的事件时间戳 `ts_event_utc` 按供应商口径登记；
 - `pit_rule: available_at <= decision_at` 在 H2 回测中的解释为**协议声明**：日线研究假定"日线收盘数据于次日开盘前可得"（`available_at_rule` 在新用途行显式声明），并强制披露该假设未经逐日时点验证的限制；
 - 禁止伪造任何"历史公告/可得时间"；无 CA/公告时点数据的用途不得运行事件类因子（ADR-003 D1、数据验收 D5 冻结语义）。
+- 【2026-11-26 勘误 P1-4/T2】历史 PIT 证据层级：`API_VERIFIED` 只证明返回值与覆盖，**不证明**逐日历史发布时点；模型假设一律标 `PIT_ASSUMED_NOT_VERIFIED`，事实缺失标 `UNKNOWN/BLOCKED`。`snapshot.research_admissible()`（`src/trading_lab/data/snapshot.py:135`）校验的是 manifest 完整性与声明可得时间早于 cutoff，**不单独证明供应商历史点时刻可得**——不得以快照 hash 有效冒充研究 PIT 通过；`quality.latency_stats` 计算的是 `ts_available_utc − ts_event_utc`（`src/trading_lab/data/quality.py:130`），不是下载耗时。
 
 ### 5.4 协议与快照的独立版本化
 
@@ -145,7 +146,7 @@ H1/H2 的一切新协议、新用途行、新批次**只增不改**：`data_acce
 | T-H1-05 | 请求审计：总数 ≤ 授权上限、全部 GET、主机白名单外零命中（守卫负例保留） | H1 |
 | T-H2-01 | H2 协议文件 hash ≠ `m3-synthetic-engineering-v2` 任何历史 hash；`data_scope/max_claimable_evidence` 如实声明 | H2 |
 | T-H2-02 | `sample_gate(真实 sessions)`=SATISFIED 才允许官方运行；否则 `OfficialRunRefused` | H2 |
-| T-H2-03 | 滚动 OOS 折边界不重叠；重叠报告含历史↔前向 2026-11-23 显式条目 | H2 |
+| T-H2-03 | 滚动 OOS 折边界不重叠；重叠报告按**实际覆盖日期×标的×事件**计算历史↔前向交集——空集如实输出 `NO_OVERLAP_VERIFIED`，非空逐条披露去重（合成正例证明非空时披露门触发）【2026-11-26 勘误 P1-3】 | H2 |
 | T-H2-04 | 成本 ×1≥×2≥×3 单调退化断言在真实数据上成立 | H2 |
 | T-H2-05 | 账本链验证 + 外部锚落盘；重开带锚正控 | H2 |
 | T-H2-06 | 汇总生成器强制 `evidence_state ∈ {HIST_OOS_SUPPORTED, INCONCLUSIVE, FAILED}` 且 `final_holdout_status=SEALED_NOT_MATERIALIZED`；出现更高声称即测试失败 | H2 |

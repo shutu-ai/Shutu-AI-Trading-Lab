@@ -75,13 +75,13 @@
 |---|---|
 | scope/use_case | H1/H2 数据的复权与企业行为处理（原始价研究的补集） |
 | evidence | CA API 存在但 Basic 档包含性 UNVERIFIED（`data-vendors.md:39`）；本试点 raw-only（H1 草案 §2 adjustment=raw） |
-| owner_role | Agent（H1 内单次只读探测）+ 账户所有者（如需升级） |
+| owner_role | 账户所有者（未来单独 CA 授权申请时决策）；【2026-11-26 勘误 P0-2：原"Agent（H1 内单次只读探测）"废止——H1 严格 bars-only】 |
 | blocker | 免费档 CA 端点包含性未实测 |
 | impact | raw-only 研究必须披露拆股/分红偏差；跨 2017–2025 区间 SPY/QQQ 的拆股事件会使 raw 序列出现阶跃，H2 必须显式处理（披露或 RESTRICT_SCOPE） |
-| permitted_next_action | 并入 H1 执行（授权范围内的只读 CA 端点探测） |
-| authorization_needed | H1 签批已含（≤30 请求预算内的探测） |
-| objective_unblock_condition | CA 端点免费档实测回执 → UNVERIFIED 转 API_VERIFIED(限定范围)；不可用则维持 UNVERIFIED 并在 H2 强制披露 |
-| review_trigger | H1 完成时 |
+| permitted_next_action | 【2026-11-26 勘误 P0-2，取代原"并入 H1 执行（授权范围内的只读 CA 端点探测）"】CA 端点探测**延期至另行单独申请**：新授权必须写明准确端点路径、请求上限、权限/许可与 GET 守卫负例测试；H1 期间本项保持 UNVERIFIED，raw-only 拆股/分红偏差在 H2 强制披露 |
+| authorization_needed | 未来的独立 CA 探测授权（**不在 H1 签批范围内**——原"H1 签批已含（≤30 请求预算内的探测）"作废，2026-11-26 勘误 P0-2） |
+| objective_unblock_condition | 【2026-11-26 勘误 P0-2 后】未来单独授权下的 CA 端点免费档实测回执 → UNVERIFIED 转 API_VERIFIED(限定范围)；不可用则维持 UNVERIFIED 并在 H2 强制披露（不可凭 raw-only 材料承诺完整复权净收益） |
+| review_trigger | 未来单独 CA 授权申请提交时；或 H1 完成复核时（原"H1 完成时"随之扩展，2026-11-26 勘误 P0-2） |
 | status | OPEN（依赖 R2） |
 
 ## R6 IEX 单所数据 vs 全市场 SIP 的可比性
@@ -106,3 +106,4 @@
 | 日期 | 动作 | 依据 |
 |---|---|---|
 | 2026-11-24 | 首版建立 R1–R6（自既有仓库证据登记，零新增外部事实） | 任务书 `M3-HISTORICAL-RESEARCH-ROADMAP-CORRECTION-20261124-R1` §6；审计 §2 证据表 |
+| 2026-11-26 | R5 依 P0-2 勘误：CA 端点探测移出 H1、延至另行单独申请（H1 bars-only）；R5 status 维持 OPEN（依赖 R2 + 未来 CA 授权）。R1–R4、R6 本轮无状态变化 | 任务书 `M3-H1-CONTRACT-PREFLIGHT-RESUME-20261125-001` T1 P0-2；原任务书 `M3-H1-CONTRACT-PREFLIGHT-REMEDIATION-20261124-R1` §2 P0-2 |
