@@ -19,7 +19,11 @@ from dataclasses import dataclass
 
 from trading_lab.security.canonical import canonical_json_bytes, sha256_hex
 
-from .records import MARKER_UNKNOWN_AVAILABILITY, SourceRecord
+from .records import (
+    AVAILABILITY_BASIS_VENDOR_FACT,
+    MARKER_UNKNOWN_AVAILABILITY,
+    SourceRecord,
+)
 
 
 @dataclass(frozen=True)
@@ -57,18 +61,25 @@ def _entry_dict(entry: DatasetEntry) -> dict[str, object]:
         avail = rec.available_at_utc.isoformat()
     else:
         avail = MARKER_UNKNOWN_AVAILABILITY
+    source_dict = {
+        "source": rec.source,
+        "dataset_version": rec.dataset_version,
+        "acquisition_time_utc": rec.acquisition_time_utc.isoformat(),
+        "available_at_utc": avail,
+        "raw_hash": rec.raw_hash,
+        "transform_version": rec.transform_version,
+    }
+    # H1A: the availability basis is pinned into the manifest ONLY for
+    # non-default bases, so legacy six-field SourceRecords hash
+    # byte-identically to the pre-H1A formula (recorded M1 evidence stays
+    # verifiable) while historical partitions carry their basis in-hash.
+    if rec.availability_basis != AVAILABILITY_BASIS_VENDOR_FACT:
+        source_dict["availability_basis"] = rec.availability_basis
     return {
         "name": entry.name,
         "content_hash": entry.content_hash,
         "row_count": entry.row_count,
-        "source": {
-            "source": rec.source,
-            "dataset_version": rec.dataset_version,
-            "acquisition_time_utc": rec.acquisition_time_utc.isoformat(),
-            "available_at_utc": avail,
-            "raw_hash": rec.raw_hash,
-            "transform_version": rec.transform_version,
-        },
+        "source": source_dict,
     }
 
 

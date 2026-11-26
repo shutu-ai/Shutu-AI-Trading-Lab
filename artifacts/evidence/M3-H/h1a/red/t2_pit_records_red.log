@@ -1,0 +1,322 @@
+FFFFFFFFFFFFFFFFFF..F                                                    [100%]
+================================== FAILURES ===================================
+_ TestAvailabilityBasis.test_default_basis_is_vendor_fact_and_legacy_dict_shape _
+
+self = <test_h1a_pit_records.TestAvailabilityBasis object at 0x000001FCFF56A5D0>
+
+    def test_default_basis_is_vendor_fact_and_legacy_dict_shape(self):
+        rec = SourceRecord(
+            source="alpaca_iex",
+            dataset_version="v1",
+            acquisition_time_utc=RECEIVED_AT,
+            available_at_utc=dt.datetime(2026, 11, 20, 21, 0, tzinfo=UTC),
+            raw_hash="a" * 64,
+            transform_version="raw-1",
+        )
+>       assert rec.availability_basis == "vendor_fact"
+               ^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'SourceRecord' object has no attribute 'availability_basis'. Did you mean: 'availability_known'?
+
+tests\m3_h\test_h1a_pit_records.py:86: AttributeError
+__________ TestAvailabilityBasis.test_legacy_manifest_hash_invariant __________
+
+self = <test_h1a_pit_records.TestAvailabilityBasis object at 0x000001FCFF56A990>
+
+    def test_legacy_manifest_hash_invariant(self):
+        """Frozen from the pre-change code (T0 baseline capture): legacy
+        six-field SourceRecords must hash EXACTLY as before — recorded
+        M1 evidence stays verifiable."""
+        rec = SourceRecord(
+            source="alpaca_iex",
+            dataset_version="v1",
+            acquisition_time_utc=RECEIVED_AT,
+            available_at_utc=dt.datetime(2026, 11, 20, 21, 0, tzinfo=UTC),
+            raw_hash="a" * 64,
+            transform_version="raw-1",
+        )
+        entry = DatasetEntry(name="x", content_hash="b" * 64, row_count=1, source=rec)
+        manifest = build_snapshot(dt.datetime(2026, 11, 21, tzinfo=UTC), [entry])
+>       assert manifest.dataset_hash == (
+            "5be7617bd65b26863458af3b5ebb1aee812c740fd924a343a2ad0f07c8f6a597"
+        )
+E       AssertionError: assert '10d50c00def6...2ca365055ac13' == '5be7617bd65b...d0f07c8f6a597'
+E         
+E         - 5be7617bd65b26863458af3b5ebb1aee812c740fd924a343a2ad0f07c8f6a597
+E         + 10d50c00def6228bdc1484feb43a703162ec3dfc2f35067f34f2ca365055ac13
+
+tests\m3_h\test_h1a_pit_records.py:104: AssertionError
+_____ TestAvailabilityBasis.test_assumed_basis_roundtrips_into_entry_dict _____
+
+self = <test_h1a_pit_records.TestAvailabilityBasis object at 0x000001FCFF574C30>
+
+    def test_assumed_basis_roundtrips_into_entry_dict(self):
+>       rec = SourceRecord(
+            source="alpaca_iex",
+            dataset_version="v1",
+            acquisition_time_utc=RECEIVED_AT,
+            available_at_utc=dt.datetime(2026, 11, 27, 14, 30, tzinfo=UTC),
+            raw_hash="a" * 64,
+            transform_version="raw-1",
+            availability_basis="assumed_next_open",
+        )
+E       TypeError: SourceRecord.__init__() got an unexpected keyword argument 'availability_basis'
+
+tests\m3_h\test_h1a_pit_records.py:109: TypeError
+________ TestAvailabilityBasis.test_unknown_basis_with_marker_allowed _________
+
+self = <test_h1a_pit_records.TestAvailabilityBasis object at 0x000001FCFF574E90>
+
+    def test_unknown_basis_with_marker_allowed(self):
+>       rec = SourceRecord(
+            source="alpaca_iex",
+            dataset_version="v1",
+            acquisition_time_utc=RECEIVED_AT,
+            available_at_utc=MARKER_UNKNOWN_AVAILABILITY,
+            raw_hash="a" * 64,
+            transform_version="raw-1",
+            availability_basis="unknown",
+        )
+E       TypeError: SourceRecord.__init__() got an unexpected keyword argument 'availability_basis'
+
+tests\m3_h\test_h1a_pit_records.py:125: TypeError
+________ TestAvailabilityBasis.test_assumed_basis_requires_a_datetime _________
+
+self = <test_h1a_pit_records.TestAvailabilityBasis object at 0x000001FCFF4D0EF0>
+
+    def test_assumed_basis_requires_a_datetime(self):
+        with pytest.raises(ValueError):
+>           SourceRecord(
+                source="alpaca_iex",
+                dataset_version="v1",
+                acquisition_time_utc=RECEIVED_AT,
+                available_at_utc=MARKER_UNKNOWN_AVAILABILITY,
+                raw_hash="a" * 64,
+                transform_version="raw-1",
+                availability_basis="assumed_next_open",
+            )
+E           TypeError: SourceRecord.__init__() got an unexpected keyword argument 'availability_basis'
+
+tests\m3_h\test_h1a_pit_records.py:139: TypeError
+____________ TestAvailabilityBasis.test_invalid_basis_fail_closed _____________
+
+self = <test_h1a_pit_records.TestAvailabilityBasis object at 0x000001FCFF5F8490>
+
+    def test_invalid_basis_fail_closed(self):
+        with pytest.raises(ValueError):
+>           SourceRecord(
+                source="alpaca_iex",
+                dataset_version="v1",
+                acquisition_time_utc=RECEIVED_AT,
+                available_at_utc=dt.datetime(2026, 11, 20, 21, 0, tzinfo=UTC),
+                raw_hash="a" * 64,
+                transform_version="raw-1",
+                availability_basis="verified_because_hash_ok",
+            )
+E           TypeError: SourceRecord.__init__() got an unexpected keyword argument 'availability_basis'
+
+tests\m3_h\test_h1a_pit_records.py:151: TypeError
+_ TestAvailabilityBasis.test_research_admissible_semantics_unchanged_for_assumed_entry _
+
+self = <test_h1a_pit_records.TestAvailabilityBasis object at 0x000001FCFF5F86B0>
+
+    def test_research_admissible_semantics_unchanged_for_assumed_entry(self):
+        """research_admissible stays the integrity+cutoff gate (ADR-003
+        D8): an assumed entry inside cutoff passes it — which is exactly
+        why pit_level_of_manifest must be consulted separately."""
+        def _entry(available_at: dt.datetime) -> DatasetEntry:
+            rec = SourceRecord(
+                source="alpaca_iex",
+                dataset_version="v1",
+                acquisition_time_utc=RECEIVED_AT,
+                available_at_utc=available_at,
+                raw_hash="a" * 64,
+                transform_version="raw-1",
+                availability_basis="assumed_next_open",
+            )
+            return DatasetEntry(name="hist", content_hash="b" * 64, row_count=1, source=rec)
+    
+        manifest = build_snapshot(
+>           dt.datetime(2026, 11, 28, tzinfo=UTC), [_entry(dt.datetime(2026, 11, 27, 14, 30, tzinfo=UTC))]
+                                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        )
+
+tests\m3_h\test_h1a_pit_records.py:178: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+available_at = datetime.datetime(2026, 11, 27, 14, 30, tzinfo=datetime.timezone.utc)
+
+    def _entry(available_at: dt.datetime) -> DatasetEntry:
+>       rec = SourceRecord(
+            source="alpaca_iex",
+            dataset_version="v1",
+            acquisition_time_utc=RECEIVED_AT,
+            available_at_utc=available_at,
+            raw_hash="a" * 64,
+            transform_version="raw-1",
+            availability_basis="assumed_next_open",
+        )
+E       TypeError: SourceRecord.__init__() got an unexpected keyword argument 'availability_basis'
+
+tests\m3_h\test_h1a_pit_records.py:166: TypeError
+_____ TestHistoricalBarRecord.test_assumed_row_binds_all_three_timestamps _____
+
+self = <test_h1a_pit_records.TestHistoricalBarRecord object at 0x000001FCFF56AC10>
+
+    def test_assumed_row_binds_all_three_timestamps(self):
+>       rec = _assumed_record()
+              ^^^^^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_pit_records.py:191: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+close = '600.10'
+
+    def _assumed_record(close: str = "600.10") -> "object":
+>       from trading_lab.data.historical import HistoricalBarRecord
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical'
+
+tests\m3_h\test_h1a_pit_records.py:64: ModuleNotFoundError
+_________ TestHistoricalBarRecord.test_missing_vendor_field_rejected __________
+
+self = <test_h1a_pit_records.TestHistoricalBarRecord object at 0x000001FCFF56AFD0>
+
+    def test_missing_vendor_field_rejected(self):
+>       from trading_lab.data.historical import HistoricalBarRecord
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical'
+
+tests\m3_h\test_h1a_pit_records.py:202: ModuleNotFoundError
+___________ TestHistoricalBarRecord.test_naive_timestamps_rejected ____________
+
+self = <test_h1a_pit_records.TestHistoricalBarRecord object at 0x000001FCFF5750F0>
+
+    def test_naive_timestamps_rejected(self):
+>       from trading_lab.data.historical import HistoricalDataError
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical'
+
+tests\m3_h\test_h1a_pit_records.py:218: ModuleNotFoundError
+_ TestHistoricalBarRecord.test_unknown_row_has_no_assumption_and_never_promotes _
+
+self = <test_h1a_pit_records.TestHistoricalBarRecord object at 0x000001FCFF575480>
+
+    def test_unknown_row_has_no_assumption_and_never_promotes(self):
+>       from trading_lab.data.historical import HistoricalBarRecord, HistoricalDataError
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical'
+
+tests\m3_h\test_h1a_pit_records.py:231: ModuleNotFoundError
+_ TestHistoricalBarRecord.test_verified_requires_vendor_published_time_evidence _
+
+self = <test_h1a_pit_records.TestHistoricalBarRecord object at 0x000001FCFF4D1490>
+
+    def test_verified_requires_vendor_published_time_evidence(self):
+>       from trading_lab.data.historical import HistoricalBarRecord, HistoricalDataError
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical'
+
+tests\m3_h\test_h1a_pit_records.py:263: ModuleNotFoundError
+_ TestHistoricalBarRecord.test_backdated_download_time_cannot_be_verified_availability _
+
+self = <test_h1a_pit_records.TestHistoricalBarRecord object at 0x000001FCFE3CFBD0>
+
+    def test_backdated_download_time_cannot_be_verified_availability(self):
+        """A VERIFIED vendor publish time must precede our receipt: a row
+        whose 'availability' is at/after the 2026 download moment is not a
+        historical vendor fact — refused, not recorded as VERIFIED."""
+>       from trading_lab.data.historical import HistoricalDataError
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical'
+
+tests\m3_h\test_h1a_pit_records.py:313: ModuleNotFoundError
+____ TestHistoricalBarRecord.test_ohlc_invariants_and_exact_decimal_types _____
+
+self = <test_h1a_pit_records.TestHistoricalBarRecord object at 0x000001FCFF5F88D0>
+
+    def test_ohlc_invariants_and_exact_decimal_types(self):
+>       from trading_lab.data.historical import HistoricalDataError
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical'
+
+tests\m3_h\test_h1a_pit_records.py:327: ModuleNotFoundError
+__ TestPitLevelOfManifest.test_all_assumed_manifest_is_assumed_not_verified ___
+
+self = <test_h1a_pit_records.TestPitLevelOfManifest object at 0x000001FCFF56AD50>
+
+    def test_all_assumed_manifest_is_assumed_not_verified(self):
+>       from trading_lab.data.historical import PIT_ASSUMED_NOT_VERIFIED, pit_level_of_manifest
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical'
+
+tests\m3_h\test_h1a_pit_records.py:386: ModuleNotFoundError
+_______ TestPitLevelOfManifest.test_any_unknown_makes_manifest_unknown ________
+
+self = <test_h1a_pit_records.TestPitLevelOfManifest object at 0x000001FCFF56A850>
+
+    def test_any_unknown_makes_manifest_unknown(self):
+>       from trading_lab.data.historical import pit_level_of_manifest
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical'
+
+tests\m3_h\test_h1a_pit_records.py:395: ModuleNotFoundError
+______ TestPitLevelOfManifest.test_all_vendor_fact_manifest_is_verified _______
+
+self = <test_h1a_pit_records.TestPitLevelOfManifest object at 0x000001FCFF575220>
+
+    def test_all_vendor_fact_manifest_is_verified(self):
+>       from trading_lab.data.historical import pit_level_of_manifest
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical'
+
+tests\m3_h\test_h1a_pit_records.py:406: ModuleNotFoundError
+____________ TestPitLevelOfManifest.test_empty_manifest_is_unknown ____________
+
+self = <test_h1a_pit_records.TestPitLevelOfManifest object at 0x000001FCFF574640>
+
+    def test_empty_manifest_is_unknown(self):
+>       from trading_lab.data.historical import pit_level_of_manifest
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical'
+
+tests\m3_h\test_h1a_pit_records.py:414: ModuleNotFoundError
+________ TestSnapshotSensitivity.test_stale_hash_manifest_fails_verify ________
+
+self = <test_h1a_pit_records.TestSnapshotSensitivity object at 0x000001FCFF574B00>
+
+    def test_stale_hash_manifest_fails_verify(self):
+>       rec = SourceRecord(
+            source="alpaca_iex",
+            dataset_version="v1",
+            acquisition_time_utc=RECEIVED_AT,
+            available_at_utc=dt.datetime(2026, 11, 27, 14, 30, tzinfo=UTC),
+            raw_hash="a" * 64,
+            transform_version="raw-1",
+            availability_basis="assumed_next_open",
+        )
+E       TypeError: SourceRecord.__init__() got an unexpected keyword argument 'availability_basis'
+
+tests\m3_h\test_h1a_pit_records.py:431: TypeError
+============================== warnings summary ===============================
+..\..\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 822 warnings
+  C:\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 21 warnings
+  C:\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/m3_h/test_h1a_pit_records.py::TestAvailabilityBasis::test_default_basis_is_vendor_fact_and_legacy_dict_shape
+  C:\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/m3_h/test_h1a_pit_records.py::TestAvailabilityBasis::test_default_basis_is_vendor_fact_and_legacy_dict_shape
+FAILED tests/m3_h/test_h1a_pit_records.py::TestAvailabilityBasis::test_legacy_manifest_hash_invariant
+FAILED tests/m3_h/test_h1a_pit_records.py::TestAvailabilityBasis::test_assumed_basis_roundtrips_into_entry_dict
+FAILED tests/m3_h/test_h1a_pit_records.py::TestAvailabilityBasis::test_unknown_basis_with_marker_allowed
+FAILED tests/m3_h/test_h1a_pit_records.py::TestAvailabilityBasis::test_assumed_basis_requires_a_datetime
+FAILED tests/m3_h/test_h1a_pit_records.py::TestAvailabilityBasis::test_invalid_basis_fail_closed
+FAILED tests/m3_h/test_h1a_pit_records.py::TestAvailabilityBasis::test_research_admissible_semantics_unchanged_for_assumed_entry
+FAILED tests/m3_h/test_h1a_pit_records.py::TestHistoricalBarRecord::test_assumed_row_binds_all_three_timestamps
+FAILED tests/m3_h/test_h1a_pit_records.py::TestHistoricalBarRecord::test_missing_vendor_field_rejected
+FAILED tests/m3_h/test_h1a_pit_records.py::TestHistoricalBarRecord::test_naive_timestamps_rejected
+FAILED tests/m3_h/test_h1a_pit_records.py::TestHistoricalBarRecord::test_unknown_row_has_no_assumption_and_never_promotes
+FAILED tests/m3_h/test_h1a_pit_records.py::TestHistoricalBarRecord::test_verified_requires_vendor_published_time_evidence
+FAILED tests/m3_h/test_h1a_pit_records.py::TestHistoricalBarRecord::test_backdated_download_time_cannot_be_verified_availability
+FAILED tests/m3_h/test_h1a_pit_records.py::TestHistoricalBarRecord::test_ohlc_invariants_and_exact_decimal_types
+FAILED tests/m3_h/test_h1a_pit_records.py::TestPitLevelOfManifest::test_all_assumed_manifest_is_assumed_not_verified
+FAILED tests/m3_h/test_h1a_pit_records.py::TestPitLevelOfManifest::test_any_unknown_makes_manifest_unknown
+FAILED tests/m3_h/test_h1a_pit_records.py::TestPitLevelOfManifest::test_all_vendor_fact_manifest_is_verified
+FAILED tests/m3_h/test_h1a_pit_records.py::TestPitLevelOfManifest::test_empty_manifest_is_unknown
+FAILED tests/m3_h/test_h1a_pit_records.py::TestSnapshotSensitivity::test_stale_hash_manifest_fails_verify

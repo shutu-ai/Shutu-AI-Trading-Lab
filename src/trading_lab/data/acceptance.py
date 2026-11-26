@@ -102,7 +102,21 @@ class PurposeRequirements(BaseModel):
         return self
 
 
-AVAILABLE_AT_RULES = frozenset({"bar_ts_plus_0", "bar_ts_plus_15min", "announced_or_published_before_use"})
+AVAILABLE_AT_RULES = frozenset(
+    {
+        "bar_ts_plus_0",
+        "bar_ts_plus_15min",
+        "announced_or_published_before_use",
+        # H1A (M3-H workstream, controlled addition 2026-11-26): a daily
+        # close bar becomes a decision input at the OPEN of the NEXT valid
+        # US trading session (calendar-driven; see
+        # trading_lab.data.historical_calendar.VersionedMarketCalendar).
+        # This is a declared MODEL ASSUMPTION — never bar_ts_plus_0
+        # semantics, and per-row pit evidence stays ASSUMED (never
+        # VERIFIED) unless a vendor published-time fact exists.
+        "daily_close_available_next_open",
+    }
+)
 _EVENT_LEVEL_RULES = frozenset({"announced_or_published_before_use"})
 
 # M1 U-1: closed vocabularies for VendorFacts capability fields (S8-T1).

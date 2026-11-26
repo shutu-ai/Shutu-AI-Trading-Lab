@@ -1,0 +1,16 @@
+{
+  "calendar_source_url": "https://www.nyse.com/trade/hours-calendars",
+  "calendar_valid_from": "2026-11-20",
+  "calendar_valid_until": "2026-12-31",
+  "calendar_version": "nyse-2026-h1a-fixture-v1",
+  "formula": "max_session(next_open - session_close) + grace_seconds",
+  "generated_utc": "2026-11-26T12:00:00+00:00",
+  "grace_seconds": 3600,
+  "max_latency_seconds": 336600,
+  "scope": "FIXTURE_CALENDAR_ONLY (nyse-2026-h1a-fixture-v1, Nov 20 - Dec 31 2026)",
+  "sessions_skipped_next_open_outside_coverage": 1,
+  "sessions_total": 28,
+  "status": "TEMPLATE \u2014 official data_acceptance.yaml row stays PURPOSE_ROW_PENDING_CALENDAR_FREEZE",
+  "worst_case_seconds": 333000,
+  "worst_case_session_date": "2026-12-24"
+}

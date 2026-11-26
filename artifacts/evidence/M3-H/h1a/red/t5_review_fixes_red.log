@@ -1,0 +1,73 @@
+FFF                                                                      [100%]
+================================== FAILURES ===================================
+_______ TestSymbolSegmentValidation.test_unsafe_symbol_refused_at_build _______
+
+self = <test_h1a_snapshot_namespace.TestSymbolSegmentValidation object at 0x0000014CAC0D5590>
+
+    def test_unsafe_symbol_refused_at_build(self):
+        from trading_lab.data.historical import HistoricalDataError, build_historical_snapshot
+        from trading_lab.data.historical_calendar import VersionedMarketCalendar
+    
+        calendar = VersionedMarketCalendar.from_supply(nyse_2026_fixture_supply())
+        result = _fetch_result("SPY", ["600.10"], dt.date(2026, 11, 25), dt.date(2026, 11, 25))
+        evil = type(result)(**{**result.__dict__, "symbol": "..\\..\\escape"})
+>       with pytest.raises(HistoricalDataError) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'trading_lab.data.historical.HistoricalDataError'>
+
+tests\m3_h\test_h1a_snapshot_namespace.py:249: Failed
+__ TestSymbolSegmentValidation.test_writer_refuses_unsafe_entry_name_segment __
+
+self = <test_h1a_snapshot_namespace.TestSymbolSegmentValidation object at 0x0000014CAC0D56D0>
+tmp_path = WindowsPath('C:/Users/jabin/AppData/Local/Temp/pytest-of-jabin/pytest-1113/test_writer_refuses_unsafe_ent0')
+
+    def test_writer_refuses_unsafe_entry_name_segment(self, tmp_path):
+        import dataclasses
+    
+        from trading_lab.data.historical import HistoricalDataError, write_historical_namespace
+    
+        build = _build()
+        tampered_entry = dataclasses.replace(
+            build.entries[0], name="historical_research/../../escape/1Day/raw"
+        )
+        tampered_build = dataclasses.replace(build, entries=(tampered_entry,))
+>       with pytest.raises(HistoricalDataError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'trading_lab.data.historical.HistoricalDataError'>
+
+tests\m3_h\test_h1a_snapshot_namespace.py:271: Failed
+___ TestPaginationAndContract.test_failed_wire_requests_count_toward_budget ___
+
+self = <test_h1a_historical_client.TestPaginationAndContract object at 0x0000014CAC152250>
+
+    def test_failed_wire_requests_count_toward_budget(self):
+        """Review finding 2: a failed transport attempt consumes the
+        authorized budget exactly like a success — an operator retry
+        loop cannot push unlimited failed wire requests past the cap."""
+        class FlakyOnce(ScriptedHistoryTransport):
+            def __init__(self, bodies):
+                super().__init__(bodies)
+                self.wire_attempts = 0
+    
+            def __call__(self, request, timeout=None):
+                self.wire_attempts += 1
+                if self.wire_attempts == 1:
+                    raise urllib.error.URLError("transient 5xx")
+                return super().__call__(request, timeout)
+    
+        from apps.market_gateway.http_client import TransportError
+    
+        transport = FlakyOnce([_page([_bar("2026-11-20", "600.10")], None, "SPY")])
+        client = _client(transport, max_requests=2)
+        with pytest.raises(TransportError):
+            _fetch(client, "SPY")  # first attempt fails on the wire
+>       assert client.request_count == 1, "failed wire attempt must consume budget"
+E       AssertionError: failed wire attempt must consume budget
+E       assert 0 == 1
+E        +  where 0 = <apps.market_gateway.historical_bars.HistoricalBarsClient object at 0x0000014CAC1A2E40>.request_count
+
+tests\m3_h\test_h1a_historical_client.py:297: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/m3_h/test_h1a_snapshot_namespace.py::TestSymbolSegmentValidation::test_unsafe_symbol_refused_at_build
+FAILED tests/m3_h/test_h1a_snapshot_namespace.py::TestSymbolSegmentValidation::test_writer_refuses_unsafe_entry_name_segment
+FAILED tests/m3_h/test_h1a_historical_client.py::TestPaginationAndContract::test_failed_wire_requests_count_toward_budget

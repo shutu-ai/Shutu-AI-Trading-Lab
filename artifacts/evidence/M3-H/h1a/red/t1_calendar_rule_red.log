@@ -1,0 +1,301 @@
+F.FF.EFFFEEEEEEEEEFEEEEEE                                                [100%]
+=================================== ERRORS ====================================
+_ ERROR at setup of TestVersionedCalendarSupply.test_supply_metadata_is_recorded _
+
+    @pytest.fixture()
+    def nyse_calendar():
+>       from trading_lab.data.historical_calendar import VersionedMarketCalendar
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\conftest.py:49: ModuleNotFoundError
+____ ERROR at setup of TestSessionClassification.test_thanksgiving_closed _____
+
+    @pytest.fixture()
+    def nyse_calendar():
+>       from trading_lab.data.historical_calendar import VersionedMarketCalendar
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\conftest.py:49: ModuleNotFoundError
+_ ERROR at setup of TestSessionClassification.test_1127_is_half_day_regular_open _
+
+    @pytest.fixture()
+    def nyse_calendar():
+>       from trading_lab.data.historical_calendar import VersionedMarketCalendar
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\conftest.py:49: ModuleNotFoundError
+______ ERROR at setup of TestSessionClassification.test_1224_is_half_day ______
+
+    @pytest.fixture()
+    def nyse_calendar():
+>       from trading_lab.data.historical_calendar import VersionedMarketCalendar
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\conftest.py:49: ModuleNotFoundError
+_ ERROR at setup of TestSessionClassification.test_session_outside_window_refused _
+
+    @pytest.fixture()
+    def nyse_calendar():
+>       from trading_lab.data.historical_calendar import VersionedMarketCalendar
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\conftest.py:49: ModuleNotFoundError
+_ ERROR at setup of TestSessionClassification.test_no_positive_pit_conclusion_for_uncertified_day _
+
+    @pytest.fixture()
+    def nyse_calendar():
+>       from trading_lab.data.historical_calendar import VersionedMarketCalendar
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\conftest.py:49: ModuleNotFoundError
+__ ERROR at setup of TestNextOpenRule.test_friday_close_to_monday_open_65_5h __
+
+    @pytest.fixture()
+    def nyse_calendar():
+>       from trading_lab.data.historical_calendar import VersionedMarketCalendar
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\conftest.py:49: ModuleNotFoundError
+_ ERROR at setup of TestNextOpenRule.test_wed_1125_close_to_fri_1127_open_41_5h _
+
+    @pytest.fixture()
+    def nyse_calendar():
+>       from trading_lab.data.historical_calendar import VersionedMarketCalendar
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\conftest.py:49: ModuleNotFoundError
+_ ERROR at setup of TestNextOpenRule.test_1127_half_day_close_to_monday_open_68_5h _
+
+    @pytest.fixture()
+    def nyse_calendar():
+>       from trading_lab.data.historical_calendar import VersionedMarketCalendar
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\conftest.py:49: ModuleNotFoundError
+_ ERROR at setup of TestNextOpenRule.test_christmas_early_close_to_monday_open_92_5h _
+
+    @pytest.fixture()
+    def nyse_calendar():
+>       from trading_lab.data.historical_calendar import VersionedMarketCalendar
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\conftest.py:49: ModuleNotFoundError
+_ ERROR at setup of TestNextOpenRule.test_open_instant_itself_is_not_its_own_next_open _
+
+    @pytest.fixture()
+    def nyse_calendar():
+>       from trading_lab.data.historical_calendar import VersionedMarketCalendar
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\conftest.py:49: ModuleNotFoundError
+__ ERROR at setup of TestNextOpenRule.test_next_open_beyond_coverage_refused __
+
+    @pytest.fixture()
+    def nyse_calendar():
+>       from trading_lab.data.historical_calendar import VersionedMarketCalendar
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\conftest.py:49: ModuleNotFoundError
+____ ERROR at setup of TestNextOpenRule.test_moment_before_window_refused _____
+
+    @pytest.fixture()
+    def nyse_calendar():
+>       from trading_lab.data.historical_calendar import VersionedMarketCalendar
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\conftest.py:49: ModuleNotFoundError
+________ ERROR at setup of TestNextOpenRule.test_naive_moment_refused _________
+
+    @pytest.fixture()
+    def nyse_calendar():
+>       from trading_lab.data.historical_calendar import VersionedMarketCalendar
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\conftest.py:49: ModuleNotFoundError
+_ ERROR at setup of TestExpectedSessions.test_expected_sessions_within_window _
+
+    @pytest.fixture()
+    def nyse_calendar():
+>       from trading_lab.data.historical_calendar import VersionedMarketCalendar
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\conftest.py:49: ModuleNotFoundError
+_ ERROR at setup of TestExpectedSessions.test_expected_sessions_outside_window_refused _
+
+    @pytest.fixture()
+    def nyse_calendar():
+>       from trading_lab.data.historical_calendar import VersionedMarketCalendar
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\conftest.py:49: ModuleNotFoundError
+================================== FAILURES ===================================
+____________ TestRuleVocabulary.test_new_rule_in_closed_vocabulary ____________
+
+self = <test_h1a_calendar_rule.TestRuleVocabulary object at 0x0000013755D72490>
+
+    def test_new_rule_in_closed_vocabulary(self):
+>       assert "daily_close_available_next_open" in AVAILABLE_AT_RULES
+E       AssertionError: assert 'daily_close_available_next_open' in frozenset({'announced_or_published_before_use', 'bar_ts_plus_0', 'bar_ts_plus_15min'})
+
+tests\m3_h\test_h1a_calendar_rule.py:80: AssertionError
+______ TestRuleVocabulary.test_new_rule_constructs_purpose_requirements _______
+
+self = <test_h1a_calendar_rule.TestRuleVocabulary object at 0x0000013755CA90F0>
+
+    def test_new_rule_constructs_purpose_requirements(self):
+>       req = _purpose("daily_close_available_next_open")
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_calendar_rule.py:90: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'daily_close_available_next_open'
+
+    def _purpose(rule: str) -> PurposeRequirements:
+        """Full-requirements candidate for the H1A template purpose (test-only;
+        the official configs/data_acceptance.yaml row stays
+        PURPOSE_ROW_PENDING_CALENDAR_FREEZE this round)."""
+>       return PurposeRequirements(
+            purpose_id="historical_research_limited_etf",
+            description="H1A offline template purpose (test-only until calendar freeze)",
+            data_scope="us_equities_daily_limited_etf_history",
+            requires_daily_bars=True,
+            requires_minute_bars=False,
+            requires_corporate_actions=False,
+            requires_history_membership=False,
+            requires_delisting=False,
+            available_at_rule=rule,
+            max_missing_rate=0.001,
+            min_coverage_rate=0.999,
+            # 335400s = 93.25h template placeholder; the real row's threshold
+            # must come from derive_max_latency_seconds() over a FROZEN calendar
+            max_latency_seconds=335400,
+            required_license_scope="personal_research",
+            on_fail="RESTRICT_SCOPE",
+        )
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for PurposeRequirements
+E       available_at_rule
+E         Value error, available_at_rule must be one of ['announced_or_published_before_use', 'bar_ts_plus_0', 'bar_ts_plus_15min'] (got 'daily_close_available_next_open') [type=value_error, input_value='daily_close_available_next_open', input_type=str]
+E           For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+tests\m3_h\test_h1a_calendar_rule.py:58: ValidationError
+___________ TestRuleVocabulary.test_illegal_rule_still_fail_closed ____________
+
+self = <test_h1a_calendar_rule.TestRuleVocabulary object at 0x0000013755CA9350>
+
+    def test_illegal_rule_still_fail_closed(self):
+        with pytest.raises(DataAcceptanceConfigError):
+>           _purpose("bar_ts_plus_0_but_trust_me")
+
+tests\m3_h\test_h1a_calendar_rule.py:95: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+rule = 'bar_ts_plus_0_but_trust_me'
+
+    def _purpose(rule: str) -> PurposeRequirements:
+        """Full-requirements candidate for the H1A template purpose (test-only;
+        the official configs/data_acceptance.yaml row stays
+        PURPOSE_ROW_PENDING_CALENDAR_FREEZE this round)."""
+>       return PurposeRequirements(
+            purpose_id="historical_research_limited_etf",
+            description="H1A offline template purpose (test-only until calendar freeze)",
+            data_scope="us_equities_daily_limited_etf_history",
+            requires_daily_bars=True,
+            requires_minute_bars=False,
+            requires_corporate_actions=False,
+            requires_history_membership=False,
+            requires_delisting=False,
+            available_at_rule=rule,
+            max_missing_rate=0.001,
+            min_coverage_rate=0.999,
+            # 335400s = 93.25h template placeholder; the real row's threshold
+            # must come from derive_max_latency_seconds() over a FROZEN calendar
+            max_latency_seconds=335400,
+            required_license_scope="personal_research",
+            on_fail="RESTRICT_SCOPE",
+        )
+E       pydantic_core._pydantic_core.ValidationError: 1 validation error for PurposeRequirements
+E       available_at_rule
+E         Value error, available_at_rule must be one of ['announced_or_published_before_use', 'bar_ts_plus_0', 'bar_ts_plus_15min'] (got 'bar_ts_plus_0_but_trust_me') [type=value_error, input_value='bar_ts_plus_0_but_trust_me', input_type=str]
+E           For further information visit https://errors.pydantic.dev/2.12/v/value_error
+
+tests\m3_h\test_h1a_calendar_rule.py:58: ValidationError
+____ TestVersionedCalendarSupply.test_supply_rejects_out_of_window_holiday ____
+
+self = <test_h1a_calendar_rule.TestVersionedCalendarSupply object at 0x0000013755D72990>
+
+    def test_supply_rejects_out_of_window_holiday(self):
+>       from trading_lab.data.historical_calendar import CalendarSupply
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\test_h1a_calendar_rule.py:117: ModuleNotFoundError
+____ TestVersionedCalendarSupply.test_supply_rejects_naive_retrieval_time _____
+
+self = <test_h1a_calendar_rule.TestVersionedCalendarSupply object at 0x0000013755CA9220>
+
+    def test_supply_rejects_naive_retrieval_time(self):
+>       from trading_lab.data.historical_calendar import CalendarSupply
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\test_h1a_calendar_rule.py:132: ModuleNotFoundError
+___ TestVersionedCalendarSupply.test_supply_rejects_empty_version_or_source ___
+
+self = <test_h1a_calendar_rule.TestVersionedCalendarSupply object at 0x0000013755CA9480>
+
+    def test_supply_rejects_empty_version_or_source(self):
+>       from trading_lab.data.historical_calendar import CalendarSupply
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\test_h1a_calendar_rule.py:147: ModuleNotFoundError
+_________ TestNextOpenRule.test_dst_spring_forward_weekend_span_64_5h _________
+
+self = <test_h1a_calendar_rule.TestNextOpenRule object at 0x0000013755D69130>
+
+    def test_dst_spring_forward_weekend_span_64_5h(self):
+        """Same wall-clock schedule across a DST change yields a different
+        absolute span: Fri EST close -> Mon EDT open = 64.5h (not 65.5h)."""
+>       from trading_lab.data.historical_calendar import (
+            CalendarSupply,
+            VersionedMarketCalendar,
+        )
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar'
+
+tests\m3_h\test_h1a_calendar_rule.py:215: ModuleNotFoundError
+============================== warnings summary ===============================
+..\..\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 999 warnings
+  C:\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 25 warnings
+  C:\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/m3_h/test_h1a_calendar_rule.py::TestRuleVocabulary::test_new_rule_in_closed_vocabulary
+  C:\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/m3_h/test_h1a_calendar_rule.py::TestRuleVocabulary::test_new_rule_in_closed_vocabulary
+FAILED tests/m3_h/test_h1a_calendar_rule.py::TestRuleVocabulary::test_new_rule_constructs_purpose_requirements
+FAILED tests/m3_h/test_h1a_calendar_rule.py::TestRuleVocabulary::test_illegal_rule_still_fail_closed
+FAILED tests/m3_h/test_h1a_calendar_rule.py::TestVersionedCalendarSupply::test_supply_rejects_out_of_window_holiday
+FAILED tests/m3_h/test_h1a_calendar_rule.py::TestVersionedCalendarSupply::test_supply_rejects_naive_retrieval_time
+FAILED tests/m3_h/test_h1a_calendar_rule.py::TestVersionedCalendarSupply::test_supply_rejects_empty_version_or_source
+FAILED tests/m3_h/test_h1a_calendar_rule.py::TestNextOpenRule::test_dst_spring_forward_weekend_span_64_5h
+ERROR tests/m3_h/test_h1a_calendar_rule.py::TestVersionedCalendarSupply::test_supply_metadata_is_recorded
+ERROR tests/m3_h/test_h1a_calendar_rule.py::TestSessionClassification::test_thanksgiving_closed
+ERROR tests/m3_h/test_h1a_calendar_rule.py::TestSessionClassification::test_1127_is_half_day_regular_open
+ERROR tests/m3_h/test_h1a_calendar_rule.py::TestSessionClassification::test_1224_is_half_day
+ERROR tests/m3_h/test_h1a_calendar_rule.py::TestSessionClassification::test_session_outside_window_refused
+ERROR tests/m3_h/test_h1a_calendar_rule.py::TestSessionClassification::test_no_positive_pit_conclusion_for_uncertified_day
+ERROR tests/m3_h/test_h1a_calendar_rule.py::TestNextOpenRule::test_friday_close_to_monday_open_65_5h
+ERROR tests/m3_h/test_h1a_calendar_rule.py::TestNextOpenRule::test_wed_1125_close_to_fri_1127_open_41_5h
+ERROR tests/m3_h/test_h1a_calendar_rule.py::TestNextOpenRule::test_1127_half_day_close_to_monday_open_68_5h
+ERROR tests/m3_h/test_h1a_calendar_rule.py::TestNextOpenRule::test_christmas_early_close_to_monday_open_92_5h
+ERROR tests/m3_h/test_h1a_calendar_rule.py::TestNextOpenRule::test_open_instant_itself_is_not_its_own_next_open
+ERROR tests/m3_h/test_h1a_calendar_rule.py::TestNextOpenRule::test_next_open_beyond_coverage_refused
+ERROR tests/m3_h/test_h1a_calendar_rule.py::TestNextOpenRule::test_moment_before_window_refused
+ERROR tests/m3_h/test_h1a_calendar_rule.py::TestNextOpenRule::test_naive_moment_refused
+ERROR tests/m3_h/test_h1a_calendar_rule.py::TestExpectedSessions::test_expected_sessions_within_window
+ERROR tests/m3_h/test_h1a_calendar_rule.py::TestExpectedSessions::test_expected_sessions_outside_window_refused

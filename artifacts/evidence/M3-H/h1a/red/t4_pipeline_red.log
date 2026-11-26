@@ -1,0 +1,529 @@
+FFFFFFFFFFFFFFFFFFFF                                                     [100%]
+================================== FAILURES ===================================
+_____ TestBusinessEntryRefusals.test_symbol_outside_authorization_refused _____
+
+self = <test_h1a_historical_client.TestBusinessEntryRefusals object at 0x00000232687E5F90>
+
+    def test_symbol_outside_authorization_refused(self):
+        boom = ScriptedHistoryTransport([])
+>       client = _client(boom)
+                 ^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_historical_client.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_h1a_historical_client.ScriptedHistoryTransport object at 0x00000232687AACF0>
+
+    def _client(transport, *, max_requests: int = 30):
+>       from apps.market_gateway.historical_bars import (
+            HISTORY_HOST,
+            HISTORY_PATH_PATTERN,
+            HistoricalBarsClient,
+            HistoricalWindow,
+        )
+E       ModuleNotFoundError: No module named 'apps.market_gateway.historical_bars'
+
+tests\m3_h\test_h1a_historical_client.py:88: ModuleNotFoundError
+_____ TestBusinessEntryRefusals.test_dates_outside_license_window_refused _____
+
+self = <test_h1a_historical_client.TestBusinessEntryRefusals object at 0x00000232687E6350>
+
+    def test_dates_outside_license_window_refused(self):
+        """The frozen license window is enforced at the business entry:
+        2017 dates are refused even though the calendar fixture could
+        never certify them either."""
+        boom = ScriptedHistoryTransport([])
+>       client = _client(boom)
+                 ^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_historical_client.py:131: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_h1a_historical_client.ScriptedHistoryTransport object at 0x00000232687E7110>
+
+    def _client(transport, *, max_requests: int = 30):
+>       from apps.market_gateway.historical_bars import (
+            HISTORY_HOST,
+            HISTORY_PATH_PATTERN,
+            HistoricalBarsClient,
+            HistoricalWindow,
+        )
+E       ModuleNotFoundError: No module named 'apps.market_gateway.historical_bars'
+
+tests\m3_h\test_h1a_historical_client.py:88: ModuleNotFoundError
+_________ TestBusinessEntryRefusals.test_inverted_date_range_refused __________
+
+self = <test_h1a_historical_client.TestBusinessEntryRefusals object at 0x0000023268606D70>
+
+    def test_inverted_date_range_refused(self):
+        boom = ScriptedHistoryTransport([])
+>       client = _client(boom)
+                 ^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_historical_client.py:139: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_h1a_historical_client.ScriptedHistoryTransport object at 0x00000232687E74D0>
+
+    def _client(transport, *, max_requests: int = 30):
+>       from apps.market_gateway.historical_bars import (
+            HISTORY_HOST,
+            HISTORY_PATH_PATTERN,
+            HistoricalBarsClient,
+            HistoricalWindow,
+        )
+E       ModuleNotFoundError: No module named 'apps.market_gateway.historical_bars'
+
+tests\m3_h\test_h1a_historical_client.py:88: ModuleNotFoundError
+____ TestPaginationAndContract.test_two_symbols_multi_page_no_silent_loss _____
+
+self = <test_h1a_historical_client.TestPaginationAndContract object at 0x00000232687E6490>
+
+    def test_two_symbols_multi_page_no_silent_loss(self):
+        transport = ScriptedHistoryTransport(
+            [
+                _page([_bar("2026-11-20", "600.10"), _bar("2026-11-23", "601.20")], "tok-p2", "SPY"),
+                _page([_bar("2026-11-24", "602.30"), _bar("2026-11-25", "603.40")], None, "SPY"),
+                _page(
+                    [
+                        _bar("2026-11-20", "300.10"),
+                        _bar("2026-11-23", "301.20"),
+                        _bar("2026-11-24", "302.30"),
+                        _bar("2026-11-25", "303.40"),
+                    ],
+                    None,
+                    "QQQ",
+                ),
+            ]
+        )
+>       client = _client(transport)
+                 ^^^^^^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_historical_client.py:168: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_h1a_historical_client.ScriptedHistoryTransport object at 0x0000023268836D70>
+
+    def _client(transport, *, max_requests: int = 30):
+>       from apps.market_gateway.historical_bars import (
+            HISTORY_HOST,
+            HISTORY_PATH_PATTERN,
+            HistoricalBarsClient,
+            HistoricalWindow,
+        )
+E       ModuleNotFoundError: No module named 'apps.market_gateway.historical_bars'
+
+tests\m3_h\test_h1a_historical_client.py:88: ModuleNotFoundError
+________ TestPaginationAndContract.test_symbol_echo_required_and_exact ________
+
+self = <test_h1a_historical_client.TestPaginationAndContract object at 0x00000232687E6210>
+
+    def test_symbol_echo_required_and_exact(self):
+        import json
+    
+        transport = ScriptedHistoryTransport(
+            [json.dumps({"bars": [_bar("2026-11-20", "600")]}).encode("utf-8")]
+        )
+>       client = _client(transport)
+                 ^^^^^^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_historical_client.py:193: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_h1a_historical_client.ScriptedHistoryTransport object at 0x0000023268837490>
+
+    def _client(transport, *, max_requests: int = 30):
+>       from apps.market_gateway.historical_bars import (
+            HISTORY_HOST,
+            HISTORY_PATH_PATTERN,
+            HistoricalBarsClient,
+            HistoricalWindow,
+        )
+E       ModuleNotFoundError: No module named 'apps.market_gateway.historical_bars'
+
+tests\m3_h\test_h1a_historical_client.py:88: ModuleNotFoundError
+______________ TestPaginationAndContract.test_empty_page_refused ______________
+
+self = <test_h1a_historical_client.TestPaginationAndContract object at 0x0000023268835220>
+
+    def test_empty_page_refused(self):
+        import json
+    
+        transport = ScriptedHistoryTransport(
+            [json.dumps({"bars": [], "symbol": "SPY"}).encode("utf-8")]
+        )
+>       client = _client(transport)
+                 ^^^^^^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_historical_client.py:204: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_h1a_historical_client.ScriptedHistoryTransport object at 0x00000232688C95B0>
+
+    def _client(transport, *, max_requests: int = 30):
+>       from apps.market_gateway.historical_bars import (
+            HISTORY_HOST,
+            HISTORY_PATH_PATTERN,
+            HistoricalBarsClient,
+            HistoricalWindow,
+        )
+E       ModuleNotFoundError: No module named 'apps.market_gateway.historical_bars'
+
+tests\m3_h\test_h1a_historical_client.py:88: ModuleNotFoundError
+___________ TestPaginationAndContract.test_page_token_loop_detected ___________
+
+self = <test_h1a_historical_client.TestPaginationAndContract object at 0x0000023268606C40>
+
+    def test_page_token_loop_detected(self):
+        transport = ScriptedHistoryTransport(
+            [
+                _page([_bar("2026-11-20", "600")], "tok-loop", "SPY"),
+                _page([_bar("2026-11-23", "601")], "tok-loop", "SPY"),
+            ]
+        )
+>       client = _client(transport)
+                 ^^^^^^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_historical_client.py:216: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_h1a_historical_client.ScriptedHistoryTransport object at 0x00000232688F8050>
+
+    def _client(transport, *, max_requests: int = 30):
+>       from apps.market_gateway.historical_bars import (
+            HISTORY_HOST,
+            HISTORY_PATH_PATTERN,
+            HistoricalBarsClient,
+            HistoricalWindow,
+        )
+E       ModuleNotFoundError: No module named 'apps.market_gateway.historical_bars'
+
+tests\m3_h\test_h1a_historical_client.py:88: ModuleNotFoundError
+___________ TestPaginationAndContract.test_out_of_range_bar_refused ___________
+
+self = <test_h1a_historical_client.TestPaginationAndContract object at 0x00000232685F0170>
+
+    def test_out_of_range_bar_refused(self):
+        transport = ScriptedHistoryTransport(
+            [_page([_bar("2026-12-01", "600")], None, "SPY")]
+        )
+>       client = _client(transport)
+                 ^^^^^^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_historical_client.py:226: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_h1a_historical_client.ScriptedHistoryTransport object at 0x00000232688F85A0>
+
+    def _client(transport, *, max_requests: int = 30):
+>       from apps.market_gateway.historical_bars import (
+            HISTORY_HOST,
+            HISTORY_PATH_PATTERN,
+            HistoricalBarsClient,
+            HistoricalWindow,
+        )
+E       ModuleNotFoundError: No module named 'apps.market_gateway.historical_bars'
+
+tests\m3_h\test_h1a_historical_client.py:88: ModuleNotFoundError
+______ TestPaginationAndContract.test_duplicate_or_out_of_order_refused _______
+
+self = <test_h1a_historical_client.TestPaginationAndContract object at 0x000002326858EF10>
+
+    def test_duplicate_or_out_of_order_refused(self):
+        transport = ScriptedHistoryTransport(
+            [
+                _page(
+                    [_bar("2026-11-23", "601"), _bar("2026-11-23", "601")],
+                    None,
+                    "SPY",
+                )
+            ]
+        )
+>       client = _client(transport)
+                 ^^^^^^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_historical_client.py:241: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_h1a_historical_client.ScriptedHistoryTransport object at 0x00000232688CDA50>
+
+    def _client(transport, *, max_requests: int = 30):
+>       from apps.market_gateway.historical_bars import (
+            HISTORY_HOST,
+            HISTORY_PATH_PATTERN,
+            HistoricalBarsClient,
+            HistoricalWindow,
+        )
+E       ModuleNotFoundError: No module named 'apps.market_gateway.historical_bars'
+
+tests\m3_h\test_h1a_historical_client.py:88: ModuleNotFoundError
+__________ TestPaginationAndContract.test_request_budget_hard_capped __________
+
+self = <test_h1a_historical_client.TestPaginationAndContract object at 0x000002326858ECF0>
+
+    def test_request_budget_hard_capped(self):
+        pages = [_page([_bar("2026-11-20", "600")], f"tok-{i}", "SPY") for i in range(5)]
+        transport = ScriptedHistoryTransport(pages)
+>       client = _client(transport, max_requests=3)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_historical_client.py:249: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_h1a_historical_client.ScriptedHistoryTransport object at 0x00000232688CE350>
+
+    def _client(transport, *, max_requests: int = 30):
+>       from apps.market_gateway.historical_bars import (
+            HISTORY_HOST,
+            HISTORY_PATH_PATTERN,
+            HistoricalBarsClient,
+            HistoricalWindow,
+        )
+E       ModuleNotFoundError: No module named 'apps.market_gateway.historical_bars'
+
+tests\m3_h\test_h1a_historical_client.py:88: ModuleNotFoundError
+____ TestPaginationAndContract.test_non_200_propagates_as_transport_error _____
+
+self = <test_h1a_historical_client.TestPaginationAndContract object at 0x0000023268749850>
+
+    def test_non_200_propagates_as_transport_error(self):
+        class Forbidden(ScriptedHistoryTransport):
+            def __call__(self, request, timeout=None):
+                self.requests.append((request.full_url, {}))
+                raise urllib.error.HTTPError(
+                    request.full_url, 403, "forbidden", hdrs=None, fp=None
+                )
+    
+>       client = _client(Forbidden([]))
+                 ^^^^^^^^^^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_historical_client.py:263: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+transport = <test_h1a_historical_client.TestPaginationAndContract.test_non_200_propagates_as_transport_error.<locals>.Forbidden object at 0x00000232687AB4D0>
+
+    def _client(transport, *, max_requests: int = 30):
+>       from apps.market_gateway.historical_bars import (
+            HISTORY_HOST,
+            HISTORY_PATH_PATTERN,
+            HistoricalBarsClient,
+            HistoricalWindow,
+        )
+E       ModuleNotFoundError: No module named 'apps.market_gateway.historical_bars'
+
+tests\m3_h\test_h1a_historical_client.py:88: ModuleNotFoundError
+_ TestPaginationAndContract.test_guard_path_still_enforced_for_history_client _
+
+self = <test_h1a_historical_client.TestPaginationAndContract object at 0x0000023268749E50>
+
+    def test_guard_path_still_enforced_for_history_client(self):
+        """If the configured path regex ever drifts away from the bars
+        pattern, the guard refuses before the transport (defense in
+        depth survives configuration)."""
+>       from apps.market_gateway.historical_bars import (
+            HISTORY_HOST,
+            HistoricalBarsClient,
+            HistoricalWindow,
+        )
+E       ModuleNotFoundError: No module named 'apps.market_gateway.historical_bars'
+
+tests\m3_h\test_h1a_historical_client.py:274: ModuleNotFoundError
+_ TestEndToEndOffline.test_two_symbols_deterministic_snapshot_license_blocked _
+
+self = <test_h1a_snapshot_namespace.TestEndToEndOffline object at 0x00000232687E6990>
+
+    def test_two_symbols_deterministic_snapshot_license_blocked(self):
+>       build = _build()
+                ^^^^^^^^
+
+tests\m3_h\test_h1a_snapshot_namespace.py:137: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+closes_spy = None, closes_qqq = None
+
+    def _build(closes_spy=None, closes_qqq=None):
+>       from trading_lab.data.historical import build_historical_snapshot
+E       ImportError: cannot import name 'build_historical_snapshot' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_snapshot_namespace.py:106: ImportError
+__ TestEndToEndOffline.test_license_confirmed_assumed_capped_restrict_scope ___
+
+self = <test_h1a_snapshot_namespace.TestEndToEndOffline object at 0x00000232687E5E50>
+
+    def test_license_confirmed_assumed_capped_restrict_scope(self):
+        from trading_lab.data.historical import evaluate_historical_research
+    
+>       build = _build()
+                ^^^^^^^^
+
+tests\m3_h\test_h1a_snapshot_namespace.py:156: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+closes_spy = None, closes_qqq = None
+
+    def _build(closes_spy=None, closes_qqq=None):
+>       from trading_lab.data.historical import build_historical_snapshot
+E       ImportError: cannot import name 'build_historical_snapshot' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_snapshot_namespace.py:106: ImportError
+_________ TestEndToEndOffline.test_determinism_same_inputs_same_hash __________
+
+self = <test_h1a_snapshot_namespace.TestEndToEndOffline object at 0x0000023268835E00>
+
+    def test_determinism_same_inputs_same_hash(self):
+>       a = _build()
+            ^^^^^^^^
+
+tests\m3_h\test_h1a_snapshot_namespace.py:166: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+closes_spy = None, closes_qqq = None
+
+    def _build(closes_spy=None, closes_qqq=None):
+>       from trading_lab.data.historical import build_historical_snapshot
+E       ImportError: cannot import name 'build_historical_snapshot' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_snapshot_namespace.py:106: ImportError
+___________ TestEndToEndOffline.test_one_close_change_changes_hash ____________
+
+self = <test_h1a_snapshot_namespace.TestEndToEndOffline object at 0x0000023268835940>
+
+    def test_one_close_change_changes_hash(self):
+>       a = _build()
+            ^^^^^^^^
+
+tests\m3_h\test_h1a_snapshot_namespace.py:171: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+closes_spy = None, closes_qqq = None
+
+    def _build(closes_spy=None, closes_qqq=None):
+>       from trading_lab.data.historical import build_historical_snapshot
+E       ImportError: cannot import name 'build_historical_snapshot' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_snapshot_namespace.py:106: ImportError
+_ TestEndToEndOffline.test_session_outside_calendar_coverage_refused_at_build _
+
+self = <test_h1a_snapshot_namespace.TestEndToEndOffline object at 0x000002326886BD10>
+
+    def test_session_outside_calendar_coverage_refused_at_build(self):
+>       from trading_lab.data.historical import HistoricalDataError, build_historical_snapshot
+E       ImportError: cannot import name 'build_historical_snapshot' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_snapshot_namespace.py:176: ImportError
+_ TestEndToEndOffline.test_deadline_boundary_zero_grace_passes_at_exact_next_open _
+
+self = <test_h1a_snapshot_namespace.TestEndToEndOffline object at 0x000002326880F020>
+
+    def test_deadline_boundary_zero_grace_passes_at_exact_next_open(self):
+        """With grace 0 the assumed stamp sits exactly ON the deadline —
+        the one-sided gate passes it (deadline is an upper bound)."""
+        from trading_lab.data.historical import calendar_deadline_violations
+        from trading_lab.data.historical import HistoricalBarRecord
+        from trading_lab.data.historical_calendar import VersionedMarketCalendar
+    
+        calendar = VersionedMarketCalendar.from_supply(nyse_2026_fixture_supply())
+>       rec = HistoricalBarRecord.assumed_next_open_row(
+            _bar("2026-11-25", "600.10"),
+            symbol="SPY",
+            session_date=dt.date(2026, 11, 25),
+            session_close_utc=dt.datetime(2026, 11, 25, 21, 0, tzinfo=UTC),
+            assumed_available_at_utc=dt.datetime(2026, 11, 27, 14, 30, tzinfo=UTC),
+            received_at_utc=H1A_RECEIVED_AT,
+        )
+
+tests\m3_h\test_h1a_snapshot_namespace.py:214: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\trading_lab\data\historical.py:234: in assumed_next_open_row
+    vendor_ts, o, h, low, c, v = cls._parse_vendor_row(row)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\trading_lab\data\historical.py:219: in _parse_vendor_row
+    _price(row["c"], "c"),
+    ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = '600.10', field = 'c'
+
+    def _price(value: object, field: str) -> Decimal:
+        """Exact-decimal price: Decimal or int from the guarded client's
+        parser; floats and strings are platform-banned at this layer."""
+        if isinstance(value, bool) or not isinstance(value, (Decimal, int)):
+>           raise HistoricalDataError(
+                f"{field} must be an exact number (Decimal/int), got {type(value).__name__}"
+            )
+E           trading_lab.data.historical.HistoricalDataError: c must be an exact number (Decimal/int), got str
+
+src\trading_lab\data\historical.py:101: HistoricalDataError
+_ TestNamespaceIsolation.test_writes_only_under_namespace_root_and_forward_state_untouched _
+
+self = <test_h1a_snapshot_namespace.TestNamespaceIsolation object at 0x00000232687E6AD0>
+tmp_path = WindowsPath('C:/Users/jabin/AppData/Local/Temp/pytest-of-jabin/pytest-1100/test_writes_only_under_namespa0')
+
+    def test_writes_only_under_namespace_root_and_forward_state_untouched(self, tmp_path):
+>       build = _build()
+                ^^^^^^^^
+
+tests\m3_h\test_h1a_snapshot_namespace.py:227: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+closes_spy = None, closes_qqq = None
+
+    def _build(closes_spy=None, closes_qqq=None):
+>       from trading_lab.data.historical import build_historical_snapshot
+E       ImportError: cannot import name 'build_historical_snapshot' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_snapshot_namespace.py:106: ImportError
+__________ TestNamespaceIsolation.test_namespace_bytes_deterministic __________
+
+self = <test_h1a_snapshot_namespace.TestNamespaceIsolation object at 0x00000232687E6C10>
+tmp_path = WindowsPath('C:/Users/jabin/AppData/Local/Temp/pytest-of-jabin/pytest-1100/test_namespace_bytes_determini0')
+
+    def test_namespace_bytes_deterministic(self, tmp_path):
+>       build = _build()
+                ^^^^^^^^
+
+tests\m3_h\test_h1a_snapshot_namespace.py:256: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+closes_spy = None, closes_qqq = None
+
+    def _build(closes_spy=None, closes_qqq=None):
+>       from trading_lab.data.historical import build_historical_snapshot
+E       ImportError: cannot import name 'build_historical_snapshot' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_snapshot_namespace.py:106: ImportError
+============================== warnings summary ===============================
+..\..\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 795 warnings
+  C:\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 20 warnings
+  C:\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/m3_h/test_h1a_historical_client.py::TestBusinessEntryRefusals::test_symbol_outside_authorization_refused
+  C:\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/m3_h/test_h1a_historical_client.py::TestBusinessEntryRefusals::test_symbol_outside_authorization_refused
+FAILED tests/m3_h/test_h1a_historical_client.py::TestBusinessEntryRefusals::test_dates_outside_license_window_refused
+FAILED tests/m3_h/test_h1a_historical_client.py::TestBusinessEntryRefusals::test_inverted_date_range_refused
+FAILED tests/m3_h/test_h1a_historical_client.py::TestPaginationAndContract::test_two_symbols_multi_page_no_silent_loss
+FAILED tests/m3_h/test_h1a_historical_client.py::TestPaginationAndContract::test_symbol_echo_required_and_exact
+FAILED tests/m3_h/test_h1a_historical_client.py::TestPaginationAndContract::test_empty_page_refused
+FAILED tests/m3_h/test_h1a_historical_client.py::TestPaginationAndContract::test_page_token_loop_detected
+FAILED tests/m3_h/test_h1a_historical_client.py::TestPaginationAndContract::test_out_of_range_bar_refused
+FAILED tests/m3_h/test_h1a_historical_client.py::TestPaginationAndContract::test_duplicate_or_out_of_order_refused
+FAILED tests/m3_h/test_h1a_historical_client.py::TestPaginationAndContract::test_request_budget_hard_capped
+FAILED tests/m3_h/test_h1a_historical_client.py::TestPaginationAndContract::test_non_200_propagates_as_transport_error
+FAILED tests/m3_h/test_h1a_historical_client.py::TestPaginationAndContract::test_guard_path_still_enforced_for_history_client
+FAILED tests/m3_h/test_h1a_snapshot_namespace.py::TestEndToEndOffline::test_two_symbols_deterministic_snapshot_license_blocked
+FAILED tests/m3_h/test_h1a_snapshot_namespace.py::TestEndToEndOffline::test_license_confirmed_assumed_capped_restrict_scope
+FAILED tests/m3_h/test_h1a_snapshot_namespace.py::TestEndToEndOffline::test_determinism_same_inputs_same_hash
+FAILED tests/m3_h/test_h1a_snapshot_namespace.py::TestEndToEndOffline::test_one_close_change_changes_hash
+FAILED tests/m3_h/test_h1a_snapshot_namespace.py::TestEndToEndOffline::test_session_outside_calendar_coverage_refused_at_build
+FAILED tests/m3_h/test_h1a_snapshot_namespace.py::TestEndToEndOffline::test_deadline_boundary_zero_grace_passes_at_exact_next_open
+FAILED tests/m3_h/test_h1a_snapshot_namespace.py::TestNamespaceIsolation::test_writes_only_under_namespace_root_and_forward_state_untouched
+FAILED tests/m3_h/test_h1a_snapshot_namespace.py::TestNamespaceIsolation::test_namespace_bytes_deterministic

@@ -1,0 +1,15 @@
+..........................                                               [100%]
+============================== warnings summary ===============================
+..\..\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 1037 warnings
+  C:\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 26 warnings
+  C:\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/m3_h/test_h1a_calendar_rule.py::TestRuleVocabulary::test_new_rule_in_closed_vocabulary
+  C:\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html

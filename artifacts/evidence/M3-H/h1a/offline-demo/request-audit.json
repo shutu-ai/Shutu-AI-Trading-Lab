@@ -1,0 +1,34 @@
+{
+  "authorized_budget_max_requests": 30,
+  "credentials_sent": "NONE (headers=None throughout)",
+  "requests_sent_total": 3,
+  "scope": "SYNTHETIC_OFFLINE_ONLY (scripted transport, zero network, zero credentials)",
+  "symbols": {
+    "QQQ": {
+      "complete": true,
+      "page_tokens_seen": [],
+      "pages": 1,
+      "request_urls": [
+        "https://data.alpaca.markets/v2/stocks/QQQ/bars?adjustment=raw&end=2026-11-25&feed=iex&limit=10000&start=2026-11-20&timeframe=1Day"
+      ],
+      "rows": 4
+    },
+    "SPY": {
+      "complete": true,
+      "page_tokens_seen": [
+        "page-2-token"
+      ],
+      "pages": 2,
+      "request_urls": [
+        "https://data.alpaca.markets/v2/stocks/SPY/bars?adjustment=raw&end=2026-11-25&feed=iex&limit=10000&start=2026-11-20&timeframe=1Day",
+        "https://data.alpaca.markets/v2/stocks/SPY/bars?adjustment=raw&end=2026-11-25&feed=iex&limit=10000&page_token=page-2-token&start=2026-11-20&timeframe=1Day"
+      ],
+      "rows": 4
+    }
+  },
+  "transport_recorded_requests": [
+    "https://data.alpaca.markets/v2/stocks/SPY/bars?adjustment=raw&end=2026-11-25&feed=iex&limit=10000&start=2026-11-20&timeframe=1Day",
+    "https://data.alpaca.markets/v2/stocks/SPY/bars?adjustment=raw&end=2026-11-25&feed=iex&limit=10000&page_token=page-2-token&start=2026-11-20&timeframe=1Day",
+    "https://data.alpaca.markets/v2/stocks/QQQ/bars?adjustment=raw&end=2026-11-25&feed=iex&limit=10000&start=2026-11-20&timeframe=1Day"
+  ]
+}

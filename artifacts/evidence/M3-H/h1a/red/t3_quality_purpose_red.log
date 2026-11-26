@@ -1,0 +1,212 @@
+FFF.FFFFFFFFFF                                                           [100%]
+================================== FAILURES ===================================
+_ TestCalendarDerivedThreshold.test_derivation_beats_fixed_48h_and_matches_worst_span _
+
+self = <test_h1a_quality_purpose.TestCalendarDerivedThreshold object at 0x000001A7B09565D0>
+
+    def test_derivation_beats_fixed_48h_and_matches_worst_span(self):
+>       from trading_lab.data.historical import derive_max_latency_seconds
+E       ImportError: cannot import name 'derive_max_latency_seconds' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_quality_purpose.py:147: ImportError
+__________ TestCalendarDerivedThreshold.test_negative_grace_refused ___________
+
+self = <test_h1a_quality_purpose.TestCalendarDerivedThreshold object at 0x000001A7B0956990>
+
+    def test_negative_grace_refused(self):
+>       from trading_lab.data.historical import HistoricalDataError, derive_max_latency_seconds
+E       ImportError: cannot import name 'derive_max_latency_seconds' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_quality_purpose.py:162: ImportError
+_ TestCalendarDerivedThreshold.test_template_requirements_validate_with_derived_threshold _
+
+self = <test_h1a_quality_purpose.TestCalendarDerivedThreshold object at 0x000001A7B08DCC30>
+
+    def test_template_requirements_validate_with_derived_threshold(self):
+>       from trading_lab.data.historical import derive_max_latency_seconds
+E       ImportError: cannot import name 'derive_max_latency_seconds' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_quality_purpose.py:170: ImportError
+__ TestOfficialRowPendingCalendarFreeze.test_pending_marker_constant_exists ___
+
+self = <test_h1a_quality_purpose.TestOfficialRowPendingCalendarFreeze object at 0x000001A7B0956AD0>
+
+    def test_pending_marker_constant_exists(self):
+>       from trading_lab.data.historical import PURPOSE_ROW_PENDING_CALENDAR_FREEZE
+E       ImportError: cannot import name 'PURPOSE_ROW_PENDING_CALENDAR_FREEZE' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_quality_purpose.py:186: ImportError
+___ TestPerRowCalendarGate.test_legal_92_5h_holiday_span_is_not_a_violation ___
+
+self = <test_h1a_quality_purpose.TestPerRowCalendarGate object at 0x000001A7B0956C10>
+
+    def test_legal_92_5h_holiday_span_is_not_a_violation(self):
+>       from trading_lab.data.historical import calendar_deadline_violations
+E       ImportError: cannot import name 'calendar_deadline_violations' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_quality_purpose.py:212: ImportError
+__ TestPerRowCalendarGate.test_deferral_past_preregistered_deadline_rejected __
+
+self = <test_h1a_quality_purpose.TestPerRowCalendarGate object at 0x000001A7B0956D50>
+
+    def test_deferral_past_preregistered_deadline_rejected(self):
+>       from trading_lab.data.historical import calendar_deadline_violations
+E       ImportError: cannot import name 'calendar_deadline_violations' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_quality_purpose.py:220: ImportError
+____ TestPerRowCalendarGate.test_unknown_availability_flagged_not_skipped _____
+
+self = <test_h1a_quality_purpose.TestPerRowCalendarGate object at 0x000001A7B08DCD60>
+
+    def test_unknown_availability_flagged_not_skipped(self):
+>       from trading_lab.data.historical import HistoricalBarRecord, calendar_deadline_violations
+E       ImportError: cannot import name 'calendar_deadline_violations' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_quality_purpose.py:241: ImportError
+_ TestHistoricalPurposeWrapper.test_assumed_pit_caps_accept_at_restrict_scope _
+
+self = <test_h1a_quality_purpose.TestHistoricalPurposeWrapper object at 0x000001A7B0957390>
+
+    def test_assumed_pit_caps_accept_at_restrict_scope(self):
+>       decision = self._decide()
+                   ^^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_quality_purpose.py:280: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_h1a_quality_purpose.TestHistoricalPurposeWrapper object at 0x000001A7B0957390>
+
+    def _decide(self, *, quality=None, vendor=None, manifest=None, requirements=None):
+>       from trading_lab.data.historical import derive_max_latency_seconds, evaluate_historical_research
+E       ImportError: cannot import name 'derive_max_latency_seconds' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_quality_purpose.py:265: ImportError
+_____ TestHistoricalPurposeWrapper.test_verified_pit_allows_plain_accept ______
+
+self = <test_h1a_quality_purpose.TestHistoricalPurposeWrapper object at 0x000001A7B09574D0>
+
+    def test_verified_pit_allows_plain_accept(self):
+>       decision = self._decide(manifest=_verified_manifest())
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_quality_purpose.py:291: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_h1a_quality_purpose.TestHistoricalPurposeWrapper object at 0x000001A7B09574D0>
+
+    def _decide(self, *, quality=None, vendor=None, manifest=None, requirements=None):
+>       from trading_lab.data.historical import derive_max_latency_seconds, evaluate_historical_research
+E       ImportError: cannot import name 'derive_max_latency_seconds' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_quality_purpose.py:265: ImportError
+_ TestHistoricalPurposeWrapper.test_license_unconfirmed_stays_blocked_even_with_assumed_pit _
+
+self = <test_h1a_quality_purpose.TestHistoricalPurposeWrapper object at 0x000001A7B08DD350>
+
+    def test_license_unconfirmed_stays_blocked_even_with_assumed_pit(self):
+>       decision = self._decide(vendor=_vendor(license_confirmed=False))
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_quality_purpose.py:296: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_h1a_quality_purpose.TestHistoricalPurposeWrapper object at 0x000001A7B08DD350>
+
+    def _decide(self, *, quality=None, vendor=None, manifest=None, requirements=None):
+>       from trading_lab.data.historical import derive_max_latency_seconds, evaluate_historical_research
+E       ImportError: cannot import name 'derive_max_latency_seconds' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_quality_purpose.py:265: ImportError
+__ TestHistoricalPurposeWrapper.test_zero_latency_samples_stay_inconclusive ___
+
+self = <test_h1a_quality_purpose.TestHistoricalPurposeWrapper object at 0x000001A7B08DD0F0>
+
+    def test_zero_latency_samples_stay_inconclusive(self):
+>       decision = self._decide(quality=_quality(samples=0))
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_quality_purpose.py:301: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_h1a_quality_purpose.TestHistoricalPurposeWrapper object at 0x000001A7B08DD0F0>
+
+    def _decide(self, *, quality=None, vendor=None, manifest=None, requirements=None):
+>       from trading_lab.data.historical import derive_max_latency_seconds, evaluate_historical_research
+E       ImportError: cannot import name 'derive_max_latency_seconds' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_quality_purpose.py:265: ImportError
+________ TestHistoricalPurposeWrapper.test_unknown_pit_manifest_blocks ________
+
+self = <test_h1a_quality_purpose.TestHistoricalPurposeWrapper object at 0x000001A7B094D490>
+
+    def test_unknown_pit_manifest_blocks(self):
+>       decision = self._decide(
+            manifest=build_snapshot(
+                CUTOFF, [_entry("spy_daily", "unknown", "UNKNOWN_AVAILABILITY")]
+            )
+        )
+
+tests\m3_h\test_h1a_quality_purpose.py:306: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_h1a_quality_purpose.TestHistoricalPurposeWrapper object at 0x000001A7B094D490>
+
+    def _decide(self, *, quality=None, vendor=None, manifest=None, requirements=None):
+>       from trading_lab.data.historical import derive_max_latency_seconds, evaluate_historical_research
+E       ImportError: cannot import name 'derive_max_latency_seconds' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_quality_purpose.py:265: ImportError
+_____ TestHistoricalPurposeWrapper.test_broken_manifest_integrity_blocks ______
+
+self = <test_h1a_quality_purpose.TestHistoricalPurposeWrapper object at 0x000001A7B092C9E0>
+
+    def test_broken_manifest_integrity_blocks(self):
+        from trading_lab.data.snapshot import SnapshotManifest
+    
+        good = _assumed_manifest()
+        stale = SnapshotManifest(
+            knowledge_cutoff_utc=good.knowledge_cutoff_utc,
+            entries=good.entries,
+            dataset_hash="0" * 64,
+        )
+>       decision = self._decide(manifest=stale)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\m3_h\test_h1a_quality_purpose.py:323: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <test_h1a_quality_purpose.TestHistoricalPurposeWrapper object at 0x000001A7B092C9E0>
+
+    def _decide(self, *, quality=None, vendor=None, manifest=None, requirements=None):
+>       from trading_lab.data.historical import derive_max_latency_seconds, evaluate_historical_research
+E       ImportError: cannot import name 'derive_max_latency_seconds' from 'trading_lab.data.historical' (C:\dev-projects\Shutu-AI-Trading-Lab\src\trading_lab\data\historical.py)
+
+tests\m3_h\test_h1a_quality_purpose.py:265: ImportError
+============================== warnings summary ===============================
+..\..\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 558 warnings
+  C:\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 14 warnings
+  C:\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/m3_h/test_h1a_quality_purpose.py::TestCalendarDerivedThreshold::test_derivation_beats_fixed_48h_and_matches_worst_span
+  C:\Users\jabin\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/m3_h/test_h1a_quality_purpose.py::TestCalendarDerivedThreshold::test_derivation_beats_fixed_48h_and_matches_worst_span
+FAILED tests/m3_h/test_h1a_quality_purpose.py::TestCalendarDerivedThreshold::test_negative_grace_refused
+FAILED tests/m3_h/test_h1a_quality_purpose.py::TestCalendarDerivedThreshold::test_template_requirements_validate_with_derived_threshold
+FAILED tests/m3_h/test_h1a_quality_purpose.py::TestOfficialRowPendingCalendarFreeze::test_pending_marker_constant_exists
+FAILED tests/m3_h/test_h1a_quality_purpose.py::TestPerRowCalendarGate::test_legal_92_5h_holiday_span_is_not_a_violation
+FAILED tests/m3_h/test_h1a_quality_purpose.py::TestPerRowCalendarGate::test_deferral_past_preregistered_deadline_rejected
+FAILED tests/m3_h/test_h1a_quality_purpose.py::TestPerRowCalendarGate::test_unknown_availability_flagged_not_skipped
+FAILED tests/m3_h/test_h1a_quality_purpose.py::TestHistoricalPurposeWrapper::test_assumed_pit_caps_accept_at_restrict_scope
+FAILED tests/m3_h/test_h1a_quality_purpose.py::TestHistoricalPurposeWrapper::test_verified_pit_allows_plain_accept
+FAILED tests/m3_h/test_h1a_quality_purpose.py::TestHistoricalPurposeWrapper::test_license_unconfirmed_stays_blocked_even_with_assumed_pit
+FAILED tests/m3_h/test_h1a_quality_purpose.py::TestHistoricalPurposeWrapper::test_zero_latency_samples_stay_inconclusive
+FAILED tests/m3_h/test_h1a_quality_purpose.py::TestHistoricalPurposeWrapper::test_unknown_pit_manifest_blocks
+FAILED tests/m3_h/test_h1a_quality_purpose.py::TestHistoricalPurposeWrapper::test_broken_manifest_integrity_blocks
