@@ -32,14 +32,23 @@ import pytest
 from trading_lab.business.snapshot_source import (
     ADMISSION_RESTRICTED,
     COLLECTED_STATUS,
+    LICENSE_ATTESTED,
+    LICENSE_UNVERIFIED,
+    LICENSE_VERIFIED,
     MANIFEST_SCHEMA,
     NAMESPACE_MARKER,
     PIT_ASSUMED_NOT_VERIFIED,
+    PIT_LEVEL_ASSUMED,
+    PIT_LEVEL_VERIFIED,
+    RESEARCH_TIER_EXPLORATORY,
+    RESEARCH_TIER_RESTRICTED_RESEARCH,
+    RESEARCH_TIER_VERIFIED_RESEARCH,
     SCENARIO_TAG_ADMITTED,
     SCENARIO_TAG_EXPLORATORY,
     SOURCE_LIVE,
     SOURCE_PROBE,
     SnapshotSourceError,
+    classify_research_tier,
     load_historical_snapshot,
 )
 from trading_lab.business.series import QUALITY_SYNTHETIC_OK, SeriesStore
@@ -752,3 +761,184 @@ class TestManifestHardErrors:
         root = _write_snapshot(tmp_path, _default_specs(), mutate)
         with pytest.raises(SnapshotSourceError, match=match):
             load_historical_snapshot(root)
+
+
+# ---------------------------------------------------------------------------
+# research-tier layering (V0.3 T2): EXPLORATORY / RESTRICTED / VERIFIED
+# ---------------------------------------------------------------------------
+
+
+class TestResearchTierLayering:
+    """The three-tier use classification on top of the UNCHANGED
+    ``research_admitted`` gate (V0.3 task §4). Rules under test:
+
+    - non-admitted bundles are ALWAYS EXPLORATORY, whatever their labels
+      or protocol markers claim (the tier never overrides the gate);
+    - VERIFIED_RESEARCH requires research_admitted AND license VERIFIED
+      AND PIT VERIFIED;
+    - RESTRICTED_RESEARCH requires research_admitted AND the explicit
+      ``restricted_research_permitted`` protocol marker (recorded in the
+      manifest) AND a less-than-fully-verified evidence basis — protocol
+      permission never AUTO-VERIFIES anything.
+
+    Loader-level note: through ``load_historical_snapshot`` the admitted
+    verdict always carries license VERIFIED + PIT VERIFIED (the gate
+    demands both — unchanged), so today's loader can only emit
+    VERIFIED_RESEARCH or EXPLORATORY. RESTRICTED_RESEARCH is therefore
+    pinned at the classification-function level (the future restricted
+    evidence basis) plus its fail-closed loader behavior (the marker can
+    never upgrade a non-admitted bundle)."""
+
+    def test_admitted_fixture_reaches_verified_research(
+        self, tmp_path: Path,
+    ) -> None:
+        root = _variant_snapshot(tmp_path, "live_all_green")
+        bundle = load_historical_snapshot(root)
+        assert bundle.research_admitted is True
+        assert bundle.blockers == ()
+        assert bundle.research_tier == RESEARCH_TIER_VERIFIED_RESEARCH
+        assert bundle.manifest_summary["research_tier"] == (
+            RESEARCH_TIER_VERIFIED_RESEARCH)
+        assert bundle.manifest_summary["restricted_research_permitted"] is False
+
+    @pytest.mark.parametrize(
+        "variant",
+        [v for v in _ADMISSION_VARIANTS if v != "live_all_green"],
+    )
+    def test_every_refused_or_probe_fixture_is_exploratory(
+        self, tmp_path: Path, variant: str,
+    ) -> None:
+        bundle = load_historical_snapshot(_variant_snapshot(tmp_path, variant))
+        assert bundle.research_admitted is False
+        assert bundle.research_tier == RESEARCH_TIER_EXPLORATORY
+        assert bundle.manifest_summary["research_tier"] == (
+            RESEARCH_TIER_EXPLORATORY)
+
+    @pytest.mark.parametrize("variant", _ADMISSION_VARIANTS)
+    def test_verified_tier_implies_admitted_with_empty_blockers(
+        self, tmp_path: Path, variant: str,
+    ) -> None:
+        bundle = load_historical_snapshot(_variant_snapshot(tmp_path, variant))
+        if bundle.research_tier == RESEARCH_TIER_VERIFIED_RESEARCH:
+            assert bundle.research_admitted is True
+            assert bundle.blockers == ()
+
+    def test_restricted_marker_never_upgrades_a_restricted_probe(
+        self, tmp_path: Path,
+    ) -> None:
+        def permitted(manifest: dict) -> None:
+            manifest["license"] = {"status": "LICENSE_UNVERIFIED"}
+            manifest["pit"] = {"level": "ASSUMED"}
+            manifest["admission"] = {"status": ADMISSION_RESTRICTED}
+            manifest["restricted_research_permitted"] = True
+
+        base = tmp_path / "permitted"
+        base.mkdir()
+        root = _write_snapshot(base, _default_specs(), permitted)
+        bundle = load_historical_snapshot(root)
+        assert bundle.research_admitted is False
+        assert bundle.research_tier == RESEARCH_TIER_EXPLORATORY
+        assert "ADMISSION_NOT_RELEASED" in bundle.blockers
+        assert "PROBE_TRANSPORT_SYNTHETIC_ONLY" in bundle.blockers
+        # the marker is recorded honestly, but only as a recorded fact
+        assert bundle.manifest_summary["restricted_research_permitted"] is True
+
+    def test_attested_license_label_parses_but_blocks_admission(
+        self, tmp_path: Path,
+    ) -> None:
+        def attested(manifest: dict) -> None:
+            manifest["license"] = {"status": LICENSE_ATTESTED}
+
+        base = tmp_path / "attested"
+        base.mkdir()
+        root = _write_snapshot(base, _live_specs(), attested)
+        bundle = load_historical_snapshot(root)
+        # the collector's live label is INSIDE the producer vocabulary
+        # (parses instead of hard-erroring), but attestation is NOT our
+        # verification: the gate still blocks, the tier stays exploratory
+        assert "LICENSE_NOT_VERIFIED" in bundle.blockers
+        assert bundle.research_admitted is False
+        assert bundle.research_tier == RESEARCH_TIER_EXPLORATORY
+        assert bundle.manifest_summary["license_status"] == LICENSE_ATTESTED
+
+    def test_non_bool_restricted_marker_is_hard_error(
+        self, tmp_path: Path,
+    ) -> None:
+        def plant(manifest: dict) -> None:
+            manifest["restricted_research_permitted"] = "true"
+
+        base = tmp_path / "badmarker"
+        base.mkdir()
+        root = _write_snapshot(base, _default_specs(), plant)
+        with pytest.raises(
+            SnapshotSourceError, match="restricted_research_permitted"
+        ):
+            load_historical_snapshot(root)
+
+    # -- the classification matrix itself (pure-function level) ----------
+
+    def test_classification_matrix(self) -> None:
+        # admitted + fully verified evidence: VERIFIED_RESEARCH
+        assert classify_research_tier(
+            research_admitted=True, license_status=LICENSE_VERIFIED,
+            pit_level=PIT_LEVEL_VERIFIED,
+            restricted_research_permitted=False,
+        ) == RESEARCH_TIER_VERIFIED_RESEARCH
+        # evidence-first: protocol permission never DOWNGRADES a fully
+        # verified basis ("no auto-VERIFIED" is one-way: permission
+        # cannot create verification)
+        assert classify_research_tier(
+            research_admitted=True, license_status=LICENSE_VERIFIED,
+            pit_level=PIT_LEVEL_VERIFIED,
+            restricted_research_permitted=True,
+        ) == RESEARCH_TIER_VERIFIED_RESEARCH
+        # protocol-permitted restricted use over an ASSUMED-PIT basis:
+        # RESTRICTED_RESEARCH, never auto-VERIFIED
+        assert classify_research_tier(
+            research_admitted=True, license_status=LICENSE_VERIFIED,
+            pit_level=PIT_LEVEL_ASSUMED,
+            restricted_research_permitted=True,
+        ) == RESEARCH_TIER_RESTRICTED_RESEARCH
+        # attested (operator-attested, not independently verified)
+        # license + permission: RESTRICTED_RESEARCH at most
+        assert classify_research_tier(
+            research_admitted=True, license_status=LICENSE_ATTESTED,
+            pit_level=PIT_LEVEL_VERIFIED,
+            restricted_research_permitted=True,
+        ) == RESEARCH_TIER_RESTRICTED_RESEARCH
+        # attested license + ASSUMED pit + permission: still RESTRICTED
+        assert classify_research_tier(
+            research_admitted=True, license_status=LICENSE_ATTESTED,
+            pit_level=PIT_LEVEL_ASSUMED,
+            restricted_research_permitted=True,
+        ) == RESEARCH_TIER_RESTRICTED_RESEARCH
+        # an UNKNOWN PIT never rises above exploratory, marker or not
+        assert classify_research_tier(
+            research_admitted=True, license_status=LICENSE_ATTESTED,
+            pit_level="UNKNOWN",
+            restricted_research_permitted=True,
+        ) == RESEARCH_TIER_EXPLORATORY
+        # admitted but neither fully verified nor protocol-permitted:
+        # EXPLORATORY
+        assert classify_research_tier(
+            research_admitted=True, license_status=LICENSE_VERIFIED,
+            pit_level=PIT_LEVEL_ASSUMED,
+            restricted_research_permitted=False,
+        ) == RESEARCH_TIER_EXPLORATORY
+        assert classify_research_tier(
+            research_admitted=True, license_status=LICENSE_UNVERIFIED,
+            pit_level=PIT_LEVEL_VERIFIED,
+            restricted_research_permitted=True,
+        ) == RESEARCH_TIER_EXPLORATORY
+        # non-admitted bundles are ALWAYS EXPLORATORY, labels or protocol
+        # markers notwithstanding
+        assert classify_research_tier(
+            research_admitted=False, license_status=LICENSE_VERIFIED,
+            pit_level=PIT_LEVEL_VERIFIED,
+            restricted_research_permitted=True,
+        ) == RESEARCH_TIER_EXPLORATORY
+        assert classify_research_tier(
+            research_admitted=False, license_status=LICENSE_UNVERIFIED,
+            pit_level=PIT_LEVEL_ASSUMED,
+            restricted_research_permitted=True,
+        ) == RESEARCH_TIER_EXPLORATORY

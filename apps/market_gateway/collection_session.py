@@ -37,11 +37,24 @@ dir, nothing written elsewhere:
   mid-run; no manifest, no bars files (two-phase commit).
 
 Admission honesty (workflow A4, recorded not hidden): everything this
-entry produces is ``NOT_RESEARCH_ADMITTED`` — license
-``LICENSE_UNVERIFIED``, PIT level ``ASSUMED`` (the next-open MODEL
-assumption; an HTTP 200 never proves point-in-time publication), raw
-prices only (no corporate actions — no total-return or long-horizon
-comparability claims). This entry collects; it never admits.
+entry produces is ``NOT_RESEARCH_ADMITTED`` — PIT level ``ASSUMED`` (the
+next-open MODEL assumption; an HTTP 200 never proves point-in-time
+publication), raw prices only (no corporate actions — no total-return or
+long-horizon comparability claims). This entry collects; it never admits.
+
+Authorization-facts binding (V0.3 T1): a live run additionally requires
+the operator's signed authorization FACTS (``LicenseFacts`` /
+``AdmissionFacts``, parsed by :func:`parse_authorization_record` from the
+operator-written record file). The env signature is a necessary run
+switch and NEVER a substitute: live without supplied facts refuses with
+``AUTHORIZATION_FACTS_MISSING`` instead of emitting unverifiable labels.
+When facts are bound, the license doc carries
+``LICENSE_VERIFIED_PER_OPERATOR_ATTESTATION`` (operator attestation,
+mechanically copied — NOT an independent verification) plus the
+authorization_ref / scope echo / attested_by / attested_at fields; the
+admission doc carries the same binding but its status stays
+``NOT_RESEARCH_ADMITTED``. Probe runs never bind facts and stay
+byte-stable unsigned.
 """
 
 from __future__ import annotations
@@ -70,6 +83,7 @@ from trading_lab.security.canonical import sha256_hex
 
 from .historical_bars import (
     DEFAULT_MAX_REQUESTS,
+    FEED,
     HISTORY_HOST,
     HISTORY_PATH_PATTERN,
     HistoricalBarsClient,
@@ -84,14 +98,23 @@ from .probe_transport import FAKE_TRANSPORT_LABEL, FakeAlpacaProbeTransport
 __all__ = [
     "AUTH_ENV_VAR",
     "AUTHORIZED_UNIVERSE",
+    "AUTHORIZATION_FACTS_INCOMPATIBLE",
+    "AUTHORIZATION_FACTS_MISSING",
+    "AUTHORIZATION_SCOPE_MISMATCH",
+    "AdmissionFacts",
+    "AuthorizationFactsRefused",
+    "AuthorizationRecord",
     "AuthorizationRefused",
+    "AuthorizedScope",
     "BARS_FILE_NAME",
     "BUDGET_CAP",
     "BlockedEnv",
     "CollectionConfig",
     "CollectionError",
     "CollectionReport",
+    "LICENSE_STATUS_ATTESTED",
     "LICENSE_WINDOW",
+    "LicenseFacts",
     "LIVE_TRANSPORT_LABEL",
     "MANIFEST_NAME",
     "NAMESPACE_DIRNAME",
@@ -99,6 +122,7 @@ __all__ = [
     "TRANSPORT_LIVE",
     "TRANSPORT_PROBE",
     "dedupe_bars_rows",
+    "parse_authorization_record",
     "resolve_transport_authorization",
     "run_collection",
 ]
@@ -128,6 +152,16 @@ NAMESPACE_DIRNAME = "historical_research"
 BARS_FILE_NAME = "bars.jsonl"
 MANIFEST_NAME = "collection_manifest.json"
 PARTIAL_AUDIT_NAME = "collection_audit_partial.json"
+
+#: honest license label for a live run bound to the operator's signed
+#: authorization record: it records an OPERATOR ATTESTATION, which is
+#: explicitly NOT an independent verification by this pipeline
+LICENSE_STATUS_ATTESTED = "LICENSE_VERIFIED_PER_OPERATOR_ATTESTATION"
+
+#: AuthorizationFactsRefused reasons
+AUTHORIZATION_FACTS_MISSING = "AUTHORIZATION_FACTS_MISSING"
+AUTHORIZATION_SCOPE_MISMATCH = "AUTHORIZATION_SCOPE_MISMATCH"
+AUTHORIZATION_FACTS_INCOMPATIBLE = "AUTHORIZATION_FACTS_INCOMPATIBLE"
 
 MANIFEST_SCHEMA = "collection_manifest_v1"
 AUDIT_SCHEMA = "collection_audit_partial_v1"
@@ -162,6 +196,19 @@ class AuthorizationRefused(CollectionError):
 
 class BlockedEnv(CollectionError):
     """Live transport signed, but credentials are not configured."""
+
+
+class AuthorizationFactsRefused(CollectionError):
+    """Authorization-facts refusals (fail-closed, before any disk write):
+
+    - ``AUTHORIZATION_FACTS_MISSING``: live transport signed but no
+      operator-supplied facts were bound (the env var alone never
+      substitutes for a signature);
+    - ``AUTHORIZATION_SCOPE_MISMATCH``: supplied facts' scope does not
+      match the frozen authorized scope;
+    - ``AUTHORIZATION_FACTS_INCOMPATIBLE``: facts supplied to a probe run
+      (probe artifacts are FAKE_TRANSPORT validation data and never bind
+      attestation)."""
 
 
 # -- configuration -------------------------------------------------------------
@@ -276,6 +323,302 @@ def resolve_transport_authorization(
     return TransportAuthorization(TRANSPORT_LIVE, LIVE_TRANSPORT_LABEL, visible)
 
 
+# -- operator authorization facts (V0.3 T1) -------------------------------------
+#
+# The ``SIGNED`` env var is a necessary run switch, never a substitute for
+# a signature: a live run additionally requires the operator's signed
+# authorization FACTS, and those facts — not hand-edited labels — are what
+# the new snapshot's license/admission docs carry.
+
+
+@dataclass(frozen=True)
+class AuthorizedScope:
+    """The scope a signed authorization covers, echoed for mechanical
+    validation against the frozen window / universe / transport. The
+    symbol order is canonicalized (SPY, QQQ) so scope docs stay
+    byte-deterministic regardless of how the record listed them."""
+
+    start: dt.date
+    end: dt.date
+    symbols: tuple[str, ...]
+    feed: str
+    timeframe: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.start, dt.date) or not isinstance(self.end, dt.date):
+            raise CollectionError(
+                "BAD_SCOPE", "scope start/end must be dates")
+        if self.start > self.end:
+            raise CollectionError("BAD_SCOPE", f"{self.start} > {self.end}")
+        if (
+            not isinstance(self.symbols, tuple)
+            or len(self.symbols) != len(AUTHORIZED_UNIVERSE)
+            or len(set(self.symbols)) != len(self.symbols)
+            or not all(
+                isinstance(s, str) and _SYMBOL_SEGMENT_RE.match(s)
+                for s in self.symbols
+            )
+        ):
+            raise CollectionError(
+                "BAD_SCOPE",
+                "scope symbols must be two distinct [A-Z]{1,5} symbols, "
+                f"got {self.symbols!r}",
+            )
+        object.__setattr__(
+            self,
+            "symbols",
+            tuple(s for s in AUTHORIZED_SYMBOL_ORDER if s in set(self.symbols)),
+        )
+        if not isinstance(self.feed, str) or not self.feed.strip():
+            raise CollectionError("BAD_SCOPE", "scope feed must be a non-empty string")
+        if not isinstance(self.timeframe, str) or not self.timeframe.strip():
+            raise CollectionError(
+                "BAD_SCOPE", "scope timeframe must be a non-empty string")
+
+
+@dataclass(frozen=True)
+class LicenseFacts:
+    """Operator-supplied license authorization FACTS, copied mechanically
+    from a signed record (never self-issued by this pipeline). The emitted
+    status ``LICENSE_VERIFIED_PER_OPERATOR_ATTESTATION`` says exactly what
+    this is: an operator attestation, NOT an independent verification."""
+
+    authorization_ref: str
+    attested_by: str
+    attested_at: str
+    scope: AuthorizedScope
+    calendar_license_note: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.scope, AuthorizedScope):
+            raise CollectionError(
+                "BAD_AUTHORIZATION_FACTS",
+                "license facts scope must be an AuthorizedScope")
+        for field_name in (
+            "authorization_ref", "attested_by", "attested_at",
+            "calendar_license_note",
+        ):
+            value = getattr(self, field_name)
+            if not isinstance(value, str) or not value.strip():
+                raise CollectionError(
+                    "BAD_AUTHORIZATION_FACTS",
+                    f"license facts {field_name} must be a non-empty string")
+
+
+@dataclass(frozen=True)
+class AdmissionFacts:
+    """Operator-supplied admission-side attestation binding. It NEVER
+    changes the emitted admission status (this entry never admits — PIT
+    stays ASSUMED); it records WHO attested the authorization and whether
+    the signed record explicitly permits restricted-research USE under
+    the existing protocol (recorded as ``restricted_research_permitted``)."""
+
+    authorization_ref: str
+    attested_by: str
+    attested_at: str
+    scope: AuthorizedScope
+    restricted_research_permitted: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.scope, AuthorizedScope):
+            raise CollectionError(
+                "BAD_AUTHORIZATION_FACTS",
+                "admission facts scope must be an AuthorizedScope")
+        for field_name in ("authorization_ref", "attested_by", "attested_at"):
+            value = getattr(self, field_name)
+            if not isinstance(value, str) or not value.strip():
+                raise CollectionError(
+                    "BAD_AUTHORIZATION_FACTS",
+                    f"admission facts {field_name} must be a non-empty string")
+        if not isinstance(self.restricted_research_permitted, bool):
+            raise CollectionError(
+                "BAD_AUTHORIZATION_FACTS",
+                "admission facts restricted_research_permitted must be boolean")
+
+
+@dataclass(frozen=True)
+class AuthorizationRecord:
+    """One operator-written authorization record, parsed into the
+    license-side and admission-side bindings for a run."""
+
+    license: LicenseFacts
+    admission: AdmissionFacts
+
+
+_RECORD_KEYS = frozenset({
+    "authorization_ref", "attested_by", "attested_at",
+    "calendar_license_note", "scope", "restricted_research_permitted",
+})
+_SCOPE_KEYS = frozenset({"start", "end", "symbols", "feed", "timeframe"})
+
+
+def _require_record_str(
+    payload: Mapping[str, Any], key: str, *, context: str
+) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise CollectionError(
+            "AUTHORIZATION_RECORD_INVALID",
+            f"{context} key {key!r} must be a non-empty string")
+    return value.strip()
+
+
+def parse_authorization_record(payload: Mapping[str, Any]) -> AuthorizationRecord:
+    """Validate + shape an operator-written authorization record (a JSON
+    mapping the OPERATOR writes; this pipeline never authors one). Unknown
+    keys are refused — a typo'd intent field must never be silently
+    dropped. The scope echo is shape-validated here and validated AGAINST
+    the frozen authorized scope at binding time."""
+    if not isinstance(payload, Mapping):
+        raise CollectionError(
+            "AUTHORIZATION_RECORD_INVALID",
+            "authorization record must be a JSON mapping")
+    unknown = sorted(set(payload) - _RECORD_KEYS)
+    if unknown:
+        raise CollectionError(
+            "AUTHORIZATION_RECORD_INVALID",
+            f"authorization record has unknown keys {unknown}; expected "
+            f"{sorted(_RECORD_KEYS)}")
+    scope_payload = payload.get("scope")
+    if not isinstance(scope_payload, Mapping):
+        raise CollectionError(
+            "AUTHORIZATION_RECORD_INVALID",
+            "authorization record scope must be a mapping with "
+            "start/end/symbols/feed/timeframe")
+    unknown_scope = sorted(set(scope_payload) - _SCOPE_KEYS)
+    if unknown_scope:
+        raise CollectionError(
+            "AUTHORIZATION_RECORD_INVALID",
+            f"authorization record scope has unknown keys {unknown_scope}; "
+            f"expected {sorted(_SCOPE_KEYS)}")
+    permitted = payload.get("restricted_research_permitted", False)
+    if not isinstance(permitted, bool):
+        raise CollectionError(
+            "AUTHORIZATION_RECORD_INVALID",
+            "authorization record restricted_research_permitted must be "
+            "boolean")
+    symbols_raw = scope_payload.get("symbols")
+    if (
+        not isinstance(symbols_raw, (list, tuple))
+        or len(symbols_raw) != len(AUTHORIZED_UNIVERSE)
+        or not all(isinstance(s, str) for s in symbols_raw)
+    ):
+        raise CollectionError(
+            "AUTHORIZATION_RECORD_INVALID",
+            "authorization record scope symbols must be a two-symbol list "
+            f"of strings, got {symbols_raw!r}")
+    try:
+        start = dt.date.fromisoformat(
+            _require_record_str(scope_payload, "start",
+                                context="authorization record scope"))
+        end = dt.date.fromisoformat(
+            _require_record_str(scope_payload, "end",
+                                context="authorization record scope"))
+        scope = AuthorizedScope(
+            start=start,
+            end=end,
+            symbols=tuple(symbols_raw),
+            feed=_require_record_str(scope_payload, "feed",
+                                     context="authorization record scope"),
+            timeframe=_require_record_str(scope_payload, "timeframe",
+                                          context="authorization record scope"),
+        )
+    except CollectionError as exc:
+        raise CollectionError(
+            "AUTHORIZATION_RECORD_INVALID",
+            f"authorization record scope invalid: {exc}") from exc
+    except ValueError as exc:
+        raise CollectionError(
+            "AUTHORIZATION_RECORD_INVALID",
+            f"authorization record scope dates invalid: {exc}") from exc
+    license_facts = LicenseFacts(
+        authorization_ref=_require_record_str(payload, "authorization_ref",
+                                              context="authorization record"),
+        attested_by=_require_record_str(payload, "attested_by",
+                                        context="authorization record"),
+        attested_at=_require_record_str(payload, "attested_at",
+                                        context="authorization record"),
+        scope=scope,
+        calendar_license_note=_require_record_str(
+            payload, "calendar_license_note", context="authorization record"),
+    )
+    admission_facts = AdmissionFacts(
+        authorization_ref=license_facts.authorization_ref,
+        attested_by=license_facts.attested_by,
+        attested_at=license_facts.attested_at,
+        scope=scope,
+        restricted_research_permitted=permitted,
+    )
+    return AuthorizationRecord(license=license_facts, admission=admission_facts)
+
+
+def _validate_facts_scope(scope: AuthorizedScope, *, context: str) -> None:
+    """The record's scope must cover EXACTLY the frozen authorized scope
+    (window equality — scope shortening needs its own signed approval,
+    universe equality, and the authorized feed/timeframe)."""
+    if (scope.start, scope.end) != (LICENSE_WINDOW.start, LICENSE_WINDOW.end):
+        raise AuthorizationFactsRefused(
+            AUTHORIZATION_SCOPE_MISMATCH,
+            f"{context}: authorized window "
+            f"[{scope.start.isoformat()}, {scope.end.isoformat()}] != the "
+            f"frozen license window [{LICENSE_WINDOW.start.isoformat()}, "
+            f"{LICENSE_WINDOW.end.isoformat()}] — a shortened scope needs "
+            "its own signed approval")
+    if (
+        set(scope.symbols) != AUTHORIZED_UNIVERSE
+        or len(scope.symbols) != len(AUTHORIZED_UNIVERSE)
+    ):
+        raise AuthorizationFactsRefused(
+            AUTHORIZATION_SCOPE_MISMATCH,
+            f"{context}: authorized symbols {sorted(scope.symbols)} != "
+            f"{sorted(AUTHORIZED_UNIVERSE)}")
+    if scope.feed != FEED or scope.timeframe != TIMEFRAME:
+        raise AuthorizationFactsRefused(
+            AUTHORIZATION_SCOPE_MISMATCH,
+            f"{context}: authorized feed/timeframe {scope.feed!r}/"
+            f"{scope.timeframe!r} != {FEED!r}/{TIMEFRAME!r}")
+
+
+@dataclass(frozen=True)
+class _BoundFacts:
+    """The authorization facts resolved for ONE run: both None on probe
+    runs; license non-None (admission optional) on live runs."""
+
+    license: LicenseFacts | None
+    admission: AdmissionFacts | None
+
+
+def _bind_authorization_facts(
+    transport: str,
+    *,
+    license_facts: LicenseFacts | None,
+    admission_facts: AdmissionFacts | None,
+) -> _BoundFacts:
+    """Resolve + validate the run's authorization facts. Probe runs never
+    bind facts; live runs REQUIRE license facts (the env signature alone
+    is not enough) whose scope matches the frozen authorized scope."""
+    if transport == TRANSPORT_PROBE:
+        if license_facts is not None or admission_facts is not None:
+            raise AuthorizationFactsRefused(
+                AUTHORIZATION_FACTS_INCOMPATIBLE,
+                "probe transport never binds operator authorization facts "
+                "(probe artifacts are FAKE_TRANSPORT validation data and "
+                "must keep their unsigned labels); drop the authorization "
+                "record for probe runs")
+        return _BoundFacts(license=None, admission=None)
+    if license_facts is None:
+        raise AuthorizationFactsRefused(
+            AUTHORIZATION_FACTS_MISSING,
+            f"live transport with {AUTH_ENV_VAR}={AUTH_SIGNATURE_VALUE} "
+            "still requires the operator's authorization FACTS (the env "
+            "var is a necessary run switch and never a substitute for a "
+            "signed record); pass --authorization-record")
+    _validate_facts_scope(license_facts.scope, context="license facts")
+    if admission_facts is not None:
+        _validate_facts_scope(admission_facts.scope, context="admission facts")
+    return _BoundFacts(license=license_facts, admission=admission_facts)
+
+
 # -- namespace paths -----------------------------------------------------------
 
 
@@ -299,17 +642,48 @@ def _write_json_doc(path: Path, doc: Mapping[str, Any]) -> None:
 # -- disclosure documents (A4 honesty fields) -----------------------------------
 
 
-def _license_doc() -> dict[str, str]:
+def _scope_doc(scope: AuthorizedScope) -> dict[str, Any]:
+    """The authorized scope echo copied from the facts object (window /
+    symbols / feed / timeframe) — mechanically, never free text."""
     return {
-        "status": "LICENSE_UNVERIFIED",
-        "calendar_supply_license": (
-            "LICENSE_UNVERIFIED (carried unchanged from calendar supply v2: "
-            "ICE/NYSE website personal-use terms are not a dataset license)"
-        ),
+        "start": scope.start.isoformat(),
+        "end": scope.end.isoformat(),
+        "symbols": list(scope.symbols),
+        "feed": scope.feed,
+        "timeframe": scope.timeframe,
+    }
+
+
+def _license_doc(supplied: LicenseFacts | None = None) -> dict[str, Any]:
+    """With no supplied facts (probe / unattested runs): the exact legacy
+    unsigned doc, byte-stable. With supplied facts: the operator's
+    attestation binding, copied mechanically — the status says
+    attestation, never independent verification."""
+    if supplied is None:
+        return {
+            "status": "LICENSE_UNVERIFIED",
+            "calendar_supply_license": (
+                "LICENSE_UNVERIFIED (carried unchanged from calendar supply v2: "
+                "ICE/NYSE website personal-use terms are not a dataset license)"
+            ),
+            "market_data_license": (
+                "Alpaca historical-data personal-research attestation (H1 §7 "
+                "draft) remains unsigned"
+            ),
+        }
+    return {
+        "status": LICENSE_STATUS_ATTESTED,
+        "calendar_supply_license": supplied.calendar_license_note,
         "market_data_license": (
-            "Alpaca historical-data personal-research attestation (H1 §7 "
-            "draft) remains unsigned"
+            f"operator attestation {supplied.authorization_ref}: the "
+            "account owner's signed authorization record is bound "
+            "mechanically below — this is an operator attestation, NOT "
+            "an independent verification by this pipeline"
         ),
+        "authorization_ref": supplied.authorization_ref,
+        "authorization_scope": _scope_doc(supplied.scope),
+        "attested_by": supplied.attested_by,
+        "attested_at": supplied.attested_at,
     }
 
 
@@ -327,13 +701,34 @@ def _pit_doc() -> dict[str, str]:
     }
 
 
-def _admission_doc() -> dict[str, str]:
+def _admission_doc(supplied: AdmissionFacts | None = None) -> dict[str, Any]:
+    """With no supplied facts: the exact legacy restricted doc,
+    byte-stable. With supplied facts: the same NOT_RESEARCH_ADMITTED
+    status (an operator attestation never admits — PIT stays ASSUMED),
+    plus the attestation binding and whether the signed record explicitly
+    permits restricted-research use under the existing protocol."""
+    if supplied is None:
+        return {
+            "status": "NOT_RESEARCH_ADMITTED",
+            "until": (
+                "the account owner signs the revised H1 §7 and confirms the "
+                "calendar/data licenses; until then these files must not enter "
+                "formal research"
+            ),
+            "corporate_actions": "NONE_COLLECTED",
+            "raw_only_disclosure": (
+                "raw prices without corporate actions: no total-return, "
+                "long-horizon comparability, or unbiased-alpha claims are "
+                "permitted from this data"
+            ),
+            "s8_forward_ledger": "EXCLUDED",
+        }
     return {
         "status": "NOT_RESEARCH_ADMITTED",
         "until": (
-            "the account owner signs the revised H1 §7 and confirms the "
-            "calendar/data licenses; until then these files must not enter "
-            "formal research"
+            "full PIT verification (vendor per-day publication evidence): "
+            "an operator license attestation does not admit raw ASSUMED-"
+            "PIT prices into formal research"
         ),
         "corporate_actions": "NONE_COLLECTED",
         "raw_only_disclosure": (
@@ -342,6 +737,12 @@ def _admission_doc() -> dict[str, str]:
             "permitted from this data"
         ),
         "s8_forward_ledger": "EXCLUDED",
+        "authorization_ref": supplied.authorization_ref,
+        "authorization_scope": _scope_doc(supplied.scope),
+        "license_status": LICENSE_STATUS_ATTESTED,
+        "attested_by": supplied.attested_by,
+        "attested_at": supplied.attested_at,
+        "restricted_research_permitted": supplied.restricted_research_permitted,
     }
 
 
@@ -486,13 +887,25 @@ def run_collection(
     *,
     environ: Mapping[str, str] | None = None,
     probe_opener: FakeAlpacaProbeTransport | None = None,
+    license_facts: LicenseFacts | None = None,
+    admission_facts: AdmissionFacts | None = None,
 ) -> CollectionReport:
     """Run one collection window. Configuration/authorization refusals
     raise :class:`CollectionError` subclasses BEFORE any disk write;
     mid-run refusals (budget, HTTP status, contract) return an ABORTED
-    report with the partial-audit dump written and NO manifest."""
+    report with the partial-audit dump written and NO manifest.
+
+    Live transport additionally requires the operator's authorization
+    facts (``license_facts`` — from the signed authorization record):
+    the ``SIGNED`` env var alone refuses with AUTHORIZATION_FACTS_MISSING.
+    Probe runs never bind facts and never emit verified labels."""
     environ = os.environ if environ is None else environ
     auth = resolve_transport_authorization(config.transport, environ=environ)
+    facts = _bind_authorization_facts(
+        config.transport,
+        license_facts=license_facts,
+        admission_facts=admission_facts,
+    )
     calendar = VersionedMarketCalendar.from_supply(NYSE_2017_2025_SUPPLY_V2)
     supply_hash = frozen_supply_hash(NYSE_2017_2025_SUPPLY_V2)
     if supply_hash != FROZEN_SUPPLY_HASH_V2:
@@ -526,7 +939,7 @@ def run_collection(
         window=LICENSE_WINDOW,
         max_requests=config.request_budget,
     )
-    audit = _base_audit_doc(config, auth, calendar, supply_hash, output_dir)
+    audit = _base_audit_doc(config, auth, calendar, supply_hash, output_dir, facts)
     try:
         fetched: list[HistoricalFetchResult] = []
         for symbol in config.symbols:
@@ -565,7 +978,8 @@ def run_collection(
     except (HistoricalRequestRefused, TransportError, HistoricalDataError, CalendarError) as exc:
         return _abort(config, audit, client, opener, exc)
     return _commit(
-        config, auth, calendar, client, output_dir, fetched, rows_by_symbol, received_at
+        config, auth, calendar, client, output_dir, fetched, rows_by_symbol,
+        received_at, facts,
     )
 
 
@@ -591,8 +1005,9 @@ def _base_audit_doc(
     calendar: VersionedMarketCalendar,
     supply_hash: str,
     output_dir: Path,
+    facts: _BoundFacts,
 ) -> dict[str, Any]:
-    return {
+    audit: dict[str, Any] = {
         "schema": AUDIT_SCHEMA,
         "status": "ABORTED",
         "reason": None,
@@ -612,11 +1027,15 @@ def _base_audit_doc(
             "live partial receipts belong to the separately authorized pilot"
         ),
         "authorization": {"credential_env_visible": list(auth.credential_env_visible)},
-        "license": _license_doc(),
+        "license": _license_doc(facts.license),
         "pit": _pit_doc(),
-        "admission": _admission_doc(),
+        "admission": _admission_doc(facts.admission),
         "previous_manifest_present": _manifest_path(output_dir).exists(),
     }
+    if facts.admission is not None:
+        audit["restricted_research_permitted"] = (
+            facts.admission.restricted_research_permitted)
+    return audit
 
 
 def _abort(
@@ -656,6 +1075,7 @@ def _commit(
     fetched: list[HistoricalFetchResult],
     rows_by_symbol: dict[str, tuple[dict[str, Any], ...]],
     received_at: dt.datetime,
+    facts: _BoundFacts,
 ) -> CollectionReport:
     expected = set(calendar.expected_sessions(config.start, config.end))
     symbols_doc: dict[str, Any] = {}
@@ -708,10 +1128,13 @@ def _commit(
         "received_at_utc": received_at.isoformat(),
         "received_at_is_probe_fixture_fact": config.transport == TRANSPORT_PROBE,
         "symbols": symbols_doc,
-        "license": _license_doc(),
+        "license": _license_doc(facts.license),
         "pit": _pit_doc(),
-        "admission": _admission_doc(),
+        "admission": _admission_doc(facts.admission),
     }
+    if facts.admission is not None:
+        manifest["restricted_research_permitted"] = (
+            facts.admission.restricted_research_permitted)
     manifest_path = _manifest_path(output_dir)
     _write_json_doc(manifest_path, manifest)
     return CollectionReport(

@@ -51,6 +51,12 @@ class MarketDataView:
         return bool(self.admission.get("research_admitted", False))
 
     @property
+    def research_tier(self) -> str:
+        """EXPLORATORY / RESTRICTED_RESEARCH / VERIFIED_RESEARCH
+        (snapshot views; demo views are EXPLORATORY by definition)."""
+        return str(self.admission.get("research_tier", "EXPLORATORY"))
+
+    @property
     def blockers(self) -> tuple[str, ...]:
         return tuple(self.admission.get("blockers", ()))
 
@@ -80,6 +86,7 @@ def build_snapshot_view(snapshot_dir: Path) -> MarketDataView:
     admission = {
         "research_admitted": bundle.research_admitted,
         "blockers": bundle.blockers,
+        "research_tier": bundle.research_tier,
         "manifest": dict(bundle.manifest_summary),
     }
     return MarketDataView(

@@ -27,10 +27,16 @@ Manifest fields honored (all produced by the collector):
 - ``calendar_supply``: ``version`` (required), ``hash`` / ``hash_frozen``
   (recorded, trusted — re-deriving ``ts_available_utc`` from the calendar
   is the A2 writer's duty and is NOT re-done here);
-- ``license.status``: "LICENSE_VERIFIED" | "LICENSE_UNVERIFIED";
+- ``license.status``: "LICENSE_VERIFIED" | "LICENSE_UNVERIFIED" |
+  "LICENSE_VERIFIED_PER_OPERATOR_ATTESTATION" (the collector's live-run
+  attestation label; it parses, but attestation is NOT our verification,
+  so it still blocks admission via ``LICENSE_NOT_VERIFIED``);
 - ``pit``: ``level`` "VERIFIED" | "ASSUMED" | "UNKNOWN" (+ ``rule``);
 - ``admission.status``: "RESEARCH_ADMITTED" | "NOT_RESEARCH_ADMITTED"
   (the until-gate marker; the collector always emits the restricted one);
+- ``restricted_research_permitted`` (optional boolean, default False):
+  the recorded protocol marker that the operator's signed authorization
+  explicitly permits restricted-research USE; recorded, never upgrading;
 - ``symbols``: ``{SYMBOL: {"row_count": int, "bars_sha256": <sha256 of the
   raw bars.jsonl file bytes>, ...}}``.
 
@@ -56,6 +62,20 @@ today (probe transport, LICENSE_UNVERIFIED / ASSUMED /
 NOT_RESEARCH_ADMITTED) loads as ``research_admitted=False`` with
 ``scenario_tags`` = "HISTORICAL_EXPLORATORY" — exploratory-only, never
 silently treated as admitted.
+
+Research tier layering (V0.3 task §4): ``research_tier`` classifies the
+USE basis as ``EXPLORATORY`` / ``RESTRICTED_RESEARCH`` /
+``VERIFIED_RESEARCH`` WITHOUT changing the admission semantics above.
+The tier never overrides ``research_admitted``: non-admitted bundles are
+ALWAYS EXPLORATORY, whatever their labels or protocol markers claim.
+VERIFIED_RESEARCH requires research_admitted AND license VERIFIED AND
+PIT VERIFIED (through today's collector, nothing reaches it — the gate
+logic keeps it reachable, pinned by the hand-built fully-admissible
+fixture). RESTRICTED_RESEARCH requires research_admitted AND the
+explicit ``restricted_research_permitted`` protocol marker over a
+less-than-fully-verified evidence basis — a future restricted basis;
+protocol permission never AUTO-VERIFIES anything (see
+:func:`classify_research_tier`).
 """
 
 from __future__ import annotations
@@ -85,6 +105,7 @@ __all__ = [
     "ADMISSION_STATUSES",
     "ADMISSION_RESTRICTED",
     "COLLECTED_STATUS",
+    "LICENSE_ATTESTED",
     "LICENSE_STATUSES",
     "LICENSE_UNVERIFIED",
     "LICENSE_VERIFIED",
@@ -96,6 +117,10 @@ __all__ = [
     "PIT_LEVEL_UNKNOWN",
     "PIT_LEVEL_VERIFIED",
     "PROBE_TRANSPORT_SYNTHETIC_ONLY",
+    "RESEARCH_TIER_EXPLORATORY",
+    "RESEARCH_TIER_RESTRICTED_RESEARCH",
+    "RESEARCH_TIER_VERIFIED_RESEARCH",
+    "RESEARCH_TIERS",
     "SCENARIO_TAG_ADMITTED",
     "SCENARIO_TAG_EXPLORATORY",
     "SNAPSHOT_MANIFEST_NAME",
@@ -107,6 +132,7 @@ __all__ = [
     "SnapshotBundle",
     "SnapshotSourceError",
     "SymbolRefusal",
+    "classify_research_tier",
     "load_historical_snapshot",
 ]
 
@@ -131,7 +157,13 @@ _EXPECTED_SOURCE = {
 
 LICENSE_VERIFIED = "LICENSE_VERIFIED"
 LICENSE_UNVERIFIED = "LICENSE_UNVERIFIED"
-LICENSE_STATUSES = frozenset({LICENSE_VERIFIED, LICENSE_UNVERIFIED})
+#: the collector's live-run operator-attestation label (V0.3 T1):
+#: in-vocabulary (parses), but attestation is NOT our verification, so
+#: it still blocks admission via LICENSE_NOT_VERIFIED
+LICENSE_ATTESTED = "LICENSE_VERIFIED_PER_OPERATOR_ATTESTATION"
+LICENSE_STATUSES = frozenset({
+    LICENSE_VERIFIED, LICENSE_UNVERIFIED, LICENSE_ATTESTED,
+})
 
 #: PIT evidence vocabulary (mirrors trading_lab.data.historical.PIT_LEVELS)
 PIT_LEVEL_VERIFIED = "VERIFIED"
@@ -155,6 +187,21 @@ PROBE_TRANSPORT_SYNTHETIC_ONLY = "PROBE_TRANSPORT_SYNTHETIC_ONLY"
 
 SCENARIO_TAG_ADMITTED = "HISTORICAL"
 SCENARIO_TAG_EXPLORATORY = "HISTORICAL_EXPLORATORY"
+
+# -- research tier layering (V0.3 task §4) --------------------------------------
+#
+# The tier classifies the USE basis on top of the unchanged admission
+# gate; it NEVER overrides research_admitted (non-admitted bundles are
+# always EXPLORATORY, whatever their labels claim).
+
+RESEARCH_TIER_EXPLORATORY = "EXPLORATORY"
+RESEARCH_TIER_RESTRICTED_RESEARCH = "RESTRICTED_RESEARCH"
+RESEARCH_TIER_VERIFIED_RESEARCH = "VERIFIED_RESEARCH"
+RESEARCH_TIERS = frozenset({
+    RESEARCH_TIER_EXPLORATORY,
+    RESEARCH_TIER_RESTRICTED_RESEARCH,
+    RESEARCH_TIER_VERIFIED_RESEARCH,
+})
 
 _SYMBOL_RE = re.compile(r"^[A-Z]{1,5}$")   # namespace-root escape guard
 _HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -215,6 +262,7 @@ class _ManifestView:
     pit_level: str | None
     pit_rule: str | None
     admission_status: str
+    restricted_research_permitted: bool
     entries: dict[str, _SymbolEntry]
 
 
@@ -227,7 +275,12 @@ class SnapshotBundle:
     quality labels the store plane refuses. A refused symbol is absent
     from both and recorded in ``refusals``/``blockers``;
     ``scenario_tags`` covers every manifest-declared symbol (the tag
-    describes the dataset, not only the loadable part)."""
+    describes the dataset, not only the loadable part).
+
+    ``research_tier`` (EXPLORATORY / RESTRICTED_RESEARCH /
+    VERIFIED_RESEARCH) classifies the USE basis on top of the unchanged
+    admission gate and never overrides ``research_admitted`` — see
+    :func:`classify_research_tier`."""
 
     stores: Mapping[str, SeriesStore]
     bars: Mapping[str, tuple[MarketBar, ...]]
@@ -237,7 +290,19 @@ class SnapshotBundle:
     blockers: tuple[str, ...]
     dataset_hash: str
     scenario_tags: Mapping[str, str]
+    research_tier: str
     refusals: tuple[SymbolRefusal, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.research_tier not in RESEARCH_TIERS:
+            raise ValueError(
+                f"research_tier {self.research_tier!r} outside "
+                f"{sorted(RESEARCH_TIERS)}")
+        if self.research_tier != RESEARCH_TIER_EXPLORATORY \
+                and not self.research_admitted:
+            raise ValueError(
+                "research_tier above EXPLORATORY requires "
+                "research_admitted (the tier never overrides the gate)")
 
     def next_open_price(self, symbol: str, session_date: dt.date) -> Decimal | None:
         """Open of the symbol's first bar STRICTLY AFTER ``session_date``
@@ -390,6 +455,18 @@ def _parse_admission(manifest: Mapping[str, Any]) -> str:
     return str(status)
 
 
+def _parse_restricted_permitted(manifest: Mapping[str, Any]) -> bool:
+    """The optional recorded protocol marker (default False when absent).
+    Recorded only — it can never upgrade admission (see
+    ``_gate_blockers`` and :func:`classify_research_tier`)."""
+    value = manifest.get("restricted_research_permitted", False)
+    if not isinstance(value, bool):
+        raise SnapshotSourceError(
+            "snapshot manifest restricted_research_permitted must be "
+            "boolean (producer drift — fail closed)")
+    return value
+
+
 def _parse_symbols(manifest: Mapping[str, Any]) -> dict[str, _SymbolEntry]:
     raw = manifest.get("symbols")
     if not isinstance(raw, dict) or not raw:
@@ -429,6 +506,7 @@ def _parse_manifest(manifest: Mapping[str, Any]) -> _ManifestView:
     license_status = _parse_license(manifest)
     pit_level, pit_rule = _parse_pit(manifest)
     admission_status = _parse_admission(manifest)
+    restricted_permitted = _parse_restricted_permitted(manifest)
     entries = _parse_symbols(manifest)
     return _ManifestView(
         window=window,
@@ -443,6 +521,7 @@ def _parse_manifest(manifest: Mapping[str, Any]) -> _ManifestView:
         pit_level=pit_level,
         pit_rule=pit_rule,
         admission_status=admission_status,
+        restricted_research_permitted=restricted_permitted,
         entries=entries,
     )
 
@@ -512,6 +591,57 @@ def _load_symbol_bars(
 
 
 # ---------------------------------------------------------------------------
+# research tier classification (V0.3 task §4 layering)
+# ---------------------------------------------------------------------------
+
+
+def classify_research_tier(
+    *,
+    research_admitted: bool,
+    license_status: str,
+    pit_level: str | None,
+    restricted_research_permitted: bool = False,
+) -> str:
+    """The three-tier USE classification, derived from the gate verdict
+    plus recorded facts. Rules (documented, fail-closed):
+
+    - non-admitted bundles are ALWAYS EXPLORATORY — the tier never
+      overrides ``research_admitted``, whatever the labels claim;
+    - ``VERIFIED_RESEARCH`` requires research_admitted AND license
+      VERIFIED AND PIT VERIFIED — no attested
+      (``LICENSE_VERIFIED_PER_OPERATOR_ATTESTATION``) or ASSUMED label
+      can reach it;
+    - ``RESTRICTED_RESEARCH`` requires research_admitted AND the explicit
+      ``restricted_research_permitted`` protocol marker (the manifest
+      records the license/PIT facts alongside it) over a structured
+      less-than-fully-verified evidence basis — a signed license basis
+      (verified or attested) and a PIT level that is present and not
+      UNKNOWN. Protocol permission never AUTO-VERIFIES anything (and
+      never downgrades a fully verified basis, which stays
+      VERIFIED_RESEARCH), and it cannot compensate for an unsigned
+      license or an unknown PIT: those stay EXPLORATORY;
+    - admitted but otherwise: EXPLORATORY.
+
+    Through today's loader, the admitted verdict always carries license
+    VERIFIED + PIT VERIFIED (the gate demands both — unchanged), so the
+    loader can only emit VERIFIED_RESEARCH or EXPLORATORY;
+    RESTRICTED_RESEARCH becomes live exactly when a future producer can
+    be admitted on an explicitly restricted evidence basis, without
+    weakening any gate input."""
+    if not research_admitted:
+        return RESEARCH_TIER_EXPLORATORY
+    if license_status == LICENSE_VERIFIED and pit_level == PIT_LEVEL_VERIFIED:
+        return RESEARCH_TIER_VERIFIED_RESEARCH
+    if (
+        restricted_research_permitted
+        and license_status in (LICENSE_VERIFIED, LICENSE_ATTESTED)
+        and pit_level in (PIT_LEVEL_VERIFIED, PIT_LEVEL_ASSUMED)
+    ):
+        return RESEARCH_TIER_RESTRICTED_RESEARCH
+    return RESEARCH_TIER_EXPLORATORY
+
+
+# ---------------------------------------------------------------------------
 # public entry point
 # ---------------------------------------------------------------------------
 
@@ -521,9 +651,12 @@ def _gate_blockers(view: _ManifestView) -> list[str]:
     mode field is producer-shape-validated, never a free-text claim):
     live transport + explicit release + verified license + VERIFIED PIT.
     Probe rows are FAKE-transport validation data — permanently
-    SYNTHETIC_OFFLINE_ONLY, not upgradable by any manifest label. Every
-    collector-produced snapshot fails at least one of these — that is
-    the honest state, recorded as blockers, never upgraded."""
+    SYNTHETIC_OFFLINE_ONLY, not upgradable by any manifest label. The
+    attested label (``LICENSE_VERIFIED_PER_OPERATOR_ATTESTATION``) is
+    in-vocabulary but is an operator attestation, not our verification:
+    it blocks via LICENSE_NOT_VERIFIED exactly like the unverified one.
+    Every collector-produced snapshot fails at least one of these — that
+    is the honest state, recorded as blockers, never upgraded."""
     blockers: list[str] = []
     if view.transport_mode == TRANSPORT_MODE_PROBE:
         blockers.append(PROBE_TRANSPORT_SYNTHETIC_ONLY)
@@ -546,6 +679,9 @@ def load_historical_snapshot(snapshot_dir: Path) -> SnapshotBundle:
     Hard-fails on a missing/unusable manifest; refuses individual symbols
     on content-level failures while keeping independently valid symbols;
     never upgrades a restricted/unlicensed/probe snapshot to admitted.
+    Also derives the use-tier (``research_tier``, see
+    :func:`classify_research_tier`) AFTER the admission verdict — the
+    tier never overrides it.
 
     The admission verdict is computed ONCE, after ALL validation (gate
     labels, unlisted dirs, per-symbol loads, refusals): admission requires
@@ -594,6 +730,14 @@ def load_historical_snapshot(snapshot_dir: Path) -> SnapshotBundle:
     # declared symbol or probe transport can never co-occur with
     # research_admitted=True.
     research_admitted = not blockers
+    # use-tier layering (V0.3 §4), derived AFTER the admission verdict —
+    # the tier never overrides it (non-admitted is always EXPLORATORY)
+    research_tier = classify_research_tier(
+        research_admitted=research_admitted,
+        license_status=view.license_status,
+        pit_level=view.pit_level,
+        restricted_research_permitted=view.restricted_research_permitted,
+    )
 
     rows = sorted(
         ({field: getattr(bar, field) for field in _ROW_FIELDS}
@@ -628,6 +772,8 @@ def load_historical_snapshot(snapshot_dir: Path) -> SnapshotBundle:
         "pit_level": view.pit_level,
         "pit_rule": view.pit_rule,
         "admission_status": view.admission_status,
+        "restricted_research_permitted": view.restricted_research_permitted,
+        "research_tier": research_tier,
         "symbols_declared": sorted(view.entries),
         "symbols_loaded": sorted(bars_by),
         "symbols_refused": sorted(r.symbol for r in refusals),
@@ -648,5 +794,6 @@ def load_historical_snapshot(snapshot_dir: Path) -> SnapshotBundle:
         dataset_hash=dataset_hash,
         scenario_tags=MappingProxyType(
             {symbol: tag for symbol in view.entries}),
+        research_tier=research_tier,
         refusals=tuple(refusals),
     )

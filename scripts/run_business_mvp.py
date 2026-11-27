@@ -95,12 +95,30 @@ def _parse_asof(raw: str) -> dt.datetime | None:
     return parsed.astimezone(dt.timezone.utc)
 
 
+def _cycle_to_report_shape(record: dict[str, object]) -> dict[str, object]:
+    """Map a DailyWorkflow cycle record onto the daily_report CYCLE_KEYS
+    contract (field names differ slightly between the two modules)."""
+    return {
+        "asof_utc": record.get("asof_utc"),
+        "regime": record.get("regime"),
+        "chosen": record.get("chosen_strategy_id") or record.get("chosen"),
+        "target": record.get("target"),
+        "action": record.get("action"),
+        "risk_reasons": record.get("risk_reasons")
+        or record.get("reasons") or (),
+        "cash": record.get("cash"),
+        "positions": record.get("positions"),
+        "equity": record.get("equity"),
+        "rationale": record.get("rationale"),
+    }
+
+
 def _write_daily_outputs(output_dir: Path, workflow: DailyWorkflow,
                          record: dict[str, object], replayed: bool,
-                         asof: dt.datetime) -> Path:
-    """summary.json + full cycle JSONL (the daily HTML report is a
-    separate task; this mode stays honest JSON)."""
+                         asof: dt.datetime, command: str) -> Path:
+    """summary.json + full cycle JSONL + self-contained daily HTML."""
     output_dir.mkdir(parents=True, exist_ok=True)
+    data_block = record.get("data") or {}
     summary = {
         "mode": "daily",
         "workflow_version": DAILY_WORKFLOW_VERSION,
@@ -109,7 +127,7 @@ def _write_daily_outputs(output_dir: Path, workflow: DailyWorkflow,
         "action": record.get("action"),
         "idempotent_replay": replayed,
         "pending_open": workflow.pending_count,
-        "data_admission": record.get("data"),
+        "data_admission": data_block,
         "honesty_labels": {
             "EXECUTION_BACKEND": "FAKE_BROKER",
             "BROKER_BEHAVIOR": "MOCK_ONLY",
@@ -128,6 +146,35 @@ def _write_daily_outputs(output_dir: Path, workflow: DailyWorkflow,
         "\n".join(json.dumps(r, sort_keys=True, ensure_ascii=False,
                              default=str) for r in workflow.records) + "\n",
         encoding="utf-8")
+    # self-contained daily HTML report (T3-A operational activation)
+    from trading_lab.business.daily_report import render_daily_report
+
+    run_meta = {
+        "run_id": record.get("cycle_id"),
+        "data_source": "OFFLINE",
+        "admission_level": (data_block.get("admission", {})
+                            .get("status", "NOT_RESEARCH_ADMITTED")
+                            if isinstance(data_block, dict) else "—"),
+        "license_level": "LICENSE_UNVERIFIED",
+        "info_status": record.get("info_status", "NO_INFORMATION"),
+        "data_cutoff_utc": record.get("data_cutoff_utc") or asof.isoformat(),
+        "missing_data": record.get("missing_data", ""),
+        "command": command,
+        "mock_book": {
+            "cash": record.get("cash"),
+            "positions": record.get("positions"),
+            "equity": record.get("equity"),
+            "action": record.get("action"),
+            "note": "MOCK_ACCOUNT_ONLY (FAKE_BROKER / MOCK_ONLY)",
+        },
+        "backtest_book": {
+            "note": "no backtest book in daily mode (read-only analysis "
+                    "+ mock account only)",
+        },
+    }
+    cycles = [_cycle_to_report_shape(r) for r in workflow.records]
+    (output_dir / "report.html").write_text(
+        render_daily_report(cycles, run_meta=run_meta), encoding="utf-8")
     return summary_path
 
 
@@ -156,8 +203,11 @@ def _run_daily(args: argparse.Namespace, config: BusinessConfig) -> int:
               file=sys.stderr)
         return 4
     output_dir = Path(args.output_dir)
+    command = (f"python scripts/run_business_mvp.py --mode daily "
+               f"--asof {args.asof} --snapshot-dir {args.snapshot_dir} "
+               f"--state-dir {args.state_dir} --output-dir {output_dir}")
     summary_path = _write_daily_outputs(
-        output_dir, workflow, result.record, result.replayed, asof)
+        output_dir, workflow, result.record, result.replayed, asof, command)
     record = result.record
     print(f"[{DAILY_WORKFLOW_VERSION}] daily cycle complete "
           f"({'replayed' if result.replayed else 'applied'})")

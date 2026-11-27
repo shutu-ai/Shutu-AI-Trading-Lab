@@ -43,21 +43,34 @@ for _p in (REPO_ROOT / "src", REPO_ROOT / "tests", REPO_ROOT):
 
 from apps.market_gateway import collection_session as cs  # noqa: E402
 from apps.market_gateway.collection_session import (  # noqa: E402
+    AUTHORIZATION_FACTS_INCOMPATIBLE,
+    AUTHORIZATION_FACTS_MISSING,
+    AUTHORIZATION_SCOPE_MISMATCH,
+    AdmissionFacts,
+    AuthorizationFactsRefused,
     AuthorizationRefused,
+    AuthorizedScope,
     BlockedEnv,
     CollectionConfig,
     CollectionError,
     CollectionReport,
+    LICENSE_STATUS_ATTESTED,
+    LicenseFacts,
     MANIFEST_NAME,
     NAMESPACE_DIRNAME,
     PARTIAL_AUDIT_NAME,
     TRANSPORT_LIVE,
     TRANSPORT_PROBE,
     dedupe_bars_rows,
+    parse_authorization_record,
     resolve_transport_authorization,
     run_collection,
 )
-from apps.market_gateway.historical_bars import HistoricalFetchResult  # noqa: E402
+from apps.market_gateway.historical_bars import (  # noqa: E402
+    FEED,
+    TIMEFRAME,
+    HistoricalFetchResult,
+)
 from apps.market_gateway.probe_transport import (  # noqa: E402
     FAKE_TRANSPORT_LABEL,
     FakeAlpacaProbeTransport,
@@ -507,6 +520,381 @@ class TestLiveRefusal:
             run_collection(_config(tmp_path))
         assert "CALENDAR_SUPPLY_DRIFT" in str(exc.value)
         assert not (tmp_path / NAMESPACE_DIRNAME).exists()
+
+
+# ---------------------------------------------------------------------------
+# authorization-facts binding (V0.3 T1): live runs bind operator facts
+# ---------------------------------------------------------------------------
+
+#: the EXACT legacy unsigned docs — probe artifacts must stay byte-stable
+_LEGACY_LICENSE_DOC = {
+    "status": "LICENSE_UNVERIFIED",
+    "calendar_supply_license": (
+        "LICENSE_UNVERIFIED (carried unchanged from calendar supply v2: "
+        "ICE/NYSE website personal-use terms are not a dataset license)"
+    ),
+    "market_data_license": (
+        "Alpaca historical-data personal-research attestation (H1 §7 "
+        "draft) remains unsigned"
+    ),
+}
+_LEGACY_ADMISSION_DOC = {
+    "status": "NOT_RESEARCH_ADMITTED",
+    "until": (
+        "the account owner signs the revised H1 §7 and confirms the "
+        "calendar/data licenses; until then these files must not enter "
+        "formal research"
+    ),
+    "corporate_actions": "NONE_COLLECTED",
+    "raw_only_disclosure": (
+        "raw prices without corporate actions: no total-return, "
+        "long-horizon comparability, or unbiased-alpha claims are "
+        "permitted from this data"
+    ),
+    "s8_forward_ledger": "EXCLUDED",
+}
+
+#: blind live env (NAMES visible to the gate; values never asserted)
+_LIVE_ENV = {
+    cs.AUTH_ENV_VAR: "SIGNED",
+    "APCA_API_KEY_ID": "KEY-VALUE-MUST-NOT-LEAK",
+    "APCA_API_SECRET_KEY": "SECRET-VALUE-MUST-NOT-LEAK",
+}
+
+
+def _authorized_scope() -> AuthorizedScope:
+    return AuthorizedScope(
+        start=FULL_START,
+        end=FULL_END,
+        symbols=("SPY", "QQQ"),
+        feed=FEED,
+        timeframe=TIMEFRAME,
+    )
+
+
+def _license_facts(scope: AuthorizedScope | None = None) -> LicenseFacts:
+    return LicenseFacts(
+        authorization_ref="H1-S7-TEST-0001",
+        attested_by="account-owner-test-fixture",
+        attested_at="2026-11-27T00:00:00+00:00",
+        scope=scope or _authorized_scope(),
+        calendar_license_note=(
+            "calendar supply v2 personal-use terms re-checked by the "
+            "operator on 2026-11-27"
+        ),
+    )
+
+
+def _admission_facts(
+    scope: AuthorizedScope | None = None, *, permitted: bool = False
+) -> AdmissionFacts:
+    return AdmissionFacts(
+        authorization_ref="H1-S7-TEST-0001",
+        attested_by="account-owner-test-fixture",
+        attested_at="2026-11-27T00:00:00+00:00",
+        scope=scope or _authorized_scope(),
+        restricted_research_permitted=permitted,
+    )
+
+
+class TestAuthorizationFactsBinding:
+    """V0.3 T1: a live run binds the operator's signed authorization
+    FACTS into the new snapshot mechanically — the ``SIGNED`` env var is
+    a necessary run switch but never a substitute for the signed record,
+    so live without supplied facts refuses (AUTHORIZATION_FACTS_MISSING)
+    instead of emitting unverifiable labels. Probe runs stay byte-stable
+    and never emit verified labels nor bind facts (their artifacts are
+    FAKE_TRANSPORT validation data)."""
+
+    def test_probe_docs_byte_stable(self, tmp_path) -> None:
+        report = run_collection(_config(tmp_path))
+        manifest = report.manifest
+        assert manifest is not None
+        assert manifest["license"] == _LEGACY_LICENSE_DOC
+        assert manifest["admission"] == _LEGACY_ADMISSION_DOC
+        assert "restricted_research_permitted" not in manifest
+
+    def test_probe_never_binds_facts(self, tmp_path) -> None:
+        with pytest.raises(AuthorizationFactsRefused) as exc:
+            run_collection(
+                _config(tmp_path),
+                license_facts=_license_facts(),
+                admission_facts=_admission_facts(),
+            )
+        assert exc.value.reason == AUTHORIZATION_FACTS_INCOMPATIBLE
+        assert not (tmp_path / NAMESPACE_DIRNAME).exists()
+
+    def test_live_signed_without_facts_refused(self, tmp_path) -> None:
+        with pytest.raises(AuthorizationFactsRefused) as exc:
+            run_collection(
+                _config(tmp_path, transport=TRANSPORT_LIVE), environ=_LIVE_ENV
+            )
+        assert exc.value.reason == AUTHORIZATION_FACTS_MISSING
+        assert cs.AUTH_ENV_VAR in exc.value.detail
+        assert not (tmp_path / NAMESPACE_DIRNAME).exists()
+
+    def test_env_gate_precedence_unchanged(self, tmp_path) -> None:
+        # no env signature at all: the original LIVE_AUTHORIZATION_REFUSED
+        # still fires BEFORE the facts gate
+        with pytest.raises(AuthorizationRefused):
+            run_collection(_config(tmp_path, transport=TRANSPORT_LIVE), environ={})
+
+    def test_live_facts_scope_mismatch_refused(self, tmp_path) -> None:
+        narrow = AuthorizedScope(
+            start=dt.date(2018, 1, 1),
+            end=FULL_END,
+            symbols=("SPY", "QQQ"),
+            feed=FEED,
+            timeframe=TIMEFRAME,
+        )
+        with pytest.raises(AuthorizationFactsRefused) as exc:
+            run_collection(
+                _config(tmp_path, transport=TRANSPORT_LIVE),
+                environ=_LIVE_ENV,
+                license_facts=_license_facts(narrow),
+            )
+        assert exc.value.reason == AUTHORIZATION_SCOPE_MISMATCH
+        assert "2018-01-01" in exc.value.detail
+        assert not (tmp_path / NAMESPACE_DIRNAME).exists()
+
+    def test_live_wrong_feed_scope_refused(self, tmp_path) -> None:
+        sip = AuthorizedScope(
+            start=FULL_START, end=FULL_END,
+            symbols=("SPY", "QQQ"), feed="sip", timeframe=TIMEFRAME)
+        with pytest.raises(AuthorizationFactsRefused) as exc:
+            run_collection(
+                _config(tmp_path, transport=TRANSPORT_LIVE),
+                environ=_LIVE_ENV,
+                license_facts=_license_facts(sip),
+            )
+        assert exc.value.reason == AUTHORIZATION_SCOPE_MISMATCH
+
+    def _fake_live_client(self, monkeypatch, opener=None) -> None:
+        """Keep the REAL guarded client (host/path/budget gates); stand
+        the offline FAKE fixture behind it — no network. This pins the
+        live path's manifest BINDING behavior, not the transport."""
+        real_guarded = cs.GuardedGetClient
+
+        def guarded_with_fixture(**kwargs):
+            kwargs["opener"] = opener or FakeAlpacaProbeTransport(calendar=_calendar())
+            return real_guarded(**kwargs)
+
+        monkeypatch.setattr(cs, "GuardedGetClient", guarded_with_fixture)
+
+    def test_live_with_facts_binds_attestation(self, tmp_path, monkeypatch) -> None:
+        self._fake_live_client(monkeypatch)
+        report = run_collection(
+            _config(tmp_path, transport=TRANSPORT_LIVE),
+            environ=_LIVE_ENV,
+            license_facts=_license_facts(),
+            admission_facts=_admission_facts(),
+        )
+        assert report.ok
+        manifest = report.manifest
+        assert manifest is not None
+        license_doc = manifest["license"]
+        assert license_doc["status"] == LICENSE_STATUS_ATTESTED
+        assert license_doc["authorization_ref"] == "H1-S7-TEST-0001"
+        assert license_doc["attested_by"] == "account-owner-test-fixture"
+        assert license_doc["attested_at"] == "2026-11-27T00:00:00+00:00"
+        assert license_doc["authorization_scope"] == {
+            "start": "2017-01-01",
+            "end": "2025-12-31",
+            "symbols": ["SPY", "QQQ"],
+            "feed": "iex",
+            "timeframe": "1Day",
+        }
+        assert "operator" in license_doc["calendar_supply_license"].lower()
+        admission_doc = manifest["admission"]
+        # an attestation NEVER upgrades admission: PIT is still ASSUMED
+        assert admission_doc["status"] == "NOT_RESEARCH_ADMITTED"
+        assert admission_doc["license_status"] == LICENSE_STATUS_ATTESTED
+        assert admission_doc["authorization_ref"] == "H1-S7-TEST-0001"
+        assert admission_doc["attested_by"] == "account-owner-test-fixture"
+        assert admission_doc["restricted_research_permitted"] is False
+        assert manifest["restricted_research_permitted"] is False
+        # rows still carry the honest live source label
+        for row in _rows(tmp_path, "SPY"):
+            assert row["source"] == "alpaca_iex"
+
+    def test_live_facts_restricted_permitted_recorded(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        self._fake_live_client(monkeypatch)
+        report = run_collection(
+            _config(tmp_path, transport=TRANSPORT_LIVE),
+            environ=_LIVE_ENV,
+            license_facts=_license_facts(),
+            admission_facts=_admission_facts(permitted=True),
+        )
+        assert report.ok and report.manifest is not None
+        assert report.manifest["restricted_research_permitted"] is True
+        assert report.manifest["admission"]["restricted_research_permitted"] is True
+        assert report.manifest["admission"]["status"] == "NOT_RESEARCH_ADMITTED"
+
+    def test_live_abort_dump_carries_bound_facts(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        self._fake_live_client(
+            monkeypatch,
+            opener=FakeAlpacaProbeTransport(
+                calendar=_calendar(), fail_first_with_status=403
+            ),
+        )
+        report = run_collection(
+            _config(tmp_path, transport=TRANSPORT_LIVE),
+            environ=_LIVE_ENV,
+            license_facts=_license_facts(),
+            admission_facts=_admission_facts(),
+        )
+        assert not report.ok and report.manifest is None
+        audit = report.partial_audit
+        assert audit is not None
+        assert audit["license"]["status"] == LICENSE_STATUS_ATTESTED
+        assert audit["admission"]["authorization_ref"] == "H1-S7-TEST-0001"
+        assert audit["restricted_research_permitted"] is False
+
+    # -- operator record file (CLI surface) ------------------------------
+
+    def _record_file(self, tmp_path: Path, **overrides) -> Path:
+        record: dict = {
+            "authorization_ref": "H1-S7-TEST-0001",
+            "attested_by": "account-owner-test-fixture",
+            "attested_at": "2026-11-27T00:00:00+00:00",
+            "calendar_license_note": "calendar terms re-checked 2026-11-27",
+            "scope": {
+                "start": "2017-01-01",
+                "end": "2025-12-31",
+                "symbols": ["SPY", "QQQ"],
+                "feed": "iex",
+                "timeframe": "1Day",
+            },
+            "restricted_research_permitted": False,
+        }
+        record.update(overrides)
+        path = tmp_path / "authorization_record.json"
+        path.write_text(json.dumps(record), encoding="utf-8")
+        return path
+
+    def test_cli_live_without_record_refused(self, tmp_path, capsys) -> None:
+        cli = _cli()
+        code = cli.main(
+            ["--symbol", "SPY", "--symbol", "QQQ", "--output-dir", str(tmp_path),
+             "--transport", "live"],
+            environ=_LIVE_ENV,
+        )
+        assert code == cli.EXIT_COLLECTION_REFUSED == 6
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["status"] == "COLLECTION_REFUSED"
+        assert payload["reason"] == AUTHORIZATION_FACTS_MISSING
+        assert not (tmp_path / NAMESPACE_DIRNAME).exists()
+
+    def test_cli_probe_with_record_refused(self, tmp_path, capsys) -> None:
+        cli = _cli()
+        record = self._record_file(tmp_path)
+        code = cli.main(
+            ["--symbol", "SPY", "--symbol", "QQQ", "--output-dir", str(tmp_path),
+             "--authorization-record", str(record)],
+            environ={},
+        )
+        assert code == cli.EXIT_COLLECTION_REFUSED == 6
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["reason"] == AUTHORIZATION_FACTS_INCOMPATIBLE
+        assert not (tmp_path / NAMESPACE_DIRNAME).exists()
+
+    def test_cli_mismatched_scope_record_refused(self, tmp_path, capsys) -> None:
+        cli = _cli()
+        record = self._record_file(
+            tmp_path,
+            scope={
+                "start": "2018-01-01", "end": "2025-12-31",
+                "symbols": ["SPY", "QQQ"], "feed": "iex", "timeframe": "1Day",
+            },
+        )
+        code = cli.main(
+            ["--symbol", "SPY", "--symbol", "QQQ", "--output-dir", str(tmp_path),
+             "--transport", "live", "--authorization-record", str(record)],
+            environ=_LIVE_ENV,
+        )
+        assert code == cli.EXIT_COLLECTION_REFUSED == 6
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["status"] == "COLLECTION_REFUSED"
+        assert payload["reason"] == AUTHORIZATION_SCOPE_MISMATCH
+        assert not (tmp_path / NAMESPACE_DIRNAME).exists()
+
+    def test_cli_invalid_record_refused(self, tmp_path, capsys) -> None:
+        cli = _cli()
+        record = tmp_path / "authorization_record.json"
+        record.write_text(
+            json.dumps({"authorization_ref": "only-one-field"}), encoding="utf-8"
+        )
+        code = cli.main(
+            ["--symbol", "SPY", "--symbol", "QQQ", "--output-dir", str(tmp_path),
+             "--transport", "live", "--authorization-record", str(record)],
+            environ=_LIVE_ENV,
+        )
+        assert code == cli.EXIT_COLLECTION_REFUSED == 6
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["reason"] == "AUTHORIZATION_RECORD_INVALID"
+
+    def test_cli_record_file_missing_refused(self, tmp_path, capsys) -> None:
+        cli = _cli()
+        code = cli.main(
+            ["--symbol", "SPY", "--symbol", "QQQ", "--output-dir", str(tmp_path),
+             "--authorization-record", str(tmp_path / "absent.json")],
+            environ={},
+        )
+        assert code == cli.EXIT_COLLECTION_REFUSED == 6
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["reason"] == "AUTHORIZATION_RECORD_INVALID"
+
+    def test_cli_live_with_record_binds_attestation(
+        self, tmp_path, capsys, monkeypatch
+    ) -> None:
+        self._fake_live_client(monkeypatch)
+        cli = _cli()
+        record = self._record_file(tmp_path)
+        code = cli.main(
+            ["--symbol", "SPY", "--symbol", "QQQ", "--output-dir", str(tmp_path),
+             "--transport", "live", "--authorization-record", str(record)],
+            environ=_LIVE_ENV,
+        )
+        assert code == cli.EXIT_OK == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["status"] == "COLLECTED"
+        assert payload["license"] == LICENSE_STATUS_ATTESTED
+        manifest = json.loads(_manifest_path(tmp_path).read_text(encoding="utf-8"))
+        assert manifest["license"]["authorization_ref"] == "H1-S7-TEST-0001"
+        assert manifest["admission"]["status"] == "NOT_RESEARCH_ADMITTED"
+
+    def test_parse_authorization_record_shapes_scope(self) -> None:
+        record = parse_authorization_record({
+            "authorization_ref": "R-1",
+            "attested_by": "owner",
+            "attested_at": "2026-11-27",
+            "calendar_license_note": "note",
+            "scope": {
+                "start": "2017-01-01", "end": "2025-12-31",
+                "symbols": ["QQQ", "SPY"], "feed": "iex", "timeframe": "1Day",
+            },
+        })
+        # symbol order canonicalized: manifests stay byte-deterministic
+        assert record.license.scope.symbols == ("SPY", "QQQ")
+        assert record.admission.restricted_research_permitted is False
+
+    def test_parse_authorization_record_unknown_key_refused(self) -> None:
+        with pytest.raises(CollectionError) as exc:
+            parse_authorization_record({
+                "authorization_ref": "R-1", "attested_by": "owner",
+                "attested_at": "2026-11-27", "calendar_license_note": "note",
+                "signature": "trust-me",   # unknown key — refused
+                "scope": {
+                    "start": "2017-01-01", "end": "2025-12-31",
+                    "symbols": ["SPY", "QQQ"], "feed": "iex",
+                    "timeframe": "1Day",
+                },
+            })
+        assert exc.value.reason == "AUTHORIZATION_RECORD_INVALID"
 
 
 # ---------------------------------------------------------------------------

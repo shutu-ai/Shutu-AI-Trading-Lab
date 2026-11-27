@@ -1,0 +1,55 @@
+# ============================================================================
+# OPERATOR-SUPPLIED CURRENT TRADING CALENDAR — NOT A VERIFIED DATA SOURCE.
+#
+# This file is MAINTAINED BY THE OPERATOR from a licensed calendar source.
+# It is SUPPLIED DATA: sessions, half-days and holidays come only from the
+# licensed source — they are NEVER inferred from data gaps in market data,
+# and this file never replaces the frozen v1/v2 evidence supplies
+# (tests/m3_h pin those separately).
+#
+# BEFORE OPERATIONAL USE the operator MUST:
+#   1. verify the source below against the licensed calendar source, and
+#   2. resolve the license question and REPLACE the LICENSE_UNVERIFIED
+#      placeholder in `license_note` with the verified license facts
+#      (source + retrieval date). An unverified note stays recorded
+#      verbatim in every manifest built from this file — it is never
+#      upgraded by code.
+#
+# Key-level contract enforced by
+# trading_lab.data.historical_calendar_supply.load_supply_from_config:
+#   - EXACTLY these keys (unknown keys refuse), all required;
+#   - dates YYYY-MM-DD; valid_from < valid_until (strict);
+#   - holidays[] / half_days[] sorted ascending, unique, weekdays only,
+#     all inside [valid_from, valid_until];
+#   - the supply must AGREE with the frozen v2 supply on every date the
+#     two windows share (e.g. 2026-01-19 MLK below matches v2's fixed
+#     date; contradicting it refuses with CALENDAR_SUPPLY_DRIFT).
+# ============================================================================
+
+version: nyse-2026-current-operator-v1
+
+valid_from: "2026-01-01"
+valid_until: "2026-12-31"
+
+# NYSE 2026 holiday set (operator-verified table; weekday of each entry
+# noted for review convenience — weekend entries refuse at load):
+holidays:
+  - "2026-01-01" # New Year's Day (Thursday)
+  - "2026-01-19" # Martin Luther King Jr. Day (Monday) — must match frozen supply v2
+  - "2026-02-16" # Presidents' Day (Monday)
+  - "2026-04-03" # Good Friday (Friday)
+  - "2026-05-25" # Memorial Day (Monday)
+  - "2026-06-19" # Juneteenth National Independence Day (Friday)
+  - "2026-07-03" # Independence Day, observed (Friday — July 4 falls on Saturday)
+  - "2026-09-07" # Labor Day (Monday)
+  - "2026-11-26" # Thanksgiving Day (Thursday)
+  - "2026-12-25" # Christmas Day (Friday)
+
+half_days:
+  - "2026-12-24" # Christmas Eve — 13:00 ET early close (Thursday)
+
+license_note: "LICENSE_UNVERIFIED — placeholder: the calendar source's license for dataset use is NOT yet verified by the operator; verify before operational use"
+
+source_refs:
+  - "https://www.nyse.com/trade/hours-calendars"
+  - "https://ir.theice.com/press/news-details/2023/NYSE-Group-Announces-2024-2025-and-2026-Holiday-and-Early-Closings-Calendar/default.aspx"
