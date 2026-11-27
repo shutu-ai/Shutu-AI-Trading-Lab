@@ -58,6 +58,7 @@ class ContinuousMockRunner:
         state_dir: Path,
         clock: NowFn,
         labels: Mapping[str, str] | None = None,
+        resume: bool = False,
     ) -> None:
         self._config = config
         quality = labels.get("data_quality", "SYNTHETIC_OFFLINE_DEMO") \
@@ -78,6 +79,14 @@ class ContinuousMockRunner:
             allowed_symbols=tuple(config.fixture.symbols),
         )
         self._session_index = 0
+        # Persistence shim (V0.3 daily engine): the OMS journal/fence sqlite
+        # files persist in ``state_dir`` across processes, but the in-memory
+        # ledger and counters start fresh. A runner built with ``resume=True``
+        # is bound to an EXISTING stack directory and MUST be hydrated via
+        # :meth:`restore_state` before its first step — silently starting on
+        # a fresh ledger would double-count the persistent account.
+        self._resume_requested = bool(resume)
+        self._hydrated = not resume
         self.outcomes: list[ExecutionOutcome] = []
         self.cycle_records: list[dict[str, object]] = []
         self._marks: dict[str, Decimal] = {}
@@ -86,6 +95,63 @@ class ContinuousMockRunner:
     def bind_dataset(self, dataset_hash: str) -> None:
         """Pin the run's dataset identity into the snapshot provider."""
         self._dataset_hash = dataset_hash
+
+    # -- introspection -------------------------------------------------------
+
+    @property
+    def stack(self) -> MockExecutionStack:
+        """The underlying gate/risk/OMS/broker stack (ONE per state dir)."""
+        return self._stack
+
+    @property
+    def ledger(self) -> MockAccountLedger:
+        """The persistent fictional account ledger."""
+        return self._stack.ledger
+
+    # -- persistence shim (V0.3 daily engine) --------------------------------
+
+    def export_state(self) -> dict[str, object]:
+        """Persistable execution state: ledger plus the minting counters.
+
+        ``intent_seq``/``session_index`` MUST survive restarts — they feed
+        the deterministic intent ids and release ids, so a resumed runner
+        can never re-mint an id the persisted OMS journal has already seen.
+        """
+        ledger = self._stack.ledger
+        return {
+            "session_index": self._session_index,
+            "intent_seq": getattr(self._stack, "_intent_seq", 0),
+            "initial_cash": str(ledger.initial_cash),
+            "cash": str(ledger.cash),
+            "positions": {k: str(v)
+                          for k, v in sorted(ledger.positions.items())},
+            "fill_log": [dict(f) for f in ledger.fill_log],
+        }
+
+    def restore_state(self, state: Mapping[str, object]) -> None:
+        """Hydrate ledger + counters from :meth:`export_state` output.
+
+        Only valid on a ``resume=True`` runner (fail-closed: restoring onto
+        a fresh runner would mask a lost state file as an empty account).
+        """
+        if not self._resume_requested:
+            raise RuntimeError(
+                "restore_state requires a ContinuousMockRunner built with "
+                "resume=True (refusing to overwrite a fresh account)")
+        ledger = self._stack.ledger
+        ledger.initial_cash = Decimal(str(state["initial_cash"]))
+        ledger.cash = Decimal(str(state["cash"]))
+        ledger.positions = {
+            str(k): Decimal(str(v))
+            for k, v in dict(state.get("positions") or {}).items()}
+        ledger.fill_log = [dict(f) for f in state.get("fill_log") or []]
+        self._session_index = int(state.get("session_index") or 0)
+        # documented same-module shim: the minting counter lives on the
+        # stack; restoring it keeps resumed intent ids collision-free with
+        # the persisted journal (the journal's duplicate protection stays
+        # the safety net behind this).
+        self._stack._intent_seq = int(state.get("intent_seq") or 0)  # noqa: SLF001
+        self._hydrated = True
 
     # -- the per-session step ------------------------------------------------
 
@@ -105,6 +171,10 @@ class ContinuousMockRunner:
         cycle). Returns per-symbol ExecutionOutcomes plus a NO_TRADE
         cycle record when the decision produced no orders.
         """
+        if not self._hydrated:
+            raise RuntimeError(
+                "resumed ContinuousMockRunner must be hydrated via "
+                "restore_state() before step() (restart safety)")
         self._session_index += 1
         self._marks = dict(marks)
         outcomes: list[ExecutionOutcome] = []
