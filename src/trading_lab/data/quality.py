@@ -50,6 +50,11 @@ class QualityReport:
     unknown_availability_count: int
     license_status: str                     # passthrough from the vendor record
     notes: tuple[str, ...] = field(default_factory=tuple)
+    # H1B (P0-Q1): per-symbol completeness with per-symbol denominators —
+    # the aggregate ``bar_completeness`` sums per-symbol expected sessions
+    # so a full SPY can never mask a missing QQQ. Additive field with an
+    # empty default: every pre-H1B constructor keeps working byte-for-byte.
+    per_symbol_completeness: tuple[MetricResult, ...] = field(default_factory=tuple)
 
     def failures(self, max_missing_rate: float, max_latency_seconds: float | None) -> list[str]:
         """Evaluate against pre-declared thresholds using the single

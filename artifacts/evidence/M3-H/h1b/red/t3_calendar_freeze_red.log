@@ -1,0 +1,150 @@
+FFFFFFFFFFFF                                                             [100%]
+================================== FAILURES ===================================
+_______ TestFrozenSupply.test_supply_constructs_versioned_and_windowed ________
+
+self = <test_h1b_calendar_freeze.TestFrozenSupply object at 0x000001B32220A850>
+
+    def test_supply_constructs_versioned_and_windowed(self):
+>       from trading_lab.data.historical_calendar_supply import NYSE_2017_2025_SUPPLY as s
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar_supply'
+
+tests\m3_h\test_h1b_calendar_freeze.py:58: ModuleNotFoundError
+_______ TestFrozenSupply.test_every_holiday_is_a_closed_weekday_session _______
+
+self = <test_h1b_calendar_freeze.TestFrozenSupply object at 0x000001B32220B390>
+
+    def test_every_holiday_is_a_closed_weekday_session(self):
+        from trading_lab.data.historical_calendar import VersionedMarketCalendar
+>       from trading_lab.data.historical_calendar_supply import NYSE_2017_2025_SUPPLY as supply
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar_supply'
+
+tests\m3_h\test_h1b_calendar_freeze.py:69: ModuleNotFoundError
+___________ TestFrozenSupply.test_every_half_day_closes_at_1300_et ____________
+
+self = <test_h1b_calendar_freeze.TestFrozenSupply object at 0x000001B3221F1480>
+
+    def test_every_half_day_closes_at_1300_et(self):
+        from trading_lab.data.historical_calendar import VersionedMarketCalendar
+>       from trading_lab.data.historical_calendar_supply import NYSE_2017_2025_SUPPLY as supply
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar_supply'
+
+tests\m3_h\test_h1b_calendar_freeze.py:78: ModuleNotFoundError
+_______________ TestFrozenSupply.test_juneteenth_discriminator ________________
+
+self = <test_h1b_calendar_freeze.TestFrozenSupply object at 0x000001B3221F15B0>
+
+    def test_juneteenth_discriminator(self):
+        from trading_lab.data.historical_calendar import VersionedMarketCalendar
+>       from trading_lab.data.historical_calendar_supply import NYSE_2017_2025_SUPPLY
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar_supply'
+
+tests\m3_h\test_h1b_calendar_freeze.py:88: ModuleNotFoundError
+____________ TestFrozenSupply.test_bush_mourning_day_discriminator ____________
+
+self = <test_h1b_calendar_freeze.TestFrozenSupply object at 0x000001B322230B90>
+
+    def test_bush_mourning_day_discriminator(self):
+        from trading_lab.data.historical_calendar import VersionedMarketCalendar
+>       from trading_lab.data.historical_calendar_supply import NYSE_2017_2025_SUPPLY
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar_supply'
+
+tests\m3_h\test_h1b_calendar_freeze.py:98: ModuleNotFoundError
+_________ TestFrozenSupply.test_christmas_week_pattern_discriminators _________
+
+self = <test_h1b_calendar_freeze.TestFrozenSupply object at 0x000001B3221E8AF0>
+
+    def test_christmas_week_pattern_discriminators(self):
+        from trading_lab.data.historical_calendar import VersionedMarketCalendar
+>       from trading_lab.data.historical_calendar_supply import NYSE_2017_2025_SUPPLY
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar_supply'
+
+tests\m3_h\test_h1b_calendar_freeze.py:105: ModuleNotFoundError
+__________ TestFrozenSupply.test_new_year_observation_discriminator ___________
+
+self = <test_h1b_calendar_freeze.TestFrozenSupply object at 0x000001B3221E8D10>
+
+    def test_new_year_observation_discriminator(self):
+        from trading_lab.data.historical_calendar import VersionedMarketCalendar
+>       from trading_lab.data.historical_calendar_supply import NYSE_2017_2025_SUPPLY
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar_supply'
+
+tests\m3_h\test_h1b_calendar_freeze.py:119: ModuleNotFoundError
+____________ TestFrozenSupply.test_2026_boundary_next_trading_day _____________
+
+self = <test_h1b_calendar_freeze.TestFrozenSupply object at 0x000001B322087350>
+
+    def test_2026_boundary_next_trading_day(self):
+        from trading_lab.data.historical_calendar import VersionedMarketCalendar
+>       from trading_lab.data.historical_calendar_supply import NYSE_2017_2025_SUPPLY
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar_supply'
+
+tests\m3_h\test_h1b_calendar_freeze.py:129: ModuleNotFoundError
+______________ TestFrozenSupply.test_outside_window_fail_closed _______________
+
+self = <test_h1b_calendar_freeze.TestFrozenSupply object at 0x000001B322087550>
+
+    def test_outside_window_fail_closed(self):
+        from trading_lab.data.historical_calendar import VersionedMarketCalendar
+>       from trading_lab.data.historical_calendar_supply import NYSE_2017_2025_SUPPLY
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar_supply'
+
+tests\m3_h\test_h1b_calendar_freeze.py:137: ModuleNotFoundError
+_________________ TestFrozenSupply.test_freeze_hash_is_stable _________________
+
+self = <test_h1b_calendar_freeze.TestFrozenSupply object at 0x000001B322227020>
+
+    def test_freeze_hash_is_stable(self):
+>       from trading_lab.data.historical_calendar_supply import (
+            NYSE_2017_2025_SUPPLY,
+            frozen_supply_hash,
+        )
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar_supply'
+
+tests\m3_h\test_h1b_calendar_freeze.py:147: ModuleNotFoundError
+_______ TestPurposeRowFrozen.test_row_present_with_concrete_thresholds ________
+
+self = <test_h1b_calendar_freeze.TestPurposeRowFrozen object at 0x000001B32220B890>
+
+    def test_row_present_with_concrete_thresholds(self):
+        from trading_lab.data.acceptance import load_acceptance_config
+        from trading_lab.data.historical import derive_max_latency_seconds
+        from trading_lab.data.historical_calendar import VersionedMarketCalendar
+>       from trading_lab.data.historical_calendar_supply import NYSE_2017_2025_SUPPLY
+E       ModuleNotFoundError: No module named 'trading_lab.data.historical_calendar_supply'
+
+tests\m3_h\test_h1b_calendar_freeze.py:163: ModuleNotFoundError
+__________ TestPurposeRowFrozen.test_four_legacy_purposes_untouched ___________
+
+self = <test_h1b_calendar_freeze.TestPurposeRowFrozen object at 0x000001B32220B9D0>
+
+    def test_four_legacy_purposes_untouched(self):
+        from trading_lab.data.acceptance import load_acceptance_config
+    
+        cfg = load_acceptance_config(REPO_ROOT / "configs" / "data_acceptance.yaml")
+        ids = [p.purpose_id for p in cfg.purposes]
+>       assert ids == [
+            "pipeline_poc",
+            "engineering_monitoring",
+            "historical_research_daily",
+            "event_research",
+            "historical_research_limited_etf",
+        ]
+E       AssertionError: assert ['pipeline_po...ent_research'] == ['pipeline_po..._limited_etf']
+E         
+E         Right contains one more item: 'historical_research_limited_etf'
+E         Use -v to get more diff
+
+tests\m3_h\test_h1b_calendar_freeze.py:182: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/m3_h/test_h1b_calendar_freeze.py::TestFrozenSupply::test_supply_constructs_versioned_and_windowed
+FAILED tests/m3_h/test_h1b_calendar_freeze.py::TestFrozenSupply::test_every_holiday_is_a_closed_weekday_session
+FAILED tests/m3_h/test_h1b_calendar_freeze.py::TestFrozenSupply::test_every_half_day_closes_at_1300_et
+FAILED tests/m3_h/test_h1b_calendar_freeze.py::TestFrozenSupply::test_juneteenth_discriminator
+FAILED tests/m3_h/test_h1b_calendar_freeze.py::TestFrozenSupply::test_bush_mourning_day_discriminator
+FAILED tests/m3_h/test_h1b_calendar_freeze.py::TestFrozenSupply::test_christmas_week_pattern_discriminators
+FAILED tests/m3_h/test_h1b_calendar_freeze.py::TestFrozenSupply::test_new_year_observation_discriminator
+FAILED tests/m3_h/test_h1b_calendar_freeze.py::TestFrozenSupply::test_2026_boundary_next_trading_day
+FAILED tests/m3_h/test_h1b_calendar_freeze.py::TestFrozenSupply::test_outside_window_fail_closed
+FAILED tests/m3_h/test_h1b_calendar_freeze.py::TestFrozenSupply::test_freeze_hash_is_stable
+FAILED tests/m3_h/test_h1b_calendar_freeze.py::TestPurposeRowFrozen::test_row_present_with_concrete_thresholds
+FAILED tests/m3_h/test_h1b_calendar_freeze.py::TestPurposeRowFrozen::test_four_legacy_purposes_untouched

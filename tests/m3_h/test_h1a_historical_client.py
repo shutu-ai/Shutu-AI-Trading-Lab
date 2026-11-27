@@ -34,16 +34,21 @@ RECEIVED_AT = dt.datetime(2026, 11, 26, 12, 0, tzinfo=UTC)
 WINDOW = (dt.date(2026, 11, 20), dt.date(2026, 12, 31))  # fixture licensed window
 
 
-def _bar(session: str, close: str) -> dict:
+def _bar(session: str, close: str, base: int = 600) -> dict:
     # NOTE: prices are JSON NUMBERS (floats in the fixture) — the guarded
     # client parses them into exact Decimals, exactly like the vendor wire
     # format. Strings would be a schema violation, correctly refused.
+    # H1B P0-Q2 fixture fix: geometry is self-consistent by construction
+    # (the close is enclosed by the bar's own low/high).
+    c = float(close)
+    low = min(base, c) - 1
+    high = max(base, c) + 1
     return {
         "t": f"{session}T05:00:00Z",
-        "o": 600,
-        "h": 602,
-        "l": 599,
-        "c": float(close),
+        "o": float(base),
+        "h": high,
+        "l": low,
+        "c": c,
         "v": 1000,
     }
 

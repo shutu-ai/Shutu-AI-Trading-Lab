@@ -1,0 +1,633 @@
+FFFFFFFFFFFFF.FFFFF.                                                     [100%]
+================================== FAILURES ===================================
+_ TestPerSymbolCompleteness.test_spy_full_qqq_partial_reads_4_of_6_not_3_of_3 _
+
+self = <test_h1b_per_symbol_coverage.TestPerSymbolCompleteness object at 0x0000022D8E91D590>
+
+    def test_spy_full_qqq_partial_reads_4_of_6_not_3_of_3(self):
+        build = _build(
+            [
+                _result("SPY", SESSIONS, dt.date(2026, 11, 20), dt.date(2026, 11, 24)),
+                _result("QQQ", SESSIONS[:1], dt.date(2026, 11, 20), dt.date(2026, 11, 24)),
+            ]
+        )
+        agg = build.quality.bar_completeness
+>       assert (agg.denominator, agg.missing, agg.observed) == (6, 2, 4)
+E       assert (3, 0, 3) == (6, 2, 4)
+E         
+E         At index 0 diff: 3 != 6
+E         Use -v to get more diff
+
+tests\m3_h\test_h1b_per_symbol_coverage.py:139: AssertionError
+____ TestPerSymbolCompleteness.test_partial_coverage_cannot_read_as_ready _____
+
+self = <test_h1b_per_symbol_coverage.TestPerSymbolCompleteness object at 0x0000022D8E91E0D0>
+
+    def test_partial_coverage_cannot_read_as_ready(self):
+        from trading_lab.data.historical import evaluate_historical_research
+    
+        build = _build(
+            [
+                _result("SPY", SESSIONS, dt.date(2026, 11, 20), dt.date(2026, 11, 24)),
+                _result("QQQ", SESSIONS[:1], dt.date(2026, 11, 20), dt.date(2026, 11, 24)),
+            ]
+        )
+        from trading_lab.data.acceptance import PurposeRequirements
+        from trading_lab.data.historical import derive_max_latency_seconds
+        from trading_lab.data.historical_calendar import VersionedMarketCalendar
+    
+        calendar = VersionedMarketCalendar.from_supply(nyse_2026_fixture_supply())
+        derived, _ = derive_max_latency_seconds(calendar, GRACE_SECONDS)
+        req = PurposeRequirements(
+            purpose_id="historical_research_limited_etf",
+            description="H1B offline template purpose",
+            data_scope="us_equities_daily_limited_etf_history",
+            requires_daily_bars=True,
+            requires_minute_bars=False,
+            requires_corporate_actions=False,
+            requires_history_membership=False,
+            requires_delisting=False,
+            available_at_rule="daily_close_available_next_open",
+            max_missing_rate=0.001,
+            min_coverage_rate=0.999,
+            max_latency_seconds=derived,
+            required_license_scope="personal_research",
+            on_fail="RESTRICT_SCOPE",
+        )
+        decision = evaluate_historical_research(
+            req, build.quality, _vendor(license_confirmed=True), build.manifest
+        )
+>       assert decision.base_verdict != "ACCEPT"
+E       AssertionError: assert 'ACCEPT' != 'ACCEPT'
+E        +  where 'ACCEPT' = HistoricalAcceptanceDecision(purpose_id='historical_research_limited_etf', verdict='RESTRICT_SCOPE', reasons=('PIT_ASSUMED_NOT_VERIFIED',), pit_level='ASSUMED', base_verdict='ACCEPT').base_verdict
+
+tests\m3_h\test_h1b_per_symbol_coverage.py:178: AssertionError
+____________ TestPerSymbolCompleteness.test_both_full_reads_6_of_6 ____________
+
+self = <test_h1b_per_symbol_coverage.TestPerSymbolCompleteness object at 0x0000022D8E92CD60>
+
+    def test_both_full_reads_6_of_6(self):
+        build = _build(
+            [
+                _result("SPY", SESSIONS, dt.date(2026, 11, 20), dt.date(2026, 11, 24)),
+                _result("QQQ", SESSIONS, dt.date(2026, 11, 20), dt.date(2026, 11, 24)),
+            ]
+        )
+        agg = build.quality.bar_completeness
+>       assert (agg.denominator, agg.missing, agg.observed) == (6, 0, 6)
+E       assert (3, 0, 3) == (6, 0, 6)
+E         
+E         At index 0 diff: 3 != 6
+E         Use -v to get more diff
+
+tests\m3_h\test_h1b_per_symbol_coverage.py:190: AssertionError
+_________ TestPerSymbolCompleteness.test_qqq_zero_rows_stays_visible __________
+
+self = <test_h1b_per_symbol_coverage.TestPerSymbolCompleteness object at 0x0000022D8E92DBA0>
+
+    def test_qqq_zero_rows_stays_visible(self):
+>       build = _build(
+            [
+                _result("SPY", SESSIONS, dt.date(2026, 11, 20), dt.date(2026, 11, 24)),
+                _result("QQQ", [], dt.date(2026, 11, 20), dt.date(2026, 11, 24)),
+            ]
+        )
+
+tests\m3_h\test_h1b_per_symbol_coverage.py:193: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\m3_h\test_h1b_per_symbol_coverage.py:106: in _build
+    return build_historical_snapshot(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def build_historical_snapshot(
+        *,
+        fetch_results: Any,
+        calendar: Any,
+        received_at_utc: dt.datetime,
+        knowledge_cutoff_utc: dt.datetime,
+        requirements: Any,
+        vendor: Any,
+        grace_seconds: int = 0,
+    ) -> HistoricalSnapshotBuild:
+        """Build the deterministic historical snapshot from validated fetch
+        results (the gateway client output shape).
+    
+        Every row is stamped through the versioned calendar: session close
+        (``ts_event_utc``), next-session-open assumption
+        (``available_at_utc`` = ``assumed_available_at_utc``, pit level
+        ASSUMED), and the download moment (``received_at_utc``). The
+        per-row calendar deadline gate runs over the built records — any
+        violation refuses the whole build. Quality facts keep their M1
+        denominators; the verdict comes from the ASSUMED-capped wrapper.
+        """
+        if not fetch_results:
+            raise HistoricalDataError("no fetch results — nothing to admit")
+        if grace_seconds < 0:
+            raise HistoricalDataError("grace_seconds must be non-negative")
+        _aware(received_at_utc, "received_at_utc")
+        _aware(knowledge_cutoff_utc, "knowledge_cutoff_utc")
+    
+        records: list[HistoricalBarRecord] = []
+        all_session_dates: set[dt.date] = set()
+        window_start = min(r.start for r in fetch_results)
+        window_end = max(r.end for r in fetch_results)
+        try:
+            expected_sessions = calendar.expected_sessions(window_start, window_end)
+        except CalendarError as exc:
+            raise HistoricalDataError(
+                f"study window [{window_start.isoformat()}, {window_end.isoformat()}] "
+                f"is outside calendar supply coverage: {exc}"
+            ) from exc
+    
+        for result in fetch_results:
+            if not _SYMBOL_SEGMENT_RE.fullmatch(str(result.symbol)):
+                raise HistoricalDataError(
+                    f"SYMBOL_SEGMENT_UNSAFE:{result.symbol!r} — partition names "
+                    "derive from the symbol segment; refusing anything outside "
+                    "[A-Z]{1,5} (namespace-root escape guard)"
+                )
+            for row in result.rows:
+                session_date = dt.date.fromisoformat(str(row["session_date"]))
+                try:
+                    info = calendar.session(session_date)
+                except CalendarError as exc:
+                    raise HistoricalDataError(
+                        f"{result.symbol} session {session_date.isoformat()} outside "
+                        f"calendar supply coverage: {exc}"
+                    ) from exc
+                if not info.is_trading_day:
+                    raise HistoricalDataError(
+                        f"{result.symbol} carries a bar on non-trading day "
+                        f"{session_date.isoformat()}"
+                    )
+                close_utc = info.close_utc()
+                if close_utc is None:
+                    raise HistoricalDataError(
+                        f"session {session_date.isoformat()} has no close time"
+                    )
+                assumed = calendar.session_open_after(close_utc)
+                records.append(
+                    HistoricalBarRecord.assumed_next_open_row(
+                        row,
+                        symbol=result.symbol,
+                        session_date=session_date,
+                        session_close_utc=close_utc,
+                        assumed_available_at_utc=assumed,
+                        received_at_utc=received_at_utc,
+                    )
+                )
+                all_session_dates.add(session_date)
+    
+        violations = calendar_deadline_violations(records, calendar, grace_seconds)
+        if violations:
+            raise HistoricalDataError(
+                "availability stamps failed the calendar deadline gate: "
+                + "; ".join(violations)
+            )
+    
+        field_rows = [{"close": r.close, "volume": r.volume} for r in records]
+        # duplicates/out-of-order are a per-symbol series property: two
+        # symbols legitimately interleave the same sessions, so the count
+        # never runs across the symbol boundary
+        duplicates = sum(
+            count_duplicate_or_out_of_order(
+                [{"ts_event_utc": r.ts_event_utc} for r in records if r.symbol == symbol]
+            )
+            for symbol in sorted({r.symbol for r in records})
+        )
+        quality = QualityReport(
+            field_coverage=field_coverage_metrics(field_rows, ["close", "volume"]),
+            bar_completeness=bar_completeness(all_session_dates, expected_sessions),
+            duplicate_or_out_of_order=duplicates,
+            latency=latency_stats(
+                [
+                    {"ts_event_utc": r.ts_event_utc, "ts_available_utc": r.available_at_utc}
+                    for r in records
+                ]
+            ),
+            unknown_availability_count=0,
+            license_status="personal_research",
+            notes=(
+                "pit_rule=daily_close_available_next_open",
+                f"grace_seconds={grace_seconds}",
+                "pit_level=ASSUMED(model assumption, never verified)",
+            ),
+        )
+    
+        entries: list[DatasetEntry] = []
+        for result in fetch_results:
+            symbol_records = [r for r in records if r.symbol == result.symbol]
+            content_hash = content_hash_of_rows([_row_payload(r) for r in symbol_records])
+            raw_hash = content_hash_of_rows([dict(row) for row in result.rows])
+>           max_assumed = max(r.assumed_available_at_utc for r in symbol_records)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           ValueError: max() iterable argument is empty
+
+src\trading_lab\data\historical.py:718: ValueError
+________ TestPerSymbolCompleteness.test_all_zero_rows_is_inconclusive _________
+
+self = <test_h1b_per_symbol_coverage.TestPerSymbolCompleteness object at 0x0000022D8E8927B0>
+
+    def test_all_zero_rows_is_inconclusive(self):
+        from trading_lab.data.historical import evaluate_historical_research
+    
+>       build = _build(
+            [
+                _result("SPY", [], dt.date(2026, 11, 20), dt.date(2026, 11, 24)),
+                _result("QQQ", [], dt.date(2026, 11, 20), dt.date(2026, 11, 24)),
+            ]
+        )
+
+tests\m3_h\test_h1b_per_symbol_coverage.py:207: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\m3_h\test_h1b_per_symbol_coverage.py:106: in _build
+    return build_historical_snapshot(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def build_historical_snapshot(
+        *,
+        fetch_results: Any,
+        calendar: Any,
+        received_at_utc: dt.datetime,
+        knowledge_cutoff_utc: dt.datetime,
+        requirements: Any,
+        vendor: Any,
+        grace_seconds: int = 0,
+    ) -> HistoricalSnapshotBuild:
+        """Build the deterministic historical snapshot from validated fetch
+        results (the gateway client output shape).
+    
+        Every row is stamped through the versioned calendar: session close
+        (``ts_event_utc``), next-session-open assumption
+        (``available_at_utc`` = ``assumed_available_at_utc``, pit level
+        ASSUMED), and the download moment (``received_at_utc``). The
+        per-row calendar deadline gate runs over the built records — any
+        violation refuses the whole build. Quality facts keep their M1
+        denominators; the verdict comes from the ASSUMED-capped wrapper.
+        """
+        if not fetch_results:
+            raise HistoricalDataError("no fetch results — nothing to admit")
+        if grace_seconds < 0:
+            raise HistoricalDataError("grace_seconds must be non-negative")
+        _aware(received_at_utc, "received_at_utc")
+        _aware(knowledge_cutoff_utc, "knowledge_cutoff_utc")
+    
+        records: list[HistoricalBarRecord] = []
+        all_session_dates: set[dt.date] = set()
+        window_start = min(r.start for r in fetch_results)
+        window_end = max(r.end for r in fetch_results)
+        try:
+            expected_sessions = calendar.expected_sessions(window_start, window_end)
+        except CalendarError as exc:
+            raise HistoricalDataError(
+                f"study window [{window_start.isoformat()}, {window_end.isoformat()}] "
+                f"is outside calendar supply coverage: {exc}"
+            ) from exc
+    
+        for result in fetch_results:
+            if not _SYMBOL_SEGMENT_RE.fullmatch(str(result.symbol)):
+                raise HistoricalDataError(
+                    f"SYMBOL_SEGMENT_UNSAFE:{result.symbol!r} — partition names "
+                    "derive from the symbol segment; refusing anything outside "
+                    "[A-Z]{1,5} (namespace-root escape guard)"
+                )
+            for row in result.rows:
+                session_date = dt.date.fromisoformat(str(row["session_date"]))
+                try:
+                    info = calendar.session(session_date)
+                except CalendarError as exc:
+                    raise HistoricalDataError(
+                        f"{result.symbol} session {session_date.isoformat()} outside "
+                        f"calendar supply coverage: {exc}"
+                    ) from exc
+                if not info.is_trading_day:
+                    raise HistoricalDataError(
+                        f"{result.symbol} carries a bar on non-trading day "
+                        f"{session_date.isoformat()}"
+                    )
+                close_utc = info.close_utc()
+                if close_utc is None:
+                    raise HistoricalDataError(
+                        f"session {session_date.isoformat()} has no close time"
+                    )
+                assumed = calendar.session_open_after(close_utc)
+                records.append(
+                    HistoricalBarRecord.assumed_next_open_row(
+                        row,
+                        symbol=result.symbol,
+                        session_date=session_date,
+                        session_close_utc=close_utc,
+                        assumed_available_at_utc=assumed,
+                        received_at_utc=received_at_utc,
+                    )
+                )
+                all_session_dates.add(session_date)
+    
+        violations = calendar_deadline_violations(records, calendar, grace_seconds)
+        if violations:
+            raise HistoricalDataError(
+                "availability stamps failed the calendar deadline gate: "
+                + "; ".join(violations)
+            )
+    
+        field_rows = [{"close": r.close, "volume": r.volume} for r in records]
+        # duplicates/out-of-order are a per-symbol series property: two
+        # symbols legitimately interleave the same sessions, so the count
+        # never runs across the symbol boundary
+        duplicates = sum(
+            count_duplicate_or_out_of_order(
+                [{"ts_event_utc": r.ts_event_utc} for r in records if r.symbol == symbol]
+            )
+            for symbol in sorted({r.symbol for r in records})
+        )
+        quality = QualityReport(
+            field_coverage=field_coverage_metrics(field_rows, ["close", "volume"]),
+            bar_completeness=bar_completeness(all_session_dates, expected_sessions),
+            duplicate_or_out_of_order=duplicates,
+            latency=latency_stats(
+                [
+                    {"ts_event_utc": r.ts_event_utc, "ts_available_utc": r.available_at_utc}
+                    for r in records
+                ]
+            ),
+            unknown_availability_count=0,
+            license_status="personal_research",
+            notes=(
+                "pit_rule=daily_close_available_next_open",
+                f"grace_seconds={grace_seconds}",
+                "pit_level=ASSUMED(model assumption, never verified)",
+            ),
+        )
+    
+        entries: list[DatasetEntry] = []
+        for result in fetch_results:
+            symbol_records = [r for r in records if r.symbol == result.symbol]
+            content_hash = content_hash_of_rows([_row_payload(r) for r in symbol_records])
+            raw_hash = content_hash_of_rows([dict(row) for row in result.rows])
+>           max_assumed = max(r.assumed_available_at_utc for r in symbol_records)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           ValueError: max() iterable argument is empty
+
+src\trading_lab\data\historical.py:718: ValueError
+____ TestPerSymbolCompleteness.test_disjoint_windows_covered_by_own_range _____
+
+self = <test_h1b_per_symbol_coverage.TestPerSymbolCompleteness object at 0x0000022D8E8989E0>
+
+    def test_disjoint_windows_covered_by_own_range(self):
+        """Different requested windows: each symbol is judged against its
+        OWN window's expected sessions, never the union window."""
+        build = _build(
+            [
+                _result("SPY", SESSIONS[:2], dt.date(2026, 11, 20), dt.date(2026, 11, 23)),
+                _result("QQQ", SESSIONS[1:], dt.date(2026, 11, 23), dt.date(2026, 11, 24)),
+            ]
+        )
+>       per = {m.name: (m.denominator, m.missing) for m in build.quality.per_symbol_completeness}
+                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'QualityReport' object has no attribute 'per_symbol_completeness'
+
+tests\m3_h\test_h1b_per_symbol_coverage.py:228: AttributeError
+_____ TestPerSymbolCompleteness.test_per_symbol_duplicate_still_rejected ______
+
+self = <test_h1b_per_symbol_coverage.TestPerSymbolCompleteness object at 0x0000022D8E898C00>
+
+    def test_per_symbol_duplicate_still_rejected(self):
+        from trading_lab.data.historical import HistoricalDataError
+    
+>       with pytest.raises(HistoricalDataError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'trading_lab.data.historical.HistoricalDataError'>
+
+tests\m3_h\test_h1b_per_symbol_coverage.py:237: Failed
+__ TestPerSymbolCompleteness.test_quality_report_remains_backward_compatible __
+
+self = <test_h1b_per_symbol_coverage.TestPerSymbolCompleteness object at 0x0000022D8E8DC150>
+
+    def test_quality_report_remains_backward_compatible(self):
+        """M1 compatibility: the additive per-symbol field defaults to
+        empty — existing QualityReport constructors keep working and the
+        M1 formula is untouched."""
+        from trading_lab.data.quality import (
+            LatencyStats,
+            MetricResult,
+            QualityReport,
+        )
+    
+        report = QualityReport(
+            field_coverage=(MetricResult("f", 1, 0, 1, 1.0),),
+            bar_completeness=MetricResult("bar_completeness", 1, 0, 1, 1.0),
+            duplicate_or_out_of_order=0,
+            latency=LatencyStats(1, 0, 1.0, 1.0, 1.0),
+            unknown_availability_count=0,
+            license_status="personal_research",
+        )
+>       assert report.per_symbol_completeness == ()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'QualityReport' object has no attribute 'per_symbol_completeness'
+
+tests\m3_h\test_h1b_per_symbol_coverage.py:263: AttributeError
+__ TestGatewayCrossedBar.test_crossed_bar_refused_at_gateway[high_below_low] __
+
+self = <test_h1b_ohlc_geometry.TestGatewayCrossedBar object at 0x0000022D8E91EAD0>
+case_name = 'high_below_low'
+bar = {'c': 600.0, 'h': 598.0, 'l': 599.0, 'o': 600.0, ...}
+
+    @pytest.mark.parametrize("case_name,bar", CROSSED_CASES, ids=[c[0] for c in CROSSED_CASES])
+    def test_crossed_bar_refused_at_gateway(self, case_name, bar):
+        from apps.market_gateway.historical_bars import HistoricalRequestRefused
+    
+        transport = ScriptedTransport([_page([bar], "SPY")])
+        client = _client(transport)
+        with pytest.raises(HistoricalRequestRefused) as exc:
+            _fetch(client)
+>       assert "CROSSED_BAR" in str(exc.value)
+E       AssertionError: assert 'CROSSED_BAR' in 'PRICE: low exceeds high'
+E        +  where 'PRICE: low exceeds high' = str(HistoricalRequestRefused('PRICE: low exceeds high'))
+E        +    where HistoricalRequestRefused('PRICE: low exceeds high') = <ExceptionInfo HistoricalRequestRefused('PRICE: low exceeds high') tblen=4>.value
+
+tests\m3_h\test_h1b_ohlc_geometry.py:126: AssertionError
+__ TestGatewayCrossedBar.test_crossed_bar_refused_at_gateway[open_below_low] __
+
+self = <test_h1b_ohlc_geometry.TestGatewayCrossedBar object at 0x0000022D8E91EC10>
+case_name = 'open_below_low'
+bar = {'c': 600.0, 'h': 602.0, 'l': 599.0, 'o': 598.0, ...}
+
+    @pytest.mark.parametrize("case_name,bar", CROSSED_CASES, ids=[c[0] for c in CROSSED_CASES])
+    def test_crossed_bar_refused_at_gateway(self, case_name, bar):
+        from apps.market_gateway.historical_bars import HistoricalRequestRefused
+    
+        transport = ScriptedTransport([_page([bar], "SPY")])
+        client = _client(transport)
+>       with pytest.raises(HistoricalRequestRefused) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'apps.market_gateway.historical_bars.HistoricalRequestRefused'>
+
+tests\m3_h\test_h1b_ohlc_geometry.py:124: Failed
+_ TestGatewayCrossedBar.test_crossed_bar_refused_at_gateway[open_above_high] __
+
+self = <test_h1b_ohlc_geometry.TestGatewayCrossedBar object at 0x0000022D8E92E2C0>
+case_name = 'open_above_high'
+bar = {'c': 600.0, 'h': 602.0, 'l': 599.0, 'o': 603.0, ...}
+
+    @pytest.mark.parametrize("case_name,bar", CROSSED_CASES, ids=[c[0] for c in CROSSED_CASES])
+    def test_crossed_bar_refused_at_gateway(self, case_name, bar):
+        from apps.market_gateway.historical_bars import HistoricalRequestRefused
+    
+        transport = ScriptedTransport([_page([bar], "SPY")])
+        client = _client(transport)
+>       with pytest.raises(HistoricalRequestRefused) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'apps.market_gateway.historical_bars.HistoricalRequestRefused'>
+
+tests\m3_h\test_h1b_ohlc_geometry.py:124: Failed
+_ TestGatewayCrossedBar.test_crossed_bar_refused_at_gateway[close_below_low] __
+
+self = <test_h1b_ohlc_geometry.TestGatewayCrossedBar object at 0x0000022D8E92E3F0>
+case_name = 'close_below_low'
+bar = {'c': 598.0, 'h': 602.0, 'l': 599.0, 'o': 600.0, ...}
+
+    @pytest.mark.parametrize("case_name,bar", CROSSED_CASES, ids=[c[0] for c in CROSSED_CASES])
+    def test_crossed_bar_refused_at_gateway(self, case_name, bar):
+        from apps.market_gateway.historical_bars import HistoricalRequestRefused
+    
+        transport = ScriptedTransport([_page([bar], "SPY")])
+        client = _client(transport)
+>       with pytest.raises(HistoricalRequestRefused) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'apps.market_gateway.historical_bars.HistoricalRequestRefused'>
+
+tests\m3_h\test_h1b_ohlc_geometry.py:124: Failed
+_ TestGatewayCrossedBar.test_crossed_bar_refused_at_gateway[close_above_high] _
+
+self = <test_h1b_ohlc_geometry.TestGatewayCrossedBar object at 0x0000022D8E8932F0>
+case_name = 'close_above_high'
+bar = {'c': 603.0, 'h': 602.0, 'l': 599.0, 'o': 600.0, ...}
+
+    @pytest.mark.parametrize("case_name,bar", CROSSED_CASES, ids=[c[0] for c in CROSSED_CASES])
+    def test_crossed_bar_refused_at_gateway(self, case_name, bar):
+        from apps.market_gateway.historical_bars import HistoricalRequestRefused
+    
+        transport = ScriptedTransport([_page([bar], "SPY")])
+        client = _client(transport)
+>       with pytest.raises(HistoricalRequestRefused) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'apps.market_gateway.historical_bars.HistoricalRequestRefused'>
+
+tests\m3_h\test_h1b_ohlc_geometry.py:124: Failed
+_ TestRecordCrossedBar.test_crossed_bar_rejected_at_data_model[598-602-599-600] _
+
+self = <test_h1b_ohlc_geometry.TestRecordCrossedBar object at 0x0000022D8E91ED50>
+o = '598', h = '602', low = '599', c = '600'
+
+    @pytest.mark.parametrize(
+        "o,h,low,c",
+        [("598", "602", "599", "600"), ("603", "602", "599", "600"),
+         ("600", "602", "599", "598"), ("600", "602", "599", "603"),
+         ("600", "598", "599", "600")],
+    )
+    def test_crossed_bar_rejected_at_data_model(self, o, h, low, c):
+        from trading_lab.data.historical import HistoricalDataError
+    
+>       with pytest.raises(HistoricalDataError) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'trading_lab.data.historical.HistoricalDataError'>
+
+tests\m3_h\test_h1b_ohlc_geometry.py:166: Failed
+_ TestRecordCrossedBar.test_crossed_bar_rejected_at_data_model[603-602-599-600] _
+
+self = <test_h1b_ohlc_geometry.TestRecordCrossedBar object at 0x0000022D8E91EE90>
+o = '603', h = '602', low = '599', c = '600'
+
+    @pytest.mark.parametrize(
+        "o,h,low,c",
+        [("598", "602", "599", "600"), ("603", "602", "599", "600"),
+         ("600", "602", "599", "598"), ("600", "602", "599", "603"),
+         ("600", "598", "599", "600")],
+    )
+    def test_crossed_bar_rejected_at_data_model(self, o, h, low, c):
+        from trading_lab.data.historical import HistoricalDataError
+    
+>       with pytest.raises(HistoricalDataError) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'trading_lab.data.historical.HistoricalDataError'>
+
+tests\m3_h\test_h1b_ohlc_geometry.py:166: Failed
+_ TestRecordCrossedBar.test_crossed_bar_rejected_at_data_model[600-602-599-598] _
+
+self = <test_h1b_ohlc_geometry.TestRecordCrossedBar object at 0x0000022D8E92E780>
+o = '600', h = '602', low = '599', c = '598'
+
+    @pytest.mark.parametrize(
+        "o,h,low,c",
+        [("598", "602", "599", "600"), ("603", "602", "599", "600"),
+         ("600", "602", "599", "598"), ("600", "602", "599", "603"),
+         ("600", "598", "599", "600")],
+    )
+    def test_crossed_bar_rejected_at_data_model(self, o, h, low, c):
+        from trading_lab.data.historical import HistoricalDataError
+    
+>       with pytest.raises(HistoricalDataError) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'trading_lab.data.historical.HistoricalDataError'>
+
+tests\m3_h\test_h1b_ohlc_geometry.py:166: Failed
+_ TestRecordCrossedBar.test_crossed_bar_rejected_at_data_model[600-602-599-603] _
+
+self = <test_h1b_ohlc_geometry.TestRecordCrossedBar object at 0x0000022D8E92E8B0>
+o = '600', h = '602', low = '599', c = '603'
+
+    @pytest.mark.parametrize(
+        "o,h,low,c",
+        [("598", "602", "599", "600"), ("603", "602", "599", "600"),
+         ("600", "602", "599", "598"), ("600", "602", "599", "603"),
+         ("600", "598", "599", "600")],
+    )
+    def test_crossed_bar_rejected_at_data_model(self, o, h, low, c):
+        from trading_lab.data.historical import HistoricalDataError
+    
+>       with pytest.raises(HistoricalDataError) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'trading_lab.data.historical.HistoricalDataError'>
+
+tests\m3_h\test_h1b_ohlc_geometry.py:166: Failed
+_ TestRecordCrossedBar.test_crossed_bar_rejected_at_data_model[600-598-599-600] _
+
+self = <test_h1b_ohlc_geometry.TestRecordCrossedBar object at 0x0000022D8E893410>
+o = '600', h = '598', low = '599', c = '600'
+
+    @pytest.mark.parametrize(
+        "o,h,low,c",
+        [("598", "602", "599", "600"), ("603", "602", "599", "600"),
+         ("600", "602", "599", "598"), ("600", "602", "599", "603"),
+         ("600", "598", "599", "600")],
+    )
+    def test_crossed_bar_rejected_at_data_model(self, o, h, low, c):
+        from trading_lab.data.historical import HistoricalDataError
+    
+        with pytest.raises(HistoricalDataError) as exc:
+            self._record(o, h, low, c)
+>       assert "CROSSED_BAR" in str(exc.value)
+E       AssertionError: assert 'CROSSED_BAR' in 'low must not exceed high'
+E        +  where 'low must not exceed high' = str(HistoricalDataError('low must not exceed high'))
+E        +    where HistoricalDataError('low must not exceed high') = <ExceptionInfo HistoricalDataError('low must not exceed high') tblen=5>.value
+
+tests\m3_h\test_h1b_ohlc_geometry.py:168: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/m3_h/test_h1b_per_symbol_coverage.py::TestPerSymbolCompleteness::test_spy_full_qqq_partial_reads_4_of_6_not_3_of_3
+FAILED tests/m3_h/test_h1b_per_symbol_coverage.py::TestPerSymbolCompleteness::test_partial_coverage_cannot_read_as_ready
+FAILED tests/m3_h/test_h1b_per_symbol_coverage.py::TestPerSymbolCompleteness::test_both_full_reads_6_of_6
+FAILED tests/m3_h/test_h1b_per_symbol_coverage.py::TestPerSymbolCompleteness::test_qqq_zero_rows_stays_visible
+FAILED tests/m3_h/test_h1b_per_symbol_coverage.py::TestPerSymbolCompleteness::test_all_zero_rows_is_inconclusive
+FAILED tests/m3_h/test_h1b_per_symbol_coverage.py::TestPerSymbolCompleteness::test_disjoint_windows_covered_by_own_range
+FAILED tests/m3_h/test_h1b_per_symbol_coverage.py::TestPerSymbolCompleteness::test_per_symbol_duplicate_still_rejected
+FAILED tests/m3_h/test_h1b_per_symbol_coverage.py::TestPerSymbolCompleteness::test_quality_report_remains_backward_compatible
+FAILED tests/m3_h/test_h1b_ohlc_geometry.py::TestGatewayCrossedBar::test_crossed_bar_refused_at_gateway[high_below_low]
+FAILED tests/m3_h/test_h1b_ohlc_geometry.py::TestGatewayCrossedBar::test_crossed_bar_refused_at_gateway[open_below_low]
+FAILED tests/m3_h/test_h1b_ohlc_geometry.py::TestGatewayCrossedBar::test_crossed_bar_refused_at_gateway[open_above_high]
+FAILED tests/m3_h/test_h1b_ohlc_geometry.py::TestGatewayCrossedBar::test_crossed_bar_refused_at_gateway[close_below_low]
+FAILED tests/m3_h/test_h1b_ohlc_geometry.py::TestGatewayCrossedBar::test_crossed_bar_refused_at_gateway[close_above_high]
+FAILED tests/m3_h/test_h1b_ohlc_geometry.py::TestRecordCrossedBar::test_crossed_bar_rejected_at_data_model[598-602-599-600]
+FAILED tests/m3_h/test_h1b_ohlc_geometry.py::TestRecordCrossedBar::test_crossed_bar_rejected_at_data_model[603-602-599-600]
+FAILED tests/m3_h/test_h1b_ohlc_geometry.py::TestRecordCrossedBar::test_crossed_bar_rejected_at_data_model[600-602-599-598]
+FAILED tests/m3_h/test_h1b_ohlc_geometry.py::TestRecordCrossedBar::test_crossed_bar_rejected_at_data_model[600-602-599-603]
+FAILED tests/m3_h/test_h1b_ohlc_geometry.py::TestRecordCrossedBar::test_crossed_bar_rejected_at_data_model[600-598-599-600]

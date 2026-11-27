@@ -114,9 +114,13 @@ class TestRuleVocabulary:
             load_acceptance_config(cfg_path)
 
     def test_official_yaml_unchanged_four_purposes(self):
+        """H1A pinned four purposes; H1B (2026-11-27) appended
+        historical_research_limited_etf after freezing the calendar —
+        append-only evolution, the four legacy rows unchanged (values
+        asserted in test_h1b_calendar_freeze.py)."""
         cfg = load_acceptance_config(REPO_ROOT / "configs" / "data_acceptance.yaml")
         assert cfg.version == 1
-        assert [p.purpose_id for p in cfg.purposes] == [
+        assert [p.purpose_id for p in cfg.purposes][:4] == [
             "pipeline_poc",
             "engineering_monitoring",
             "historical_research_daily",

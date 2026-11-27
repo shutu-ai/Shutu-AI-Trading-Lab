@@ -314,8 +314,21 @@ class HistoricalBarsClient:
             if d <= 0:
                 raise HistoricalRequestRefused("PRICE", f"{key} must be positive: {d}")
             prices[key] = d
-        if prices["l"] > prices["h"]:
-            raise HistoricalRequestRefused("PRICE", "low exceeds high")
+        # H1B P0-Q2: full OHLC geometry, mirroring the FROZEN S8 quality
+        # semantics (apps/market_gateway/quality.py CROSSED_BAR): high >=
+        # low AND low <= min(open, close) AND max(open, close) <= high.
+        # H1A only checked low<=high, which let close-above-high bars pass.
+        if not (
+            prices["h"] >= prices["l"]
+            and prices["l"] <= min(prices["o"], prices["c"])
+            and max(prices["o"], prices["c"]) <= prices["h"]
+        ):
+            raise HistoricalRequestRefused(
+                "CROSSED_BAR",
+                f"bar geometry violates OHLC containment: o={prices['o']} "
+                f"h={prices['h']} l={prices['l']} c={prices['c']} — refused, "
+                "never silently adjusted",
+            )
         volume = bar["v"]
         if isinstance(volume, bool) or not isinstance(volume, int) or volume < 0:
             raise HistoricalRequestRefused(

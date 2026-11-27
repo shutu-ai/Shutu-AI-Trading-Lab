@@ -38,17 +38,23 @@ CUTOFF = dt.datetime(2026, 12, 31, 23, 59, tzinfo=UTC)
 GRACE_SECONDS = 3600
 
 
-def _bar(session: str, close: str) -> dict:
-    # Decimals directly — the exact shape the guarded client hands over
-    # (JSON numbers parse_float=Decimal); floats never survive the guard.
+def _bar(session: str, close: str, base: str = "600") -> dict:
+    """OHLC-self-consistent synthetic bar (H1B P0-Q2 fixture fix): the
+    close is enclosed by the bar's own low/high by construction. The H1A
+    fixture shipped close~300 against open=600/high=602 — an illegal
+    crossed bar that the H1A validation (low<=high only) let pass."""
     from decimal import Decimal
 
+    c = Decimal(close)
+    b = Decimal(base)
+    low = min(b, c) - Decimal("1")
+    high = max(b, c) + Decimal("1")
     return {
         "t": f"{session}T05:00:00Z",
-        "o": Decimal("600"),
-        "h": Decimal("602"),
-        "l": Decimal("599"),
-        "c": Decimal(close),
+        "o": b,
+        "h": high,
+        "l": low,
+        "c": c,
         "v": 1000,
     }
 
@@ -59,7 +65,8 @@ def _fetch_result(symbol: str, closes: list[str], start, end):
     sessions = ["2026-11-20", "2026-11-23", "2026-11-24", "2026-11-25"][: len(closes)]
     rows = []
     for s, c in zip(sessions, closes):
-        row = _bar(s, c)
+        base = "600" if symbol == "SPY" else "300"  # distinct price levels: no cross-contamination
+        row = _bar(s, c, base)
         row["session_date"] = s
         rows.append(row)
     return HistoricalFetchResult(

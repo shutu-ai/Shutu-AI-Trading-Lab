@@ -1,0 +1,59 @@
+{
+  "derivation": {
+    "calendar_source_url": "https://www.nyse.com/markets/hours-calendars (archived snapshots; see SUPPLY_SOURCE_REFS)",
+    "calendar_valid_from": "2017-01-01",
+    "calendar_valid_until": "2026-01-31",
+    "calendar_version": "nyse-2017-2026-01-frozen-v1",
+    "formula": "max_session(next_open - session_close) + grace_seconds",
+    "grace_seconds": 900,
+    "max_latency_seconds": 333900,
+    "sessions_skipped_next_open_outside_coverage": 1,
+    "sessions_total": 2284,
+    "worst_case_seconds": 333000,
+    "worst_case_session_date": "2020-12-24"
+  },
+  "freeze": {
+    "frozen_supply_hash": "826bd96a08b18ada69f77010fa2006516f5088d69a8fb1ceec44033ec106e285",
+    "frozen_utc": "2026-11-27T00:00:00+00:00",
+    "grace_seconds_preregistered": 900,
+    "half_days_count": 20,
+    "holidays_count": 86,
+    "license_status": "LICENSE_UNVERIFIED (ICE website terms ambiguous-to-restrictive for systematic collection/caching; personal manual transcription defensible but not expressly licensed; revocable; no research-usability claim this round)",
+    "study_window": "2017-01-01..2025-12-31 (+ next-session boundary Fri 2026-01-02, margin to 2026-01-31)",
+    "supply_version": "nyse-2017-2026-01-frozen-v1",
+    "task_id": "M3-H1B-HISTORICAL-QUALITY-AND-CALENDAR-FREEZE-20261127-R1",
+    "valid_from": "2017-01-01",
+    "valid_until": "2026-01-31",
+    "verification": "per-year VERIFIED_FULL, 0 unverified dates, 0 conflicts (agent-fetched archived official NYSE pages + ICE PR; quotes in h1b report)"
+  },
+  "key_verbatim_quotes": {
+    "early_close_footnote_pattern": "Each market will close early at 1:00 p.m. (1:15 p.m. for eligible options) on ...",
+    "juneteenth_2022_first": "Juneteenth National Independence Day | Monday, June 20 (Juneteenth holiday observed)",
+    "mourning_2018_press_release": "The New York Stock Exchange, NYSE American, NYSE National, NYSE Arca, and the Chicago Stock Exchange ... will be closed on Wednesday, December 5, 2018 in observance of the National Day of Mourning for President George H. W. Bush.",
+    "newyear_2022_no_observation": "No holiday observed, pursuant to NYSE Rule 7.2, NYSE American Rule 7.2E, ...",
+    "newyear_2023_observed": "New Years Day | ... | Monday, January 2 (New Year holiday observed)",
+    "terms_license": "Copyright License. ... limited license to access and use this Website and to download and print copies ... only for your own personal, non-commercial use ... The foregoing license does not include use of any data mining, robots or similar data gathering or extraction methods. We may revoke this license at any time..."
+  },
+  "sources": {
+    "2017_2018_2019": "https://web.archive.org/web/20170602092600/https://www.nyse.com/markets/hours-calendars",
+    "2018-12-05_corroboration": "https://www.isda.org/a/rRFEE/George-H-W-Bush-national-day-of-mourning-on-December-5-2018-ISDA-guidance2.pdf",
+    "2018-12-05_mourning": "https://ir.theice.com/press/press-releases/all-categories/2018/12-01-2018-171457429",
+    "2020_2021": "https://web.archive.org/web/20200530191718/https://www.nyse.com/markets/hours-calendars",
+    "2021_crosscheck": [
+      "https://web.archive.org/web/20210304140048/https://www.nyse.com/markets/hours-calendars",
+      "https://web.archive.org/web/20210630220654/https://www.nyse.com/markets/hours-calendars"
+    ],
+    "2022_2023_2024": [
+      "https://web.archive.org/web/20220601133900/https://www.nyse.com/markets/hours-calendars",
+      "https://web.archive.org/web/20221204100459/https://www.nyse.com/markets/hours-calendars",
+      "https://web.archive.org/web/20221219222145/https://www.nyse.com/markets/hours-calendars"
+    ],
+    "2025_2026": [
+      "https://web.archive.org/web/20250305025600/https://www.nyse.com/markets/hours-calendars",
+      "https://web.archive.org/web/20260109170436/https://www.nyse.com/trade/hours-calendars",
+      "https://www.nyse.com/trade/hours-calendars (live, fetched 2026-11-27)"
+    ],
+    "retrieved_utc": "2026-11-27T00:00:00+00:00",
+    "terms_of_use": "https://www.ice.com/privacy-security-center/terms-of-use (LICENSE_UNVERIFIED)"
+  }
+}

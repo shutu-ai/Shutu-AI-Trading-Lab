@@ -68,3 +68,37 @@ purposes:
     max_latency_seconds: 900
     required_license_scope: personal_research
     on_fail: RESTRICT_SCOPE
+
+  # M3-H1B (2026-11-27): appended after the 2017-2025 NYSE calendar
+  # supply was sourced from archived official NYSE calendars, verified
+  # (no unverified dates, no conflicts) and frozen as
+  # nyse-2017-2026-01-frozen-v1 (hash 826bd96a08b18ada69f77010fa2006516f5088d69a8fb1ceec44033ec106e285).
+  # max_latency_seconds = derive_max_latency_seconds(frozen supply,
+  # grace=900s) = 92.5h worst legal span (2020-12-24) + 900 — derivation
+  # record in artifacts/evidence/M3-H/h1b/calendar/. CAVEAT: the calendar
+  # source's website terms are LICENSE_UNVERIFIED for systematic
+  # collection; this row declares CONFIG readiness only — it is NOT a
+  # claim that research data is usable (license stays BLOCKED until the
+  # operator attests), and H1 history API access remains NOT_AUTHORIZED.
+  - purpose_id: historical_research_limited_etf
+    description: >
+      Restricted-ETF daily-bar historical research (H1/H2, M3-H
+      workstream): FIXED symbol list SPY/QQQ, 1Day raw bars, per-symbol
+      per-trading-day completeness, window 2017-01-01..2025-12-31
+      (frozen calendar supply nyse-2017-2026-01-frozen-v1 incl. the
+      2026-01-02 next-session boundary). NOT full-market research;
+      membership/delisting/CA out of scope (raw-only; surviving-ETF
+      bias disclosed). Never enters the forward ledger; ceiling
+      evidence_state = HIST_OOS_SUPPORTED (H2).
+    data_scope: us_equities_daily_limited_etf_history
+    requires_daily_bars: true
+    requires_minute_bars: false
+    requires_corporate_actions: false
+    requires_history_membership: false
+    requires_delisting: false
+    available_at_rule: daily_close_available_next_open
+    max_missing_rate: 0.001
+    min_coverage_rate: 0.999
+    max_latency_seconds: 333900
+    required_license_scope: personal_research
+    on_fail: RESTRICT_SCOPE

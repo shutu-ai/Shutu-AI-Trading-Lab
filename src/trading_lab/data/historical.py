@@ -207,9 +207,18 @@ class HistoricalBarRecord:
 
         for name in ("open", "high", "low", "close"):
             _price(getattr(self, name), name)
-        low, high = self.low, self.high
-        if low > high:
-            raise HistoricalDataError("low must not exceed high")
+        # H1B P0-Q2: full OHLC geometry, mirroring the FROZEN S8 quality
+        # semantics (CROSSED_BAR): low <= min(open, close) and
+        # max(open, close) <= high.
+        if not (
+            self.high >= self.low
+            and self.low <= min(self.open, self.close)
+            and max(self.open, self.close) <= self.high
+        ):
+            raise HistoricalDataError(
+                f"CROSSED_BAR: bar geometry violates OHLC containment "
+                f"(o={self.open} h={self.high} l={self.low} c={self.close})"
+            )
         if isinstance(self.volume, bool) or not isinstance(self.volume, int):
             raise HistoricalDataError(
                 f"volume must be an int, got {type(self.volume).__name__}"
@@ -504,6 +513,7 @@ def evaluate_historical_research(
     from .acceptance import (
         VERDICT_ACCEPT,
         VERDICT_BLOCKED_DATA,
+        VERDICT_INCONCLUSIVE,
         VERDICT_RESTRICT_SCOPE,
         evaluate_purpose,
     )
@@ -512,6 +522,15 @@ def evaluate_historical_research(
     pit = pit_level_of_manifest(manifest)
     base = evaluate_purpose(requirements, quality, vendor)
     reasons: list[str] = list(base.reasons)
+
+    # H1B: an EMPTY manifest is structurally unobservable (ADR-003 D5's
+    # first clause) — nothing observed, nothing claimed -> INCONCLUSIVE,
+    # distinct from entries whose claimed basis is unknown (BLOCKED below)
+    if not manifest.entries:
+        reasons.append("INCONCLUSIVE:no_partitions_observed")
+        return HistoricalAcceptanceDecision(
+            requirements.purpose_id, VERDICT_INCONCLUSIVE, tuple(reasons), pit, base.verdict
+        )
 
     admissible = research_admissible(manifest)
     if not admissible.ok:
@@ -624,17 +643,6 @@ def build_historical_snapshot(
     _aware(knowledge_cutoff_utc, "knowledge_cutoff_utc")
 
     records: list[HistoricalBarRecord] = []
-    all_session_dates: set[dt.date] = set()
-    window_start = min(r.start for r in fetch_results)
-    window_end = max(r.end for r in fetch_results)
-    try:
-        expected_sessions = calendar.expected_sessions(window_start, window_end)
-    except CalendarError as exc:
-        raise HistoricalDataError(
-            f"study window [{window_start.isoformat()}, {window_end.isoformat()}] "
-            f"is outside calendar supply coverage: {exc}"
-        ) from exc
-
     for result in fetch_results:
         if not _SYMBOL_SEGMENT_RE.fullmatch(str(result.symbol)):
             raise HistoricalDataError(
@@ -672,7 +680,6 @@ def build_historical_snapshot(
                     received_at_utc=received_at_utc,
                 )
             )
-            all_session_dates.add(session_date)
 
     violations = calendar_deadline_violations(records, calendar, grace_seconds)
     if violations:
@@ -682,6 +689,47 @@ def build_historical_snapshot(
         )
 
     field_rows = [{"close": r.close, "volume": r.volume} for r in records]
+    # H1B P0-Q1: completeness is PER SYMBOL with per-symbol denominators
+    # (each symbol judged against its OWN requested window), and the
+    # aggregate sums the per-symbol expected/missing counts — a full SPY
+    # can never mask a missing QQQ, and a fully-missing symbol stays
+    # visible as observed=0. This replaces the H1A union-of-dates
+    # denominator that could read SPY 3/3 + QQQ 1/3 as 100%.
+    per_symbol_completeness: list[MetricResult] = []
+    total_expected = 0
+    total_missing = 0
+    for result in fetch_results:
+        try:
+            expected_for_symbol = calendar.expected_sessions(result.start, result.end)
+        except CalendarError as exc:
+            raise HistoricalDataError(
+                f"{result.symbol} requested window "
+                f"[{result.start.isoformat()}, {result.end.isoformat()}] outside "
+                f"calendar supply coverage: {exc}"
+            ) from exc
+        got_for_symbol = {
+            dt.date.fromisoformat(str(row["session_date"]))
+            for row in result.rows
+        }
+        metric = bar_completeness(got_for_symbol, expected_for_symbol)
+        per_symbol_completeness.append(
+            MetricResult(
+                name=f"bar_completeness:{result.symbol}",
+                denominator=metric.denominator,
+                missing=metric.missing,
+                observed=metric.observed,
+                rate=metric.rate,
+            )
+        )
+        total_expected += metric.denominator
+        total_missing += metric.missing
+    aggregate_completeness = MetricResult(
+        name="bar_completeness",
+        denominator=total_expected,
+        missing=total_missing,
+        observed=total_expected - total_missing,
+        rate=((total_expected - total_missing) / total_expected) if total_expected else None,
+    )
     # duplicates/out-of-order are a per-symbol series property: two
     # symbols legitimately interleave the same sessions, so the count
     # never runs across the symbol boundary
@@ -693,7 +741,7 @@ def build_historical_snapshot(
     )
     quality = QualityReport(
         field_coverage=field_coverage_metrics(field_rows, ["close", "volume"]),
-        bar_completeness=bar_completeness(all_session_dates, expected_sessions),
+        bar_completeness=aggregate_completeness,
         duplicate_or_out_of_order=duplicates,
         latency=latency_stats(
             [
@@ -708,11 +756,18 @@ def build_historical_snapshot(
             f"grace_seconds={grace_seconds}",
             "pit_level=ASSUMED(model assumption, never verified)",
         ),
+        per_symbol_completeness=tuple(per_symbol_completeness),
     )
 
     entries: list[DatasetEntry] = []
     for result in fetch_results:
         symbol_records = [r for r in records if r.symbol == result.symbol]
+        if not symbol_records:
+            # a fully-missing symbol stays VISIBLE through
+            # per_symbol_completeness (denominator>0, observed=0) but
+            # produces no manifest partition: there are no rows to hash
+            # and no availability fact to claim
+            continue
         content_hash = content_hash_of_rows([_row_payload(r) for r in symbol_records])
         raw_hash = content_hash_of_rows([dict(row) for row in result.rows])
         max_assumed = max(r.assumed_available_at_utc for r in symbol_records)

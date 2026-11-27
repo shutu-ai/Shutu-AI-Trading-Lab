@@ -177,10 +177,15 @@ class TestCalendarDerivedThreshold:
 
 
 class TestOfficialRowPendingCalendarFreeze:
-    def test_official_yaml_has_no_historical_research_limited_etf_row(self):
+    """H1A-era state: the row was ABSENT pending calendar freeze. H1B
+    (2026-11-27, authorized round) sourced + froze the 2017-2025 NYSE
+    calendar and appended the row — these tests now assert the FROZEN
+    state (see test_h1b_calendar_freeze.py for the freeze assertions)."""
+
+    def test_official_yaml_has_no_placeholder_markers(self):
         text = (REPO_ROOT / "configs" / "data_acceptance.yaml").read_text(encoding="utf-8")
-        assert "historical_research_limited_etf" not in text
         assert "PROPOSED_NEW_RULE_NOT_IMPLEMENTED" not in text
+        assert "PROPOSED_CALENDAR_DRIVEN_THRESHOLD_NOT_IMPLEMENTED" not in text
 
     def test_pending_marker_constant_exists(self):
         from trading_lab.data.historical import PURPOSE_ROW_PENDING_CALENDAR_FREEZE
