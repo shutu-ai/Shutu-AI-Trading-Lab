@@ -154,14 +154,17 @@ class TestIdempotency:
         assert runner._stack.broker_created_order_count(coid) == created_before
 
     def test_session_counter_makes_intents_distinct(self, runner):
+        """Two cycles that BOTH produce orders mint distinct intent ids
+        (same-weight cycles after a fill correctly produce no order —
+        dust/zero deltas are NO_CHANGE, not duplicate orders)."""
         runner._clock["now"] = _ts(1)
         out1 = runner.step(asof=_ts(1), decision=_decision({"SPY": "0.5"}, _ts(1)),
                            marks=MARKS, next_opens=NEXT)
         runner._clock["now"] = _ts(2)
-        out2 = runner.step(asof=_ts(2), decision=_decision({"SPY": "0.5"}, _ts(2)),
+        out2 = runner.step(asof=_ts(2), decision=_decision({"SPY": "0.9"}, _ts(2)),
                            marks=MARKS, next_opens=NEXT)
-        ids1 = {o.intent_id for o in out1}
-        ids2 = {o.intent_id for o in out2}
+        ids1 = {o.intent_id for o in out1 if o.outcome_state == "ACKED"}
+        ids2 = {o.intent_id for o in out2 if o.outcome_state == "ACKED"}
         assert ids1 and ids2 and not (ids1 & ids2)
 
 

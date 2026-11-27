@@ -380,43 +380,77 @@ class MockExecutionStack:
             acknowledged=outcome.acknowledged,
             risk_verdict=verdict,
             risk_reasons=tuple(decision.reason_codes),
+            # the submitted quantity IS the sealed USD order notional
+            order_notional_usd=quantity,
             notes=(f"backend={EXECUTION_BACKEND}",
                    f"behavior={BROKER_BEHAVIOR}"),
         )
 
     def apply_mock_fill(self, outcome: ExecutionOutcome, *, symbol: str,
-                        side: str, qty: Decimal,
+                        side: str, shares: Decimal,
                         price: Decimal) -> ExecutionOutcome:
-        """Deliver the fill through the real broker/OMS path, then value it
-        on the mock ledger at the caller-supplied fill price and SIDE (the
-        FakeBroker itself is side-agnostic; the ledger is not)."""
+        """Deliver the fill through the real broker/OMS path and report
+        the BROKER's real terminal state.
+
+        Unified USD order contract (V0.2 activation T1): the broker
+        order quantity is USD (the sealed intent notional), so the fill
+        accumulates USD too (``shares x execution price``). Share-level
+        truth (shares filled at the execution price) is carried on the
+        outcome for the ledger and reconciliation. A partial
+        accumulation reports PARTIALLY_FILLED — never an assumed FILLED.
+        """
         if outcome.outcome_state != "ACKED" or not outcome.delivered:
             raise ValueError(
                 f"cannot fill intent {outcome.intent_id} in state "
                 f"{outcome.outcome_state}")
         if side not in ("buy", "sell"):
             raise ValueError(f"side must be buy/sell (got {side!r})")
+        if shares <= 0:
+            raise ValueError(f"fill shares must be positive (got {shares})")
         coid = outcome.client_order_id
-        event_id = self._refs.broker.apply_fill(coid, abs(qty))
+        fill_usd = (abs(shares) * price).quantize(Decimal("0.01"))
+        # the execution price differs from the decision price, so shares x
+        # fill price can exceed the sealed USD order — the journal's
+        # OVERFILL guard (correctly) refuses that. Cap the accumulated
+        # USD at the sealed order's unfilled remainder (the broker fills
+        # up to the委托 limit); the ledger still records the REAL share
+        # count and execution price.
+        if outcome.order_notional_usd is not None:
+            lookup_pre = self._refs.broker.get_order(coid)
+            filled_usd_so_far = Decimal(str(lookup_pre.filled_qty or 0)) \
+                if lookup_pre.found else Decimal("0")
+            remaining = outcome.order_notional_usd - filled_usd_so_far
+            fill_usd = min(fill_usd, remaining)
+        event_id = self._refs.broker.apply_fill(coid, fill_usd)
         recorded = self._refs.oms.process_fill(outcome.intent_id, event_id,
-                                               abs(qty))
+                                               fill_usd)
         if not recorded:
             raise ValueError(
                 f"OMS refused fill for {outcome.intent_id} (event {event_id})")
+        # the broker's REAL terminal state (fake.py: filled >= qty => FILLED)
+        lookup = self._refs.broker.get_order(coid)
+        terminal = lookup.state if lookup.found else "UNKNOWN"
         self.ledger.apply_mock_fill(symbol=symbol, side=side,
-                                    qty=abs(qty), price=price)
+                                    qty=abs(shares), price=price)
+        notes = outcome.notes + (
+            f"order_usd={outcome.order_notional_usd}",
+            f"shares_at_decision_price={outcome.order_shares}",
+            f"fill_usd={fill_usd}",
+        )
         return ExecutionOutcome(
             decision_asof_utc=outcome.decision_asof_utc,
             intent_id=outcome.intent_id,
             client_order_id=outcome.client_order_id,
-            outcome_state="FILLED",
+            outcome_state=terminal,
             delivered=True,
             acknowledged=True,
             risk_verdict=outcome.risk_verdict,
             risk_reasons=outcome.risk_reasons,
-            fill_qty=qty,
+            order_notional_usd=outcome.order_notional_usd,
+            order_shares=outcome.order_shares,
+            fill_qty=abs(shares),
             fill_price=price,
-            notes=outcome.notes,
+            notes=notes,
         )
 
     # -- recovery / halt demos ------------------------------------------------

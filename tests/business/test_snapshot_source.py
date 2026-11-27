@@ -8,7 +8,9 @@ mislabels, and the manifest hard errors.
 
 Fixture notes: the "admitted-path" fixtures carry bars with the store
 plane's demo quality vocabulary so ``SeriesStore`` admission is exercised
-end-to-end; the collector-shaped probe fixture carries the producer's
+end-to-end, and use the structural LIVE transport basis (no collector can
+emit that today — hand-built to pin the GATE logic, not collector
+behavior); the collector-shaped probe fixture carries the producer's
 real labels (source FAKE_TRANSPORT, quality PIT_ASSUMED_NEXT_OPEN,
 LICENSE_UNVERIFIED / ASSUMED / NOT_RESEARCH_ADMITTED) and asserts the
 honest exploratory outcome. A quality label outside the store plane's
@@ -35,6 +37,7 @@ from trading_lab.business.snapshot_source import (
     PIT_ASSUMED_NOT_VERIFIED,
     SCENARIO_TAG_ADMITTED,
     SCENARIO_TAG_EXPLORATORY,
+    SOURCE_LIVE,
     SOURCE_PROBE,
     SnapshotSourceError,
     load_historical_snapshot,
@@ -153,6 +156,22 @@ def _default_specs() -> dict[str, list[MarketBar]]:
     }
 
 
+def _live_transport(manifest: dict) -> None:
+    """Flip the manifest to the structural live transport basis — the
+    hypothetically real-source path no collector can emit today."""
+    manifest["transport"] = {
+        "mode": "live", "label": SOURCE_LIVE, "real_network_used": True}
+
+
+def _live_specs() -> dict[str, list[MarketBar]]:
+    """Bars whose ``source`` label matches a live transport manifest."""
+    return {
+        symbol: [_bar(symbol, d, source=SOURCE_LIVE, close=f"10{i}.00")
+                 for i, d in enumerate(SESSIONS)]
+        for symbol in ("SPY", "QQQ")
+    }
+
+
 def _reasons(bundle) -> set[str]:
     return {r.reason for r in bundle.refusals}
 
@@ -163,8 +182,13 @@ def _reasons(bundle) -> set[str]:
 
 
 class TestGoodBundle:
+    """The hypothetically fully-admissible path (live transport basis +
+    every gate label green): loads, admits, and stays internally
+    consistent. Probe transport with the same green labels is pinned to
+    the honest exploratory verdict in TestAdmissionFinalJudgment."""
+
     def test_good_bundle_loads(self, tmp_path: Path) -> None:
-        root = _write_snapshot(tmp_path, _default_specs())
+        root = _write_snapshot(tmp_path, _live_specs(), _live_transport)
         bundle = load_historical_snapshot(root)
         assert set(bundle.stores) == {"SPY", "QQQ"}
         assert set(bundle.bars) == {"SPY", "QQQ"}
@@ -175,15 +199,15 @@ class TestGoodBundle:
         assert set(bundle.scenario_tags) == {"SPY", "QQQ"}
         assert set(bundle.scenario_tags.values()) == {SCENARIO_TAG_ADMITTED}
         summary = bundle.manifest_summary
-        assert summary["transport"]["mode"] == "probe"
-        assert summary["transport"]["expected_source"] == SOURCE_PROBE
+        assert summary["transport"]["mode"] == "live"
+        assert summary["transport"]["expected_source"] == SOURCE_LIVE
         assert summary["symbols_loaded"] == ["QQQ", "SPY"]
         assert summary["symbols_declared"] == ["QQQ", "SPY"]
         calendar = summary["calendar_supply"]
         assert calendar["version"] == "NYSE-2017-2025-TEST-v1"
 
     def test_dataset_hash_recomputed_over_rows(self, tmp_path: Path) -> None:
-        root = _write_snapshot(tmp_path, _default_specs())
+        root = _write_snapshot(tmp_path, _live_specs(), _live_transport)
         bundle = load_historical_snapshot(root)
         fields = ("asset_id", "ts_event_utc", "ts_available_utc", "interval",
                   "open", "high", "low", "close", "volume", "source",
@@ -197,7 +221,7 @@ class TestGoodBundle:
         assert bundle.manifest_summary["dataset_hash"] == bundle.dataset_hash
 
     def test_stores_are_independent_instances(self, tmp_path: Path) -> None:
-        root = _write_snapshot(tmp_path, _default_specs())
+        root = _write_snapshot(tmp_path, _live_specs(), _live_transport)
         bundle = load_historical_snapshot(root)
         spy, qqq = bundle.stores["SPY"], bundle.stores["QQQ"]
         assert isinstance(spy, SeriesStore) and isinstance(qqq, SeriesStore)
@@ -207,7 +231,7 @@ class TestGoodBundle:
         assert spy.available("QQQ", probe) == []
 
     def test_next_open_price_semantics(self, tmp_path: Path) -> None:
-        root = _write_snapshot(tmp_path, _default_specs())
+        root = _write_snapshot(tmp_path, _live_specs(), _live_transport)
         bundle = load_historical_snapshot(root)
         # strictly after: the 2024-01-03 bar opens at its close (101.00)
         assert bundle.next_open_price("SPY", dt.date(2024, 1, 2)) \
@@ -221,7 +245,7 @@ class TestGoodBundle:
         assert bundle.next_open_price("MSFT", dt.date(2024, 1, 2)) is None
 
     def test_deterministic_reload(self, tmp_path: Path) -> None:
-        root = _write_snapshot(tmp_path, _default_specs())
+        root = _write_snapshot(tmp_path, _live_specs(), _live_transport)
         first = load_historical_snapshot(root)
         second = load_historical_snapshot(root)
         assert first.dataset_hash == second.dataset_hash
@@ -410,13 +434,15 @@ class TestPerSymbolRefusals:
     def test_unlisted_symbol_dir_never_loaded_only_recorded(
         self, tmp_path: Path,
     ) -> None:
-        root = _write_snapshot(tmp_path, _default_specs())
+        root = _write_snapshot(tmp_path, _live_specs(), _live_transport)
         (root / "MSFT").mkdir()                      # on disk, not in manifest
         bundle = load_historical_snapshot(root)
         assert "MSFT" not in bundle.stores
-        assert "UNLISTED_SYMBOL_DIR:MSFT" in bundle.blockers
+        # the only blocker (live basis + green labels otherwise): the
+        # disk/manifest mismatch blocks admission by itself
+        assert bundle.blockers == ("UNLISTED_SYMBOL_DIR:MSFT",)
         assert set(bundle.stores) == {"SPY", "QQQ"}
-        assert bundle.research_admitted is True      # gates stay governable
+        assert bundle.research_admitted is False     # evidence must match
 
 
 # ---------------------------------------------------------------------------
@@ -456,6 +482,10 @@ class TestSourceLabelMismatch:
         bundle = load_historical_snapshot(root)
         assert bundle.refusals == ()
         assert set(bundle.stores) == {"SPY"}
+        # matching live labels on both sides is the only basis that can
+        # ever be research-admitted (with the license/PIT/admission gates)
+        assert bundle.research_admitted is True
+        assert bundle.blockers == ()
 
 
 # ---------------------------------------------------------------------------
@@ -508,6 +538,144 @@ class TestAdmissionGates:
         # license and PIT facts stay individually visible
         assert "LICENSE_NOT_VERIFIED" not in bundle.blockers
         assert set(bundle.stores) == {"SPY", "QQQ"}
+
+
+# ---------------------------------------------------------------------------
+# admission final judgment (computed ONCE, after ALL validation)
+# ---------------------------------------------------------------------------
+
+#: probe transport is permanently SYNTHETIC_OFFLINE_ONLY (structural mode
+#: field — JSON labels alone can never upgrade it)
+PROBE_BLOCKER = "PROBE_TRANSPORT_SYNTHETIC_ONLY"
+
+_ADMISSION_VARIANTS: tuple[str, ...] = (
+    "live_all_green",          # the only hypothetically admissible shape
+    "forged_probe_green",      # probe + forged VERIFIED/RELEASED labels
+    "restricted_probe",        # the collector's honest restricted labels
+    "live_refused_symbol",     # one bad-hash refusal, rest green + live
+    "live_missing_symbol",     # declared symbol absent from disk
+    "live_unlisted_dir",       # on-disk dir the manifest never declared
+)
+
+
+def _variant_snapshot(tmp_path: Path, variant: str) -> Path:
+    """Hand-built snapshot for one admission variant (each in its own
+    parent dir so variants can share one ``tmp_path`` root)."""
+    base = tmp_path / variant
+    base.mkdir()
+    if variant == "live_all_green":
+        return _write_snapshot(base, _live_specs(), _live_transport)
+    if variant == "forged_probe_green":
+        # probe transport whose license/pit/admission labels are ALL
+        # forged to the released vocabulary
+        return _write_snapshot(base, _default_specs())
+    if variant == "restricted_probe":
+        def restricted(manifest: dict) -> None:
+            manifest["license"] = {"status": "LICENSE_UNVERIFIED"}
+            manifest["pit"] = {"level": "ASSUMED"}
+            manifest["admission"] = {"status": ADMISSION_RESTRICTED}
+
+        return _write_snapshot(base, _default_specs(), restricted)
+    if variant == "live_refused_symbol":
+        def refused(manifest: dict) -> None:
+            _live_transport(manifest)
+            manifest["symbols"]["SPY"]["bars_sha256"] = "0" * 64
+
+        return _write_snapshot(base, _live_specs(), refused)
+    if variant == "live_missing_symbol":
+        def missing(manifest: dict) -> None:
+            _live_transport(manifest)
+            manifest["symbols"]["SPY"] = {
+                "row_count": 5, "bars_sha256": "1" * 64}
+
+        return _write_snapshot(base, {"QQQ": _live_specs()["QQQ"]}, missing)
+    if variant == "live_unlisted_dir":
+        root = _write_snapshot(base, _live_specs(), _live_transport)
+        (root / "MSFT").mkdir()
+        return root
+    raise AssertionError(f"unknown admission variant {variant!r}")
+
+
+class TestAdmissionFinalJudgment:
+    """The admission verdict must be computed ONCE, after EVERY validation
+    step (transport basis, gate labels, per-symbol loads, refusals,
+    unlisted dirs) — never before per-symbol validation, never stale.
+    Invariant: ``research_admitted == (blockers == ())`` in every case,
+    and the verdict rests on the structural transport mode field, not on
+    manifest self-labels."""
+
+    def test_forged_labels_cannot_admit_probe_transport(
+        self, tmp_path: Path,
+    ) -> None:
+        root = _variant_snapshot(tmp_path, "forged_probe_green")
+        bundle = load_historical_snapshot(root)
+        assert bundle.research_admitted is False
+        assert PROBE_BLOCKER in bundle.blockers
+        # the forged labels are all present and all irrelevant: the
+        # structural mode field is the probe basis, and probe is
+        # permanently SYNTHETIC_OFFLINE_ONLY
+        summary = bundle.manifest_summary
+        assert summary["transport"]["mode"] == "probe"
+        assert summary["license_status"] == "LICENSE_VERIFIED"
+        assert summary["pit_level"] == "VERIFIED"
+        assert summary["admission_status"] == "RESEARCH_ADMITTED"
+        assert set(bundle.scenario_tags.values()) == {
+            SCENARIO_TAG_EXPLORATORY}
+
+    def test_single_refusal_blocks_admission_clean_symbol_still_loads(
+        self, tmp_path: Path,
+    ) -> None:
+        root = _variant_snapshot(tmp_path, "live_refused_symbol")
+        bundle = load_historical_snapshot(root)
+        # live basis + every gate label green: the one refusal ALONE
+        # blocks admission entirely
+        assert bundle.blockers == ("HASH_MISMATCH:SPY",)
+        assert bundle.research_admitted is False
+        assert _reasons(bundle) == {"HASH_MISMATCH"}
+        # the clean symbol still loads for explicitly-licensed
+        # exploration, and the exploratory tag covers the whole dataset
+        assert set(bundle.stores) == {"QQQ"}
+        assert bundle.scenario_tags == {
+            "SPY": SCENARIO_TAG_EXPLORATORY,
+            "QQQ": SCENARIO_TAG_EXPLORATORY,
+        }
+
+    def test_missing_declared_symbol_blocks_admission(
+        self, tmp_path: Path,
+    ) -> None:
+        root = _variant_snapshot(tmp_path, "live_missing_symbol")
+        bundle = load_historical_snapshot(root)
+        # 2 symbols declared, only QQQ on disk: the missing declared
+        # symbol blocks admission and is recorded by name
+        assert bundle.blockers == ("MISSING_BARS_FILE:SPY",)
+        assert bundle.research_admitted is False
+        assert set(bundle.stores) == {"QQQ"}
+
+    def test_truly_admissible_manifest_pins_the_gate(
+        self, tmp_path: Path,
+    ) -> None:
+        root = _variant_snapshot(tmp_path, "live_all_green")
+        bundle = load_historical_snapshot(root)
+        # hypothetical real-source basis + LICENSE_VERIFIED + PIT VERIFIED
+        # + admission RELEASED + all symbols validate, zero refusals —
+        # pinned as the GATE logic (no collector can emit this today)
+        assert bundle.refusals == ()
+        assert bundle.blockers == ()
+        assert bundle.research_admitted is True
+        assert set(bundle.scenario_tags.values()) == {SCENARIO_TAG_ADMITTED}
+
+    @pytest.mark.parametrize("variant", _ADMISSION_VARIANTS)
+    def test_admitted_iff_blockers_empty(
+        self, tmp_path: Path, variant: str,
+    ) -> None:
+        bundle = load_historical_snapshot(_variant_snapshot(tmp_path, variant))
+        # the invariant, not the label: non-empty blockers and
+        # research_admitted=True must never co-occur, and the tag set
+        # must follow the final verdict
+        assert bundle.research_admitted == (bundle.blockers == ()), variant
+        expected_tag = SCENARIO_TAG_ADMITTED if bundle.research_admitted \
+            else SCENARIO_TAG_EXPLORATORY
+        assert set(bundle.scenario_tags.values()) == {expected_tag}, variant
 
 
 # ---------------------------------------------------------------------------

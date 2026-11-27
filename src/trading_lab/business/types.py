@@ -115,18 +115,28 @@ class DecisionOutput:
 
 @dataclass(frozen=True)
 class ExecutionOutcome:
-    """Mock-execution demo result for one decision (FAKE_BROKER path)."""
+    """Mock-execution demo result for one decision (FAKE_BROKER path).
+
+    Order units (V0.2 activation T1): ``desired_change``/risk notional/
+    OMS seal/broker order/fill accumulation all travel in USD; whole
+    ``order_shares`` are determined BEFORE submission from the PIT
+    decision price, and the ledger records filled shares at the
+    execution-clock price. ``outcome_state`` is the BROKER's real
+    terminal state (FILLED / PARTIALLY_FILLED), never assumed.
+    """
 
     decision_asof_utc: dt.datetime
     intent_id: str
     client_order_id: str
-    outcome_state: str                      # SubmitOutcome.state
+    outcome_state: str                      # SubmitOutcome.state / broker terminal
     delivered: bool
     acknowledged: bool | None
     risk_verdict: str                       # APPROVE / REJECT / HALT
     risk_reasons: tuple[str, ...] = ()
-    fill_qty: Decimal | None = None
-    fill_price: Decimal | None = None
+    order_notional_usd: Decimal | None = None   # intent USD (sealed quantity)
+    order_shares: Decimal | None = None         # whole shares pre-computed
+    fill_qty: Decimal | None = None             # SHARES actually filled
+    fill_price: Decimal | None = None           # execution-clock price
     notes: tuple[str, ...] = ()
 
 

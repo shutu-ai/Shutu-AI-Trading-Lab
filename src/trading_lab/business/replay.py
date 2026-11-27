@@ -651,11 +651,19 @@ def _run_mock_scenarios(config, view, state_dir: Path, clock: ReplayClock,
         weight = spy_alloc[0].weight if spy_alloc else Decimal("0")
         desired = (weight * MOCK_INITIAL_CASH).quantize(Decimal("0.01"))
         if desired > 0:
+            # unified USD order contract: whole shares are pre-computed
+            # from the decision mark, and the sealed order is
+            # shares x decision price (so a full fill exactly covers it)
+            mark = marks.get("SPY", Decimal("450.00"))
+            shares = (desired / mark).quantize(Decimal("1"),
+                                               rounding=ROUND_DOWN)
+            order_notional = (shares * mark).quantize(Decimal("0.01"))
             intent = stack.next_intent(
-                asof=rep.asof_utc, desired_change=desired,
+                asof=rep.asof_utc, desired_change=order_notional,
                 release_id="rel-demo-compliant-1")
             out = stack.submit(intent=intent, asof=rep.asof_utc,
-                               symbol="SPY", side="buy", quantity=desired)
+                               symbol="SPY", side="buy",
+                               quantity=order_notional)
             executions.append(out)
             if out.outcome_state == "ACKED":
                 next_open = view.next_open_price(
@@ -663,17 +671,17 @@ def _run_mock_scenarios(config, view, state_dir: Path, clock: ReplayClock,
                 if next_open is None:
                     notes.append("compliant fill skipped: no next open")
                 else:
-                    fill_qty = (desired / next_open).quantize(
-                        Decimal("1"), rounding=ROUND_DOWN)  # whole shares
                     executions.append(stack.apply_mock_fill(
-                        out, symbol="SPY", side="buy", qty=fill_qty,
+                        out, symbol="SPY", side="buy", shares=shares,
                         price=next_open))
                     notes.append(
-                        f"compliant fill: intent {out.intent_id} filled "
-                        f"{fill_qty} SPY @ {next_open} (fixture next open)")
+                        f"compliant fill: intent {out.intent_id} "
+                        f"{shares} SPY ({order_notional} USD at decision "
+                        f"mark) @ {next_open} (fixture next open)")
             # 2. duplicate replay of the SAME intent — duplicate protection
             dup = stack.submit(intent=intent, asof=rep.asof_utc,
-                               symbol="SPY", side="buy", quantity=desired)
+                               symbol="SPY", side="buy",
+                               quantity=order_notional)
             rejections.append({
                 "scenario": "DUPLICATE_INTENT_REPLAY",
                 "outcome_state": dup.outcome_state,

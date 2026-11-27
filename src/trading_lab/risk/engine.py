@@ -188,16 +188,22 @@ class RiskEngine:
         if equity <= 0 or not equity.is_finite():
             fail("REJECT", "ACCOUNT_STATE_UNUSABLE")
             equity = Decimal(0)
-        if exposure.gross_exposure_usd + notional > (
+        # V0.2 activation T1: a SELL releases market value — its notional
+        # is SUBTRACTED from gross/net/symbol exposure (a sell can never
+        # be refused as a risk INCREASE; every other guard still runs and
+        # allow_short still forbids negative positions upstream). buys
+        # (and side-less M2-era callers) keep the exact add semantics.
+        risk_delta = -notional if side == "sell" else notional
+        if exposure.gross_exposure_usd + risk_delta > (
             self._policy.max_gross_exposure_pct / Decimal(100) * equity
         ):
             fail("REJECT", "GROSS_EXPOSURE_EXCEEDED")
-        if exposure.net_exposure_usd + intent.desired_change > (
+        if exposure.net_exposure_usd + risk_delta > (
             self._policy.max_net_exposure_pct / Decimal(100) * equity
         ):
             fail("REJECT", "NET_EXPOSURE_EXCEEDED")
         symbol_exposure = exposure.symbol_exposure_usd.get(symbol, Decimal(0))
-        if symbol_exposure + notional > (
+        if symbol_exposure + risk_delta > (
             self._policy.max_single_symbol_pct / Decimal(100) * equity
         ):
             fail("REJECT", f"SINGLE_SYMBOL_CONCENTRATION:{symbol}")

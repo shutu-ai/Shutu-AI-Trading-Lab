@@ -43,10 +43,16 @@ mismatch, row-count mismatch, row outside the window, non-monotonic
 mode (SOURCE_LABEL_MISMATCH), missing/empty bars file, store-plane
 admission refusal (e.g. a quality label outside the store vocabulary).
 
-Research admission is explicit and orthogonal to loading:
-``research_admitted`` is True only when the admission marker is released
-AND the license is verified AND the PIT level is VERIFIED. Every snapshot
-this collector can emit today (LICENSE_UNVERIFIED / ASSUMED /
+Research admission is explicit and orthogonal to loading, judged ONCE
+after ALL validation (per-symbol loads, refusals, unlisted dirs and the
+gate labels below): ``research_admitted`` is True only when the
+transport mode is live (probe rows are FAKE-transport validation data —
+permanently SYNTHETIC_OFFLINE_ONLY, no JSON label upgrades them) AND the
+admission marker is released AND the license is verified AND the PIT
+level is VERIFIED AND every declared symbol is present and validated
+with zero refusals. Invariant: non-empty ``blockers`` is exactly
+``research_admitted=False``. Every snapshot this collector can emit
+today (probe transport, LICENSE_UNVERIFIED / ASSUMED /
 NOT_RESEARCH_ADMITTED) loads as ``research_admitted=False`` with
 ``scenario_tags`` = "HISTORICAL_EXPLORATORY" — exploratory-only, never
 silently treated as admitted.
@@ -89,6 +95,7 @@ __all__ = [
     "PIT_LEVEL_ASSUMED",
     "PIT_LEVEL_UNKNOWN",
     "PIT_LEVEL_VERIFIED",
+    "PROBE_TRANSPORT_SYNTHETIC_ONLY",
     "SCENARIO_TAG_ADMITTED",
     "SCENARIO_TAG_EXPLORATORY",
     "SNAPSHOT_MANIFEST_NAME",
@@ -139,6 +146,12 @@ PIT_ASSUMED_NOT_VERIFIED = "PIT_ASSUMED_NOT_VERIFIED"
 ADMISSION_RELEASED = "RESEARCH_ADMITTED"
 ADMISSION_RESTRICTED = "NOT_RESEARCH_ADMITTED"
 ADMISSION_STATUSES = frozenset({ADMISSION_RELEASED, ADMISSION_RESTRICTED})
+
+#: the probe transport gate: probe rows are FAKE-transport validation
+#: data, permanently SYNTHETIC_OFFLINE_ONLY. The transport mode field is
+#: structural (shape-validated, not free text), so no manifest label —
+#: license, PIT or admission — can upgrade a probe snapshot.
+PROBE_TRANSPORT_SYNTHETIC_ONLY = "PROBE_TRANSPORT_SYNTHETIC_ONLY"
 
 SCENARIO_TAG_ADMITTED = "HISTORICAL"
 SCENARIO_TAG_EXPLORATORY = "HISTORICAL_EXPLORATORY"
@@ -504,10 +517,16 @@ def _load_symbol_bars(
 
 
 def _gate_blockers(view: _ManifestView) -> list[str]:
-    """Admission gates: explicit release + verified license + VERIFIED
-    PIT. Every collector-produced snapshot fails at least one of these —
-    that is the honest state, recorded as blockers, never upgraded."""
+    """Admission gates, judged on structural facts only (the transport
+    mode field is producer-shape-validated, never a free-text claim):
+    live transport + explicit release + verified license + VERIFIED PIT.
+    Probe rows are FAKE-transport validation data — permanently
+    SYNTHETIC_OFFLINE_ONLY, not upgradable by any manifest label. Every
+    collector-produced snapshot fails at least one of these — that is
+    the honest state, recorded as blockers, never upgraded."""
     blockers: list[str] = []
+    if view.transport_mode == TRANSPORT_MODE_PROBE:
+        blockers.append(PROBE_TRANSPORT_SYNTHETIC_ONLY)
     if view.admission_status != ADMISSION_RELEASED:
         blockers.append("ADMISSION_NOT_RELEASED")
     if view.license_status != LICENSE_VERIFIED:
@@ -526,15 +545,24 @@ def load_historical_snapshot(snapshot_dir: Path) -> SnapshotBundle:
 
     Hard-fails on a missing/unusable manifest; refuses individual symbols
     on content-level failures while keeping independently valid symbols;
-    never upgrades a restricted/unlicensed snapshot to admitted."""
+    never upgrades a restricted/unlicensed/probe snapshot to admitted.
+
+    The admission verdict is computed ONCE, after ALL validation (gate
+    labels, unlisted dirs, per-symbol loads, refusals): admission requires
+    a live transport basis, a released admission marker, a verified
+    license, a VERIFIED PIT level, and every declared symbol present and
+    validated with zero refusals. Invariant: non-empty ``blockers`` is
+    exactly ``research_admitted=False`` — the two can never co-occur the
+    other way; individually-valid symbols still load for explicitly
+    licensed exploration with blockers recording why."""
     root = Path(snapshot_dir)
     view = _parse_manifest(_read_manifest(root))
 
     blockers: list[str] = _gate_blockers(view)
-    research_admitted = not blockers
 
     # fail-closed honesty: directories on disk that the manifest does not
-    # list are never loaded, only recorded
+    # list are never loaded, only recorded — and the disk/manifest
+    # mismatch blocks admission (evidence must match)
     for child in sorted(root.iterdir()):
         if child.is_dir() and child.name not in view.entries:
             blockers.append(f"UNLISTED_SYMBOL_DIR:{child.name}")
@@ -558,6 +586,14 @@ def load_historical_snapshot(snapshot_dir: Path) -> SnapshotBundle:
             continue
         bars_by[symbol] = bars
         stores[symbol] = store
+
+    # admission verdict: computed exactly once, AFTER all validation
+    # above — gate labels, unlisted dirs, per-symbol loads and refusals
+    # have all contributed blockers by this point. Non-empty blockers is
+    # therefore exactly "not research admitted"; a refusal, a missing
+    # declared symbol or probe transport can never co-occur with
+    # research_admitted=True.
+    research_admitted = not blockers
 
     rows = sorted(
         ({field: getattr(bar, field) for field in _ROW_FIELDS}

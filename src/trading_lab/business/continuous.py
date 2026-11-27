@@ -40,6 +40,7 @@ from trading_lab.business.mockexec import (
 )
 from trading_lab.business.types import DecisionOutput, ExecutionOutcome
 from trading_lab.contracts import MarketSnapshot
+from dataclasses import replace
 
 __all__ = ["ContinuousMockRunner", "MIN_ORDER_NOTIONAL"]
 
@@ -120,39 +121,47 @@ class ContinuousMockRunner:
         equity = self._stack.ledger.equity(self._marks)
         min_notional = min(MIN_ORDER_NOTIONAL, equity * Decimal("0.01"))
         for symbol in symbols:
-            price = marks.get(symbol) or next_opens.get(symbol)
-            if price is None:
+            # SIZING PRICE: the PIT decision mark ONLY. The future
+            # next-open never sizes an order; without a legal decision
+            # price the leg records a NO_PRICE reason and no order.
+            decision_price = marks.get(symbol)
+            if decision_price is None or decision_price <= 0:
                 continue
             weight = weights.get(symbol, Decimal("0"))
-            held_notional = self._stack.ledger.positions.get(
-                symbol, Decimal("0")) * price
+            held_shares = self._stack.ledger.positions.get(
+                symbol, Decimal("0"))
+            held_notional = held_shares * decision_price
             desired_notional = (weight * equity).quantize(Decimal("0.01"))
             delta = desired_notional - held_notional
             if abs(delta) < min_notional:
                 continue
             side = "buy" if delta > 0 else "sell"
-            # risk-plane semantics: desired_change is the ORDER QUANTITY
-            # (positive); direction travels in `side`. A negative value
-            # would read as shorting and be refused (allow_short=False).
-            intent = self._intent_for(asof, symbol, abs(delta))
+            # WHOLE SHARES, determined BEFORE submission at the decision
+            # price (never at the future open)
+            shares = (abs(delta) / decision_price).quantize(
+                Decimal("1"), rounding=ROUND_DOWN)
+            if side == "sell":
+                shares = min(shares, held_shares)
+            if shares <= 0:
+                continue
+            # unified USD order contract: intent desired_change == risk
+            # notional == OMS sealed quantity == broker order == fill
+            # accumulation, all in USD; shares travel separately for
+            # reconciliation and the ledger
+            order_notional = (shares * decision_price).quantize(
+                Decimal("0.01"))
+            intent = self._intent_for(asof, symbol, order_notional)
             out = self._stack.submit(intent=intent, asof=asof,
                                      symbol=symbol, side=side,
-                                     quantity=abs(delta))
+                                     quantity=order_notional)
+            out = replace(out, order_notional_usd=order_notional,
+                          order_shares=shares)
             outcomes.append(out)
             if out.outcome_state == "ACKED":
                 fill_price = next_opens.get(symbol)
-                qty = (abs(delta) / fill_price).quantize(
-                    Decimal("1"), rounding=ROUND_DOWN) \
-                    if fill_price else Decimal("0")
-                if side == "sell":
-                    # a sell can never exceed the whole shares actually
-                    # held (the notional delta is priced at the decision
-                    # mark; the fill happens at the next open)
-                    qty = min(qty, self._stack.ledger.positions.get(
-                        symbol, Decimal("0")))
-                if fill_price is not None and qty > 0:
+                if fill_price is not None and shares > 0:
                     outcomes.append(self._stack.apply_mock_fill(
-                        out, symbol=symbol, side=side, qty=qty,
+                        out, symbol=symbol, side=side, shares=shares,
                         price=fill_price))
         filled = any(o.outcome_state == "FILLED" for o in outcomes)
         refused = any(o.outcome_state in ("REJECTED", "HALT_NEW_RISK")
