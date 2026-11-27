@@ -42,11 +42,21 @@ __all__ = [
     "load_bars_jsonl",
 ]
 
-#: fixed quality vocabulary for the demo pipeline — anything else is
+#: fixed quality vocabulary for the pipeline — anything else is
 #: refused at admission (fail closed, never "pass through unknown labels")
 QUALITY_SYNTHETIC_OK = "SYNTHETIC_OK"
 QUALITY_SYNTHETIC_STALE = "SYNTHETIC_STALE"
-QUALITY_VOCABULARY = frozenset({QUALITY_SYNTHETIC_OK, QUALITY_SYNTHETIC_STALE})
+# V0.2: the H1 historical collector stamps every real-API row with this
+# label — availability is the ASSUMED next-open rule, never a verified
+# publication fact (HTTP 200 != point-in-time truth). Admitted for
+# EXPLORATORY use only; the admission layer (not the feature layer)
+# carries the PIT disclosure.
+QUALITY_PIT_ASSUMED_NEXT_OPEN = "PIT_ASSUMED_NEXT_OPEN"
+QUALITY_VOCABULARY = frozenset({
+    QUALITY_SYNTHETIC_OK,
+    QUALITY_SYNTHETIC_STALE,
+    QUALITY_PIT_ASSUMED_NEXT_OPEN,
+})
 
 PURPOSE_LABEL = "BUSINESS_MVP_DEMO"
 PIT_LEVEL = "SYNTHETIC"

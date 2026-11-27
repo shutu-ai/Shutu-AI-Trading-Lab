@@ -65,6 +65,7 @@ __all__ = [
     "BROKER_BEHAVIOR",
     "RISK_BUDGET_ID",
     "PORTFOLIO_PRODUCER_ID",
+    "MOCK_INITIAL_CASH",
     "demo_build_hash",
     "MockAccountLedger",
     "MockExecutionStack",
@@ -74,6 +75,10 @@ EXECUTION_BACKEND = "FAKE_BROKER"
 BROKER_BEHAVIOR = "MOCK_ONLY"
 RISK_BUDGET_ID = "BUSINESS_DEMO_RISK_BUDGET"
 PORTFOLIO_PRODUCER_ID = "business_mvp_orchestrator_v1"
+
+# Mock accounts are sized UNDER the pinned order cap so a full-allocation
+# decision fits one compliant intent (documented demo prior, not tuning).
+MOCK_INITIAL_CASH = Decimal("40000.00")
 
 MOCK_COMMISSION_PER_FILL = Decimal("1.00")
 # One synthetic session of snapshot/account freshness headroom: replay
@@ -350,16 +355,16 @@ class MockExecutionStack:
         )
 
     def evaluate_risk(self, intent: TradeIntent,
-                      symbol: str) -> RiskDecision:
+                      symbol: str, side: str | None = None) -> RiskDecision:
         return self._refs.risk.evaluate(intent, self._refs.producer,
-                                        symbol=symbol)
+                                        symbol=symbol, side=side)
 
     def submit(self, *, intent: TradeIntent, asof: dt.datetime,
                symbol: str, side: str, quantity: Decimal,
                ) -> ExecutionOutcome:
         """Full real path: risk evaluation -> sealed decision -> OMS submit
         (journal-first, fence, egress, FakeBroker)."""
-        decision = self.evaluate_risk(intent, symbol)
+        decision = self.evaluate_risk(intent, symbol, side=side)
         verdict = "APPROVE" if decision.allow else (
             "HALT" if any("HALT" in r or r == "KILL_SWITCH_ENGAGED"
                           for r in decision.reason_codes) else "REJECT")
@@ -380,13 +385,17 @@ class MockExecutionStack:
         )
 
     def apply_mock_fill(self, outcome: ExecutionOutcome, *, symbol: str,
-                        qty: Decimal, price: Decimal) -> ExecutionOutcome:
+                        side: str, qty: Decimal,
+                        price: Decimal) -> ExecutionOutcome:
         """Deliver the fill through the real broker/OMS path, then value it
-        on the mock ledger at the fixture next-open price."""
+        on the mock ledger at the caller-supplied fill price and SIDE (the
+        FakeBroker itself is side-agnostic; the ledger is not)."""
         if outcome.outcome_state != "ACKED" or not outcome.delivered:
             raise ValueError(
                 f"cannot fill intent {outcome.intent_id} in state "
                 f"{outcome.outcome_state}")
+        if side not in ("buy", "sell"):
+            raise ValueError(f"side must be buy/sell (got {side!r})")
         coid = outcome.client_order_id
         event_id = self._refs.broker.apply_fill(coid, abs(qty))
         recorded = self._refs.oms.process_fill(outcome.intent_id, event_id,
@@ -394,7 +403,7 @@ class MockExecutionStack:
         if not recorded:
             raise ValueError(
                 f"OMS refused fill for {outcome.intent_id} (event {event_id})")
-        self.ledger.apply_mock_fill(symbol=symbol, side=side_of(qty),
+        self.ledger.apply_mock_fill(symbol=symbol, side=side,
                                     qty=abs(qty), price=price)
         return ExecutionOutcome(
             decision_asof_utc=outcome.decision_asof_utc,

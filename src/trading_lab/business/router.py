@@ -1,4 +1,4 @@
-"""Candidate router + virtual performance tracker (Business MVP V0.1).
+"""Candidate router + virtual performance tracker (Business MVP V0.2).
 
 MOCK_ONLY: scores are transparent fixed-rule combinations over declared
 config weights. Nothing here is a backtest fill, a claimable performance
@@ -22,11 +22,14 @@ Scoring (per ``RouterConfig`` weights, all components in [0, 1]):
 - ``virtual_performance`` — rank-normalized rolling virtual return within
   the candidate pool (fraction of pool candidates strictly below; ties
   share the score); fewer than ``min_sessions_for_rank`` sessions of
-  history -> neutral 0.5.
+  history -> neutral 0.5. The rolling return is the candidate's
+  exposure-weighted MULTI-symbol virtual return (exact convention on
+  :class:`VirtualPerformanceTracker`).
 - ``risk_cost`` — 1.0 - turnover penalty, where turnover is the gross
-  |delta exposure| versus the previous chosen target and the penalty is
-  capped by ``max_turnover_per_session``; proposals exceeding the cap
-  are excluded entirely (score floored to 0, reason recorded).
+  |delta exposure| summed over the union of traded-symbol keys (SPY/QQQ)
+  versus the previous chosen target and the penalty is capped by
+  ``max_turnover_per_session``; proposals exceeding the cap are excluded
+  entirely (score floored to 0, reason recorded).
 
 Selection: highest score wins only if >= ``min_score_to_trade`` and the
 proposal has no reject_reasons; otherwise NO_TRADE with reasons.
@@ -41,8 +44,9 @@ from __future__ import annotations
 
 import datetime as dt
 from collections import deque
+from collections.abc import Mapping, Sequence
 from decimal import Decimal
-from typing import Mapping, NamedTuple, Sequence
+from typing import NamedTuple
 
 from trading_lab.business.config import RouterConfig
 from trading_lab.business.regime import (
@@ -91,13 +95,31 @@ class RouterSelection(NamedTuple):
 
 
 class VirtualPerformanceTracker:
-    """Per-candidate VIRTUAL close-to-close PnL over the primary symbol.
+    """Per-candidate VIRTUAL close-to-close PnL across the traded symbols.
 
-    The caller records one session at a time AFTER each replay session
-    with fixture closes. Returns are pure Decimal math on close ratios
-    scaled by the candidate's virtual primary exposure; cash exposure
-    earns 0. This is a VIRTUAL bookkeeping series only — not backtest
-    fills, not claimable performance, and never a real-market claim.
+    Multi-symbol convention (V0.2, the ONE deterministic convention): a
+    candidate's ``target_exposure`` maps each symbol to the fraction of
+    its virtual capital held in that symbol (residual weight = cash,
+    earning 0). One session's virtual portfolio return for a candidate is
+    the exposure-weighted sum of per-symbol close-to-close returns:
+
+        r_cand = sum_s( exposure[s] * (close_s / prev_close_s - 1) )
+
+    A symbol contributes ONLY when both its previous and current closes
+    are present and its previous close is non-zero (honest
+    insufficiency: unavailable closes contribute 0 for that symbol and
+    are never guessed). Per-symbol returns and the weighted total are
+    quantized to ``_RETURN_Q`` (12 dp) so rolling sums are stable and
+    byte-reproducible.
+
+    Backward compatibility: the V0.1 positional scalar form
+    ``record_session(asof, spy_close, spy_prev_close, exposures)``
+    remains accepted and is interpreted as the single-symbol SPY
+    mapping — the unmodified V0.1 replay caller keeps working. New
+    callers pass the Mapping form.
+
+    This is a VIRTUAL bookkeeping series only — not backtest fills, not
+    claimable performance, and never a real-market claim.
     """
 
     def __init__(
@@ -114,24 +136,51 @@ class VirtualPerformanceTracker:
     def record_session(
         self,
         asof: dt.datetime,
-        primary_close: Decimal,
-        prev_close: Decimal | None,
+        closes: Mapping[str, Decimal] | Decimal,
+        prev_closes: Mapping[str, Decimal | None] | Decimal | None,
         per_candidate_exposure: Mapping[str, Mapping[str, Decimal]],
     ) -> None:
-        """Record one session of virtual returns for every candidate that
-        has a virtual exposure. A session without a previous close (the
-        first fixture session) contributes no return."""
-        if prev_close is None or prev_close == 0:
+        """Record one session of virtual returns for every candidate in
+        ``per_candidate_exposure``.
+
+        Preferred form: ``closes`` maps each symbol to its session close
+        and ``prev_closes`` to the previous session close (``None`` or a
+        missing key = unavailable for that symbol). Legacy form:
+        ``closes`` is the SPY close Decimal and ``prev_closes`` the SPY
+        previous close Decimal (or ``None``). A session in which no
+        symbol has a computable close-to-close return (e.g. the first
+        fixture session) contributes nothing at all; ``asof`` is carried
+        for call-site symmetry and does not enter the math.
+        """
+        if isinstance(closes, Decimal):
+            # V0.1 scalar form: SPY only (see docstring).
+            closes_map: dict[str, Decimal] = {PRIMARY_SYMBOL: closes}
+            prev = prev_closes if isinstance(prev_closes, Decimal) else None
+            prev_map: dict[str, Decimal | None] = {PRIMARY_SYMBOL: prev}
+        else:
+            closes_map = dict(closes)
+            prev_map = (
+                dict(prev_closes) if isinstance(prev_closes, Mapping) else {}
+            )
+        per_symbol_return: dict[str, Decimal] = {}
+        for symbol in sorted(set(closes_map) | set(prev_map)):
+            prev_close = prev_map.get(symbol)
+            close = closes_map.get(symbol)
+            if prev_close is None or prev_close == 0 or close is None:
+                continue  # honest insufficiency: no return for this symbol
+            per_symbol_return[symbol] = ((close - prev_close) / prev_close).quantize(
+                _RETURN_Q
+            )
+        if not per_symbol_return:
             return
-        session_return = ((primary_close - prev_close) / prev_close).quantize(_RETURN_Q)
         for candidate_id, exposure in per_candidate_exposure.items():
             history = self._returns.setdefault(
                 candidate_id, deque(maxlen=self._window)
             )
-            scaled = (session_return * exposure.get(PRIMARY_SYMBOL, Decimal(0))).quantize(
-                _RETURN_Q
-            )
-            history.append(scaled)
+            total = Decimal(0)
+            for symbol in sorted(per_symbol_return):
+                total += per_symbol_return[symbol] * exposure.get(symbol, Decimal(0))
+            history.append(total.quantize(_RETURN_Q))
 
     @property
     def min_sessions(self) -> int:
@@ -335,23 +384,32 @@ class CandidateRouter:
             return turnover, Decimal(0), (_REASON_TURNOVER_CAP,)
         return turnover, Decimal(1) - penalty, ()
 
-    def _risk_increasing_turnover(
-            self, target: Mapping[str, Decimal]) -> Decimal:
-        """Gross weight INCREASES only (risk-reducing moves are exempt)."""
+    def _risk_increasing_turnover(self, target: Mapping[str, Decimal]) -> Decimal:
+        """Gross weight INCREASES only (risk-reducing moves are exempt).
+
+        Summed over the union of target and previous-target symbol keys,
+        so both SPY and QQQ legs count; explicit 0.0 legs contribute 0
+        (V0.2 multi-symbol verified)."""
         keys = set(target) | set(self._previous_target)
         total = Decimal(0)
         for key in keys:
-            delta = (target.get(key, Decimal(0))
-                     - self._previous_target.get(key, Decimal(0)))
+            delta = (
+                target.get(key, Decimal(0))
+                - self._previous_target.get(key, Decimal(0))
+            )
             if delta > 0:
                 total += delta
         return total
 
     def _turnover(self, target: Mapping[str, Decimal]) -> Decimal:
+        """Gross |delta exposure| summed over the union of target and
+        previous-target symbol keys (both SPY and QQQ legs count;
+        explicit 0.0 legs contribute 0 — V0.2 multi-symbol verified)."""
         keys = set(target) | set(self._previous_target)
         total = Decimal(0)
         for key in keys:
-            total += abs(target.get(key, Decimal(0)) - self._previous_target.get(key, Decimal(0)))
+            delta = target.get(key, Decimal(0)) - self._previous_target.get(key, Decimal(0))
+            total += abs(delta)
         return total
 
     def _info_veto_active(self, info_assessments: Sequence[InformationAssessmentView]) -> bool:
@@ -367,6 +425,8 @@ class CandidateRouter:
 
     @staticmethod
     def _has_equity_exposure(proposal: StrategyProposal) -> bool:
+        """True when ANY traded-symbol leg carries positive weight — the
+        information veto blocks per leg, not per proposal total."""
         return any(
             weight > 0
             for symbol, weight in proposal.target_exposure.items()

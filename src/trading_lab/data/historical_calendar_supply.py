@@ -34,6 +34,28 @@ extraction, with a revocable license and no explicit caching provision.
 this round; real-research usability requires the operator's own license
 review. This is separate from, and never substitutes, the Alpaca data
 license attestation (H1 draft remains unsigned).
+
+## v2 addendum (2026-11-27, BUSINESS-MVP-V02-REAL-HISTORY workflow A1)
+
+Two hard errors were found in the v1 table above AFTER its freeze; v2
+below folds them in as the corrected frozen supply. v1 is preserved
+UNCHANGED above (constants, hash, docstring) as evidence — including
+its wrong dates and its defective hash; the v1->v2 delta is exactly:
+
+- 2025-01-09 (Thursday) ADDED — NYSE closed, National Day of Mourning
+  for former President Jimmy Carter. Official source: ICE/NYSE press
+  release https://ir.theice.com/press/news-details/2024/The-New-York-Stock-Exchange-Will-Close-Markets-on-January-9-to-Honor-the-Passing-of-Former-President-Jimmy-Carter-on-National-Day-of-Mourning/default.aspx
+- 2026-01-19 (Monday) ADDED — NYSE closed, Martin Luther King Jr. Day.
+  Official sources: NYSE holidays calendar
+  https://www.nyse.com/trade/hours-calendars and the ICE/NYSE
+  2024-2025-and-2026 holiday & early-closings calendar press release
+  https://ir.theice.com/press/news-details/2023/NYSE-Group-Announces-2024-2025-and-2026-Holiday-and-Early-Closings-Calendar/default.aspx
+
+No other holiday, half-day, or window field changes. The LICENSE
+CAVEAT above carries over to v2 unchanged in spirit: personal-use
+website terms are NOT a dataset license (``LICENSE_UNVERIFIED``);
+real-research usability still requires the operator's own license
+review, separate from the Alpaca data-license attestation.
 """
 
 from __future__ import annotations
@@ -43,7 +65,15 @@ import datetime as dt
 from ..security.canonical import canonical_json_bytes, sha256_hex
 from .historical_calendar import CalendarSupply
 
-__all__ = ["NYSE_2017_2025_SUPPLY", "FROZEN_SUPPLY_HASH", "frozen_supply_hash", "SUPPLY_SOURCE_REFS"]
+__all__ = [
+    "NYSE_2017_2025_SUPPLY",
+    "NYSE_2017_2025_SUPPLY_V2",
+    "FROZEN_SUPPLY_HASH",
+    "FROZEN_SUPPLY_HASH_V2",
+    "frozen_supply_hash",
+    "SUPPLY_SOURCE_REFS",
+    "SUPPLY_SOURCE_REFS_V2",
+]
 
 
 def _d(iso: str) -> dt.date:
@@ -161,3 +191,65 @@ def frozen_supply_hash(supply: CalendarSupply) -> str:
 #: tests/m3_h/test_h1b_calendar_freeze.py. A changed value means the
 #: supply dates or scope drifted — refuse and re-verify sources.
 FROZEN_SUPPLY_HASH = "826bd96a08b18ada69f77010fa2006516f5088d69a8fb1ceec44033ec106e285"
+
+
+# ---------------------------------------------------------------------------
+# v2 — corrected frozen supply (BUSINESS-MVP-V02-REAL-HISTORY workflow A1,
+# 2026-11-27). Everything above this line is the preserved v1 record; the
+# only v1->v2 delta is the two added holidays documented in the docstring
+# addendum. Hashed with the same frozen_supply_hash function (same canonical
+# payload shape), so v1 and v2 hashes are directly comparable evidence.
+# ---------------------------------------------------------------------------
+
+#: the two v1 hard errors, now included as holidays
+_V2_ADDED_HOLIDAYS = (_d("2025-01-09"), _d("2026-01-19"))
+
+_HOLIDAYS_V2 = frozenset(_HOLIDAYS | set(_V2_ADDED_HOLIDAYS))
+
+#: v2 provenance: v1's refs plus the two official correction sources
+SUPPLY_SOURCE_REFS_V2 = {
+    **SUPPLY_SOURCE_REFS,
+    "2025-01-09_carter_mourning": (
+        "https://ir.theice.com/press/news-details/2024/"
+        "The-New-York-Stock-Exchange-Will-Close-Markets-on-January-9-to-Honor-"
+        "the-Passing-of-Former-President-Jimmy-Carter-on-National-Day-of-"
+        "Mourning/default.aspx"
+    ),
+    "2026-01-19_mlk": [
+        "https://www.nyse.com/trade/hours-calendars",
+        "https://ir.theice.com/press/news-details/2023/NYSE-Group-Announces-"
+        "2024-2025-and-2026-Holiday-and-Early-Closings-Calendar/default.aspx",
+    ],
+    "v2_delta_record": (
+        "v1 -> v2 adds exactly {2025-01-09, 2026-01-19} to holidays; "
+        "half_days, window and sources otherwise unchanged; v1 preserved "
+        "as evidence with its defective FROZEN_SUPPLY_HASH"
+    ),
+}
+
+NYSE_2017_2025_SUPPLY_V2 = CalendarSupply(
+    version="nyse-2017-2026-01-frozen-v2",
+    source=(
+        "NYSE official holiday calendars (Wayback-archived nyse.com pages, "
+        "2017-2025) + ICE/NYSE press releases for the two closures v1 "
+        "missed (2025-01-09 Carter national day of mourning; 2026-01-19 "
+        "MLK Day) — LICENSE_UNVERIFIED (ICE website terms "
+        "ambiguous-to-restrictive for systematic collection/caching; "
+        "personal-research usability requires operator license review)"
+    ),
+    source_url="https://www.nyse.com/trade/hours-calendars (see SUPPLY_SOURCE_REFS_V2)",
+    retrieved_utc=dt.datetime(2026, 11, 27, tzinfo=dt.timezone.utc),
+    valid_from=dt.date(2017, 1, 1),
+    valid_until=dt.date(2026, 1, 31),
+    holidays=_HOLIDAYS_V2,
+    half_days=_HALF_DAYS,
+)
+
+#: computed at v2 freeze time (2026-11-27); re-verified by
+#: tests/m3_h/test_calendar_supply_v2.py. A changed value means the v2
+#: dates or scope drifted — refuse and re-verify sources. v1's
+#: FROZEN_SUPPLY_HASH above stays the pinned evidence of the defective
+#: table and must never be "fixed".
+FROZEN_SUPPLY_HASH_V2 = (
+    "bd06be2f355cbe984a0cdfa58d5f071719cb9b52647ffc0c19d59e64138d8067"
+)

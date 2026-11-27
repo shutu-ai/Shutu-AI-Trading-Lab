@@ -112,7 +112,16 @@ class RiskEngine:
         producer: TrustedProducer,
         symbol: str | None = None,
         max_bar_age_seconds: int | None = None,
+        side: str | None = None,
     ) -> RiskDecision:
+        """``side`` ("buy"/"sell") is optional risk context: a SELL
+        releases cash and market value, so the settled-funds precondition
+        (a BUY-side affordability check) does not apply to it. Every
+        other check — exposure caps, concentration, TTL, symbol pool,
+        freshness, kill switch — is side-independent and unchanged.
+        ``side=None`` (all M2-era callers) keeps today's behavior
+        exactly; negative ``desired_change`` still reads as shorting and
+        is refused under ``allow_short=False``."""
         reasons: list[str] = []
         verdict = VERDICT_APPROVE
 
@@ -192,7 +201,8 @@ class RiskEngine:
             self._policy.max_single_symbol_pct / Decimal(100) * equity
         ):
             fail("REJECT", f"SINGLE_SYMBOL_CONCENTRATION:{symbol}")
-        if self._policy.require_settled_funds and notional > exposure.settled_cash_usd:
+        if self._policy.require_settled_funds and side != "sell" \
+                and notional > exposure.settled_cash_usd:
             fail("REJECT", "INSUFFICIENT_SETTLED_FUNDS")
 
         # 8. freshness — snapshot must exist and be recent (PIT data gate).
@@ -244,12 +254,16 @@ class RiskEngine:
             if self._approval_secrets is None:
                 fail("REJECT", "APPROVAL_SECRETS_MISSING")
             else:
-                side = "buy" if intent.desired_change > 0 else "sell"
+                # explicit side (V0.2 continuous execution) wins; the
+                # sign of desired_change remains the default derivation
+                # for M2-era callers that pass no side
+                bound_side = side if side in ("buy", "sell") else (
+                    "buy" if intent.desired_change > 0 else "sell")
                 expiry = decision_at + dt.timedelta(seconds=RISK_DECISION_TTL_SECONDS)
                 binding = build_send_binding(
                     intent_payload=intent.model_dump(mode="json"),
                     symbol=symbol,
-                    side=side,
+                    side=bound_side,
                     quantity=str(abs(intent.desired_change)),
                     policy_hash=self._policy.policy_hash,
                     decision_at=decision_at.isoformat(),
@@ -258,7 +272,7 @@ class RiskEngine:
                 limits_snapshot.update(
                     {
                         "bound_symbol": symbol,
-                        "bound_side": side,
+                        "bound_side": bound_side,
                         "bound_quantity": str(abs(intent.desired_change)),
                         "decision_expires_at": expiry.isoformat(),
                         "approval_seal": self._approval_secrets.seal(binding),

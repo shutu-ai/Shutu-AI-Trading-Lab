@@ -230,10 +230,21 @@ class TestFailClosedModes:
         assert "REFUSED" in capsys.readouterr().err
 
     def test_replay_refuses_forbidden_mode(self, tmp_path, capsys):
+        """Unauthorized modes fail closed at the CLI boundary. argparse
+        rejects unknown modes with exit code 2 before main() runs; the
+        explicit REFUSED branch covers any mode that slips through."""
         import scripts.run_business_mvp as cli
 
-        rc = cli.main(["--mode", "live", "--fixture", "demo",
-                       "--output-dir", str(tmp_path / "x")])
+        with pytest.raises(SystemExit) as exc:
+            cli.main(["--mode", "live", "--fixture", "demo",
+                      "--output-dir", str(tmp_path / "x")])
+        assert exc.value.code == 2
+
+    def test_historical_replay_requires_snapshot_dir(self, capsys):
+        import scripts.run_business_mvp as cli
+
+        rc = cli.main(["--mode", "historical-replay",
+                       "--output-dir", "unused"])
         assert rc == 2
         assert "REFUSED" in capsys.readouterr().err
 

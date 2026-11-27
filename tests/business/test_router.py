@@ -41,6 +41,7 @@ MIN_SCORE = RouterConfig().min_score_to_trade
 
 def make_features(
     *,
+    symbol: str = PRIMARY_SYMBOL,
     status: str = STATUS_OK,
     ma_short: str = "450.0",
     ma_long: str = "450.0",
@@ -50,7 +51,7 @@ def make_features(
 ) -> FeatureVector:
     if status == STATUS_UNKNOWN:
         return FeatureVector(
-            symbol=PRIMARY_SYMBOL,
+            symbol=symbol,
             asof_utc=ASOF,
             asof_bar_ts=None,
             asof_bar_age_sessions=None,
@@ -68,7 +69,7 @@ def make_features(
             feature_hash="",
         )
     return FeatureVector(
-        symbol=PRIMARY_SYMBOL,
+        symbol=symbol,
         asof_utc=ASOF,
         asof_bar_ts=ASOF,
         asof_bar_age_sessions=0,
@@ -84,7 +85,7 @@ def make_features(
         status=status,
         reasons=(),
         feature_hash=canonical_digest(
-            {"sym": PRIMARY_SYMBOL, "ma_s": ma_short, "ma_l": ma_long}
+            {"sym": symbol, "ma_s": ma_short, "ma_l": ma_long}
         ),
     )
 
@@ -200,7 +201,9 @@ class TestTrendUpWinner:
         proposals = build_proposals(features, regime)
         router = fresh_router(previous_target={PRIMARY_SYMBOL: Decimal(1)})
         router.select(ASOF, proposals, regime, features, VirtualPerformanceTracker())
-        assert router.previous_target == {PRIMARY_SYMBOL: Decimal(1)}
+        # V0.2: the chosen ma_cross map names both legs explicitly, so the
+        # stored target carries the deliberate QQQ 0 leg too.
+        assert router.previous_target == {PRIMARY_SYMBOL: Decimal(1), "QQQ": Decimal(0)}
 
 
 class TestRangeRouting:
@@ -472,15 +475,19 @@ class TestProposalAccounting:
 
 
 class TestVirtualPerformanceTracker:
+    """V0.2 Mapping-form sessions (single-symbol fixtures; the multi-symbol
+    math lives in TestVirtualPerformanceTrackerMultiSymbol below)."""
+
     def test_decimal_math_exact(self) -> None:
         tracker = VirtualPerformanceTracker()
         exposures_a = {PRIMARY_SYMBOL: Decimal(1)}
         exposures_b = {PRIMARY_SYMBOL: Decimal("0.5")}
         tracker.record_session(
-            ASOF, Decimal("101"), Decimal("100"), {"a": exposures_a, "b": exposures_b}
+            ASOF, {"SPY": Decimal("101")}, {"SPY": Decimal("100")},
+            {"a": exposures_a, "b": exposures_b},
         )
         tracker.record_session(
-            ASOF + dt.timedelta(days=1), Decimal("99"), Decimal("101"),
+            ASOF + dt.timedelta(days=1), {"SPY": Decimal("99")}, {"SPY": Decimal("101")},
             {"a": exposures_a, "b": exposures_b},
         )
         r1 = ((Decimal("101") - Decimal("100")) / Decimal("100")).quantize(
@@ -500,8 +507,8 @@ class TestVirtualPerformanceTracker:
         for i in range(3):
             tracker.record_session(
                 ASOF + dt.timedelta(days=i),
-                Decimal("101") + i,
-                Decimal("100") + i,
+                {"SPY": Decimal("101") + i},
+                {"SPY": Decimal("100") + i},
                 {"a": {PRIMARY_SYMBOL: Decimal(1)}},
             )
         assert tracker.sessions_recorded("a") == 2  # window capped at 2
@@ -515,7 +522,10 @@ class TestVirtualPerformanceTracker:
 
     def test_first_session_without_prev_close_records_nothing(self) -> None:
         tracker = VirtualPerformanceTracker()
-        tracker.record_session(ASOF, Decimal("101"), None, {"a": {PRIMARY_SYMBOL: Decimal(1)}})
+        tracker.record_session(
+            ASOF, {"SPY": Decimal("101")}, {"SPY": None},
+            {"a": {PRIMARY_SYMBOL: Decimal(1)}},
+        )
         assert tracker.sessions_recorded("a") == 0
         assert tracker.rolling_return("a") is None
 
@@ -525,8 +535,8 @@ class TestChampionAndRanking:
         for i in range(5):
             tracker.record_session(
                 ASOF + dt.timedelta(days=i),
-                Decimal("100") + i + 1,
-                Decimal("100") + i,
+                {"SPY": Decimal("100") + i + 1},
+                {"SPY": Decimal("100") + i},
                 {
                     "ma_cross_trend": {PRIMARY_SYMBOL: Decimal(1)},
                     "mean_reversion": {PRIMARY_SYMBOL: Decimal("0.5")},
@@ -555,8 +565,8 @@ class TestChampionAndRanking:
         for i in range(5):
             tracker.record_session(
                 ASOF + dt.timedelta(days=5 + i),
-                Decimal("105") - Decimal(5) * (i + 1),
-                Decimal("105") - Decimal(5) * i,
+                {"SPY": Decimal("105") - Decimal(5) * (i + 1)},
+                {"SPY": Decimal("105") - Decimal(5) * i},
                 {
                     "ma_cross_trend": {PRIMARY_SYMBOL: Decimal(1)},
                     "mean_reversion": {PRIMARY_SYMBOL: Decimal(0)},
@@ -587,7 +597,7 @@ def run_replay() -> list[tuple[str | None, dict[str, Decimal], tuple[str, ...]]]
         proposals = build_proposals(features, regime)
         selection: RouterSelection = router.select(asof, proposals, regime, features, tracker)
         tracker.record_session(
-            asof, close, prev_close,
+            asof, {"SPY": close}, {"SPY": prev_close},
             {cid: p.target_exposure for cid, p in proposals.items()},
         )
         prev_close = close
@@ -605,3 +615,171 @@ class TestDeterminism:
         # session and scores are non-trivial.
         assert any(chosen is not None for chosen, _, _ in first)
         assert any(scores for _, scores, _ in first)
+
+
+# -- V0.2 multi-symbol routing (B2) --------------------------------------------
+
+
+def both_warm_trend_up() -> tuple[dict[str, FeatureVector], object]:
+    """SPY and QQQ both in their OWN uptrends; portfolio regime TREND_UP."""
+    features = {
+        "SPY": make_features(ma_short="460", ma_long="450"),
+        "QQQ": make_features(symbol="QQQ", ma_short="360", ma_long="350"),
+    }
+    return features, make_regime(features)
+
+
+class TestMultiSymbolTurnover:
+    """B2 proof (e): turnover measures BOTH symbols; the info veto blocks
+    ANY equity>0 leg (either symbol)."""
+
+    def test_turnover_cap_counts_both_legs(self) -> None:
+        # buy_hold both-warm targets 0.5/0.5. From {SPY: 0.1, QQQ: 0.1} the
+        # risk increase is 0.4 + 0.4 = 0.8 > the 0.60 cap -> excluded. A
+        # single-symbol measure (0.4) would NOT trip the cap.
+        features, regime = both_warm_trend_up()
+        proposals = build_proposals(features, regime)
+        assert proposals["buy_hold"].target_exposure == {
+            "SPY": Decimal("0.5"),
+            "QQQ": Decimal("0.5"),
+        }
+        router = fresh_router(
+            previous_target={"SPY": Decimal("0.1"), "QQQ": Decimal("0.1")}
+        )
+        selection = router.select(
+            ASOF, proposals, regime, features, VirtualPerformanceTracker()
+        )
+        assert selection.scores["buy_hold"] == Decimal(0)
+        # cash_baseline (the eligible reference) is chosen, so the session
+        # has no NO_TRADE reasons; the cap exclusion stays visible in
+        # last_blocked.
+        assert "TURNOVER_CAP" in router.last_blocked["buy_hold"]
+        assert "TURNOVER_CAP" in router.last_blocked["ma_cross_trend"]
+
+    def test_turnover_arithmetic_counts_each_leg(self) -> None:
+        # SPY already at target -> only the QQQ leg (0 -> 0.5) counts:
+        # increase 0.5 <= cap, penalized risk_cost (1 - 0.5/0.6) * 0.15.
+        features, regime = both_warm_trend_up()
+        proposals = build_proposals(features, regime)
+        router = fresh_router(previous_target={"SPY": Decimal("0.5")})
+        selection = router.select(
+            ASOF, proposals, regime, features, VirtualPerformanceTracker()
+        )
+        expected = (
+            Decimal("0.40")  # regime fit
+            + Decimal("0.20")  # data quality
+            + Decimal("0.125")  # neutral performance
+            + (Decimal(1) - Decimal("0.5") / Decimal("0.60")) * Decimal("0.15")
+        )
+        assert selection.scores["buy_hold"] == expected
+        assert "buy_hold:TURNOVER_CAP" not in selection.no_trade_reasons
+
+    def test_veto_blocks_any_single_equity_leg(self) -> None:
+        # A QQQ-ONLY equity leg (SPY explicit 0) is still vetoed by a
+        # confident BEARISH assessment; only all-flat/all-cash proposals
+        # survive, so the router routes to the deliberate-flat trend arm.
+        features = {
+            "SPY": make_features(ma_short="450.2", ma_long="450", rsi="60"),
+            "QQQ": make_features(symbol="QQQ", ma_short="350.2", ma_long="350", rsi="25"),
+        }
+        regime = make_regime(features)  # RANGE portfolio label
+        proposals = build_proposals(features, regime)
+        assert proposals["mean_reversion"].target_exposure == {
+            "SPY": Decimal(0),
+            "QQQ": Decimal("0.5"),
+        }
+        info = [InfoStub("EV-1", direction="BEARISH", confidence=0.9)]
+        router = fresh_router()
+        selection = router.select(
+            ASOF, proposals, regime, features, VirtualPerformanceTracker(), info
+        )
+        assert "INFO_VETO_BEARISH" in router.last_blocked["mean_reversion"]
+        assert "INFO_VETO_BEARISH" in router.last_blocked["buy_hold"]
+        assert selection.chosen is not None
+        # The zero-equity trend proposal (deliberate flat, legal) wins.
+        assert selection.chosen.strategy_id == "ma_cross_trend"
+        assert selection.chosen.target_exposure == {"SPY": Decimal(0), "QQQ": Decimal(0)}
+
+
+class TestVirtualPerformanceTrackerMultiSymbol:
+    """B2 proof (f): deterministic multi-symbol tracker math on a fixed
+    two-symbol series (exposure-weighted per-symbol returns; cash
+    residual earns 0; unavailable closes contribute nothing)."""
+
+    def test_two_symbol_weighted_math_exact(self) -> None:
+        tracker = VirtualPerformanceTracker()
+        split = {"SPY": Decimal("0.5"), "QQQ": Decimal("0.5")}
+        # Session 1: SPY +1%, QQQ -1% at half weight each -> 0.
+        tracker.record_session(
+            ASOF,
+            {"SPY": Decimal("101"), "QQQ": Decimal("198")},
+            {"SPY": Decimal("100"), "QQQ": Decimal("200")},
+            {"a": split},
+        )
+        assert tracker.rolling_return("a") == Decimal(0)
+        assert tracker.sessions_recorded("a") == 1
+        # Session 2: SPY 101->102, QQQ 198->201; only SPY held now.
+        tracker.record_session(
+            ASOF + dt.timedelta(days=1),
+            {"SPY": Decimal("102"), "QQQ": Decimal("201")},
+            {"SPY": Decimal("101"), "QQQ": Decimal("198")},
+            {"a": {"SPY": Decimal(1), "QQQ": Decimal(0)}},
+        )
+        expected = ((Decimal("102") - Decimal("101")) / Decimal("101")).quantize(
+            Decimal("0.000000000001")
+        )
+        assert tracker.rolling_return("a") == expected
+        assert tracker.sessions_recorded("a") == 2
+
+    def test_unavailable_symbol_contributes_zero(self) -> None:
+        # QQQ has no previous close yet: only the SPY leg contributes; the
+        # QQQ exposure is never guessed.
+        tracker = VirtualPerformanceTracker()
+        tracker.record_session(
+            ASOF,
+            {"SPY": Decimal("101"), "QQQ": Decimal("200")},
+            {"SPY": Decimal("100")},
+            {"a": {"SPY": Decimal("0.5"), "QQQ": Decimal("0.5")}},
+        )
+        expected = ((Decimal("101") - Decimal("100")) / Decimal("100")).quantize(
+            Decimal("0.000000000001")
+        )
+        assert tracker.rolling_return("a") == expected * Decimal("0.5")
+        assert tracker.sessions_recorded("a") == 1
+
+    def test_cash_residual_earns_zero(self) -> None:
+        tracker = VirtualPerformanceTracker()
+        tracker.record_session(
+            ASOF,
+            {"SPY": Decimal("101"), "QQQ": Decimal("201")},
+            {"SPY": Decimal("100"), "QQQ": Decimal("200")},
+            {"all_cash": {}, "half_spy": {"SPY": Decimal("0.5")}},
+        )
+        r = ((Decimal("101") - Decimal("100")) / Decimal("100")).quantize(
+            Decimal("0.000000000001")
+        )
+        assert tracker.rolling_return("all_cash") == Decimal(0)
+        assert tracker.rolling_return("half_spy") == r / 2
+
+    def test_legacy_scalar_form_matches_mapping_form(self) -> None:
+        # The V0.1 positional scalar call (still used by the unmodified
+        # replay.py) equals the explicit single-symbol Mapping form.
+        legacy = VirtualPerformanceTracker()
+        modern = VirtualPerformanceTracker()
+        exposures = {"a": {PRIMARY_SYMBOL: Decimal(1)}}
+        legacy.record_session(ASOF, Decimal("101"), Decimal("100"), exposures)
+        modern.record_session(
+            ASOF, {"SPY": Decimal("101")}, {"SPY": Decimal("100")}, exposures
+        )
+        assert legacy.rolling_return("a") == modern.rolling_return("a")
+        legacy.record_session(
+            ASOF + dt.timedelta(days=1), Decimal("99"), Decimal("101"), exposures
+        )
+        modern.record_session(
+            ASOF + dt.timedelta(days=1),
+            {"SPY": Decimal("99")},
+            {"SPY": Decimal("101")},
+            exposures,
+        )
+        assert legacy.rolling_return("a") == modern.rolling_return("a")
+        assert legacy.sessions_recorded("a") == modern.sessions_recorded("a")

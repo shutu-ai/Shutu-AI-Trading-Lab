@@ -31,13 +31,22 @@ DEFAULT_PROTOCOL = REPO / "configs/business_mvp_protocol.yaml"
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="run_business_mvp",
-        description="Business MVP V0.1 offline replay (SYNTHETIC_OFFLINE_ONLY)")
+        description="Business MVP offline replay (SYNTHETIC_OFFLINE_ONLY / "
+                    "exploratory historical snapshot)")
     parser.add_argument("--mode", default="replay",
-                        help="only 'replay' is authorized in V0.1")
+                        choices=["replay", "historical-replay"],
+                        help="'replay' = synthetic demo fixture; "
+                             "'historical-replay' = collected snapshot dir")
     parser.add_argument("--fixture", default="demo",
-                        help="only the built-in 'demo' fixture exists in V0.1")
+                        help="only the built-in 'demo' fixture exists")
     parser.add_argument("--output-dir", required=True,
                         help="run output directory (created if missing)")
+    parser.add_argument("--snapshot-dir", default=None,
+                        help="historical_research namespace root "
+                             "(required for --mode historical-replay)")
+    parser.add_argument("--info-file", default=None,
+                        help="local timestamped information events file "
+                             "(JSONL/JSON/CSV; optional, historical-replay)")
     parser.add_argument("--config", default=str(DEFAULT_CONFIG),
                         help="pinned business config YAML")
     parser.add_argument("--protocol", default=str(DEFAULT_PROTOCOL),
@@ -47,13 +56,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    if args.mode != "replay":
-        print(f"REFUSED: mode {args.mode!r} is not authorized in V0.1 "
-              f"(only 'replay'); other modes fail closed.", file=sys.stderr)
+    if args.mode not in ("replay", "historical-replay"):
+        print(f"REFUSED: mode {args.mode!r} is not authorized "
+              "(only 'replay' / 'historical-replay'); other modes fail "
+              "closed.", file=sys.stderr)
         return 2
-    if args.fixture != "demo":
-        print(f"REFUSED: fixture {args.fixture!r} does not exist in V0.1 "
-              f"(only 'demo').", file=sys.stderr)
+    if args.mode == "historical-replay" and not args.snapshot_dir:
+        print("REFUSED: --mode historical-replay requires --snapshot-dir.",
+              file=sys.stderr)
+        return 2
+    if args.mode == "replay" and args.fixture != "demo":
+        print(f"REFUSED: fixture {args.fixture!r} does not exist "
+              "(only 'demo').", file=sys.stderr)
         return 2
 
     config = load_config(Path(args.config))
@@ -66,18 +80,23 @@ def main(argv: list[str] | None = None) -> int:
         config=config,
         protocol_path=Path(args.protocol),
         output_dir=output_dir,
-        command=f"python scripts/run_business_mvp.py --mode replay "
-                f"--fixture demo --output-dir {output_dir}",
+        command=f"python scripts/run_business_mvp.py --mode {args.mode} "
+                + (f"--fixture {args.fixture} " if args.mode == "replay"
+                   else f"--snapshot-dir {args.snapshot_dir} ")
+                + f"--output-dir {output_dir}",
+        snapshot_dir=Path(args.snapshot_dir)
+        if args.mode == "historical-replay" else None,
+        info_file=Path(args.info_file) if args.info_file else None,
     )
-    print(f"[{REPLAY_VERSION}] run complete")
+    print(f"[{REPLAY_VERSION}] run complete ({args.mode})")
     print(f"  run_id      : {artifacts.run_id}")
     print(f"  run_digest  : {artifacts.run_digest}")
     print(f"  summary     : {artifacts.summary_path}")
     print(f"  report      : {artifacts.output_dir / 'report.html'}")
-    print("  labels      : SYNTHETIC_OFFLINE_ONLY · AI_PROVIDER=MOCK/RULE · "
-          "EXECUTION_BACKEND=FAKE_BROKER/MOCK_ONLY")
+    print("  labels      : SYNTHETIC_OFFLINE_ONLY / EXPLORATORY · "
+          "AI_PROVIDER=MOCK/RULE · EXECUTION_BACKEND=FAKE_BROKER/MOCK_ONLY")
     print("  honesty     : BUSINESS_DEMO_ONLY — not strategy effectiveness, "
-          "not formal stage acceptance")
+          "not formal stage acceptance, real broker NOT verified")
     return 0
 
 
