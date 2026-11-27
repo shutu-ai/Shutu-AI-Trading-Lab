@@ -1,0 +1,148 @@
+# Business MVP V0.1 demo evaluation protocol — ENGINEERING DEMO BATCH.
+#
+# Distinct from the frozen M3 protocol (configs/evaluation_protocol.yaml,
+# protocol_id m3-synthetic-engineering-v2): this file governs ONLY the
+# business-MVP replay demo batch (SYNTHETIC_OFFLINE_ONLY). It shares the
+# single BacktestEngine and B0/B1/B2 arm semantics but never overrides,
+# amends or re-counts frozen M3 evidence. A business demo PASS is a
+# product-integration result — NOT alpha, NOT OOS, NOT formal stage
+# acceptance, and it can never back an official engineering verdict under
+# the frozen M3 protocol.
+#
+# Same governance mechanics as the frozen protocol: the protocol_hash is
+# the canonical digest of this parsed payload; any field change is a new
+# version; runtime mutation is refused.
+
+schema_version: 1
+protocol_id: business-mvp-demo-v1
+protocol_version: 1
+canonical_rule: sorted_keys_utf8_no_whitespace
+description: >
+  Business MVP V0.1 vertical-slice demo batch: B0 cash, B1 buy-and-hold
+  and the routed candidate portfolio replay on the seeded demo fixture.
+  Everything here is SYNTHETIC_OFFLINE_ONLY: AI_PROVIDER=MOCK/RULE,
+  EXECUTION_BACKEND=FAKE_BROKER, no real market data, no real orders,
+  no LLM spend. Results demonstrate product integration (pipeline,
+  timing, conservation, determinism) only.
+
+data_scope: SYNTHETIC_OFFLINE_ONLY
+max_claimable_evidence: BUSINESS_DEMO_ONLY
+
+seeds: [20261127]
+
+decimal_tolerance: "0.0001"
+
+# Cost model — matches configs/business_mvp_demo.yaml (the replay CLI
+# asserts consistency between the two files and fails closed on drift).
+cost_model:
+  commission_per_trade: "1.00"
+  spread_pct: "0.0005"
+  slippage_pct: "0.0005"
+
+cost_multipliers: [1]
+
+# Execution model (identical semantics for ALL arms and the candidate replay)
+execution:
+  order_delay_bars: 1          # signal at close T, execute at open T+1 at the earliest
+  allow_same_day_close: false  # ADR-004: a close-formed signal may never fill at that same close
+  volume_limit_pct: 0.05
+  partial_fill_threshold_pct: 0.50
+  settlement_days: 1           # synthetic T+1 settlement assumption
+
+pit_rule: available_at <= decision_at
+
+gates:
+  conservation:
+    status: SET
+    description: cash/shares/fees conservation on every event; fail closed
+  pit:
+    status: SET
+    description: available_at <= decision_at on every consumed fact
+  determinism:
+    status: SET
+    description: same fixture/seed/config/protocol_hash => identical run digest
+  statistical_alpha:
+    status: NOT_SETTABLE
+    verdict: INCONCLUSIVE
+    reason: >
+      Synthetic fixture, one seed, demo scope. No effect-size or
+      significance basis exists; the business MVP can never claim alpha.
+
+validation:
+  min_bars: 100
+  min_trades_for_stats: 10
+  require_conservation_check: true
+  require_pit_check: true
+  require_determinism_check: true
+
+arms:
+  B0_cash:
+    description: "Reference cash arm on the demo fixture (single-symbol view); baseline return 0, no cash yield fabricated"
+    budget_trials: 1
+    enabled: true
+  B1_buy_hold:
+    description: "Reference buy-and-hold on the demo fixture (single-symbol view); full demo cost model"
+    budget_trials: 1
+    enabled: true
+  B2_single_rule:
+    description: "Reference MA-cross (params pinned in configs/business_mvp_demo.yaml, fixed priors — no search) on the demo fixture"
+    budget_trials: 1
+    enabled: true
+
+budget:
+  max_total_trials: 9
+  max_search_queries: 0       # no parameter search in the demo batch
+  max_failures_before_halt: 5
+  max_hypotheses: 0
+  max_holdout_unlocks: 0      # the sealed Holdout is never touched
+  max_llm_usd: "0.00"         # AI_PROVIDER=MOCK/RULE consumes no LLM budget
+  max_compute_hours: "1.0"
+  failure_retry_billing: ALL_BILLED
+  equal_trial_budget:
+    per_arm_trials:
+      B0_cash: 1
+      B1_buy_hold: 1
+      B2_single_rule: 1
+    count_failures: true
+    count_retries: true
+    note: >
+      Demo batch: one run per reference arm at multiplier x1. The routed
+      candidate replay is a product-integration demo, not a registered
+      statistical trial.
+  equal_economic_budget:
+    status: NOT_APPLICABLE_DEMO
+    llm_usd_cap: "0.00"
+    compute_hours_cap: "1.0"
+    data_amortization_usd_cap: "0.00"
+    human_intervention_minutes_cap: 0
+    note: "Demo scope: no paid model, no paid data, no human-in-the-loop tuning."
+
+multiplicity:
+  register_all_trials: true
+  policy: >
+    Demo batch registers its runs in the run report (summary.json).
+    Multiplicity corrections are not applicable; any comparative claim
+    stays BUSINESS_DEMO_ONLY / INCONCLUSIVE for alpha purposes.
+
+experiment_batches:
+  business-mvp-demo-batch-1:
+    status: SYNTHETIC_OFFLINE_PRODUCT_DEMO
+    ledger: "<output-dir>/summary.json (per-run, not a governance ledger)"
+    note: >
+      Per-run demo batch. It never mutates, re-counts or extends any M3
+      evidence batch; the two protocol ids are disjoint on purpose.
+
+holdout:
+  status: SEALED_NOT_MATERIALIZED
+  sample_ids: null
+  dataset_hash: null
+  max_unlocks: 0
+  unlock_policy: NEVER_IN_BUSINESS_DEMO
+  strategy_family: business-mvp-demo-candidates
+  candidate_selection_rule: >
+    The demo router selects among fixed candidates per session for product
+    demonstration. This is NOT the M8/M9 champion-selection pipeline and
+    must never be presented as one; the sealed Holdout stays untouched.
+  verdict_states: [PASS, FAILED, INCONCLUSIVE, INVALIDATED]
+  pollution: "No holdout access exists in the business demo path."
+  access: "No holdout access exists in the business demo path."

@@ -1,0 +1,63 @@
+# Business MVP V0.1 — pinned demo configuration (SYNTHETIC_OFFLINE_ONLY).
+# Every threshold below is a FIXED prior declared before execution; none is
+# fitted on replay outcomes. Changing any value changes the run digest.
+business_mvp:
+  mode: replay            # the only authorized mode in V0.1; others fail closed
+
+  fixture:
+    name: demo
+    seed: 20261127
+    symbols: [SPY, QQQ]
+    start_price_spy: "450.00"
+    start_price_qqq: "350.00"
+    sessions_per_segment: [40, 80, 60, 60, 60, 60, 30, 30]
+
+  features:
+    ma_short: 10
+    ma_long: 30
+    rsi_period: 14
+    atr_period: 14
+    realized_vol_window: 20
+    volume_window: 20
+    corr_window: 60
+    corr_min_common: 40
+    stale_after_sessions: 5
+
+  regime:
+    trend_band_pct: "0.001"
+    high_vol_lookback: 120
+    high_vol_percentile: "0.80"
+    min_history_for_vol_percentile: 60
+    hysteresis_sessions: 3
+    confidence_floor: "0.55"
+    confidence_base: "0.60"
+    confidence_strength_gain: "0.20"
+    event_validity_fallback_sessions: 5
+
+  router:
+    weight_regime_fit: "0.40"
+    weight_data_quality: "0.20"
+    weight_virtual_performance: "0.25"
+    weight_risk_cost: "0.15"
+    min_score_to_trade: "0.50"
+    info_veto_confidence: "0.80"
+    max_turnover_per_session: "0.60"
+
+  backtest:
+    commission_per_trade: "1.00"
+    spread_pct: "0.0005"
+    slippage_pct: "0.0005"
+    order_delay_bars: 1
+    allow_same_day_close: false   # ADR-004
+    volume_limit_pct: "0.05"
+    partial_fill_threshold_pct: "0.50"
+    settlement_days: 1
+    initial_cash: "100000.00"
+
+  mock_execution:
+    account_id: MOCK-ACCT-001
+    environment: PAPER            # enum reuse; backend remains FAKE_BROKER / MOCK_ONLY
+    max_order_notional: "50000.00"
+    max_position_notional: "200000.00"
+    max_gross_notional: "250000.00"
+    fill_price_source: next_open

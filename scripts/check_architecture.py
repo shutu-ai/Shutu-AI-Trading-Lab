@@ -52,8 +52,37 @@ FORBIDDEN_ROOTS = (
     "trading_lab.monitoring",
     "trading_lab.backtest",
     "trading_lab.validation",
+    "trading_lab.business",
 )
 FORBIDDEN_FRAGMENTS = ("artifacts", "poc")
+
+# Business MVP plane rules (task BUSINESS-MVP-V01-VERTICAL-SLICE-20261127-R1):
+# src/trading_lab/business is the TOP integration consumer — it may import
+# contracts/backtest/data/security/risk/oms/brokers, but NOTHING may import
+# it back (one-way flow), and its offline/MOCK_ONLY guarantee is mechanical:
+# no network modules and no app-layer (daemon/gateway) imports. The frozen
+# S8 forward protocol must never be wired into business code.
+BUSINESS_PACKAGE_NAME = "trading_lab.business"
+BUSINESS_FORBIDDEN_ROOTS = (
+    # app layers: the daemon is the frozen S8 forward protocol; the gateway
+    # is the ONLY network-enabled plane — business stays fully offline
+    "apps.trading_daemon",
+    "apps.market_gateway",
+    # network egress (offline/MOCK_ONLY guarantee)
+    "socket",
+    "ssl",
+    "urllib",
+    "http",
+    "ftplib",
+    "smtplib",
+    "telnetlib",
+    "xmlrpc",
+    "requests",
+    "websockets",
+    "aiohttp",
+    "httpx",
+    "alpaca",
+)
 
 # M3.5 daemon plane rules (task M3.5-SHADOW-FORWARD-ENGINEERING-001 S6):
 # apps/trading_daemon is the offline Shadow application layer. It must
@@ -68,6 +97,7 @@ DAEMON_FORBIDDEN_ROOTS = (
     "trading_lab.brokers",
     "trading_lab.oms",
     "trading_lab.risk",
+    "trading_lab.business",
     # network egress (stdlib + third-party names)
     "socket",
     "ssl",
@@ -98,6 +128,7 @@ GATEWAY_FORBIDDEN_ROOTS = (
     "trading_lab.brokers",
     "trading_lab.oms",
     "trading_lab.risk",
+    "trading_lab.business",
     # raw stdlib network primitives: HTTP only via the guarded client
     "socket",
     "ssl",
@@ -134,6 +165,7 @@ _RESEARCH_FUTURE = (
     "trading_lab.monitoring",
     "trading_lab.backtest",
     "trading_lab.validation",
+    "trading_lab.business",
 )
 PLANE_RULES: dict[str, tuple[str, ...]] = {
     "trading_lab.data": (
@@ -161,6 +193,7 @@ PLANE_RULES: dict[str, tuple[str, ...]] = {
         "trading_lab.evolution",
         "trading_lab.portfolio",
         "trading_lab.monitoring",
+        "trading_lab.business",
     ),
     "trading_lab.validation": (
         "trading_lab.oms",
@@ -172,7 +205,12 @@ PLANE_RULES: dict[str, tuple[str, ...]] = {
         "trading_lab.evolution",
         "trading_lab.portfolio",
         "trading_lab.monitoring",
+        "trading_lab.business",
     ),
+    # business is the top consumer: contracts/backtest/data/security and the
+    # trading planes flow INTO it; nothing imports it back (see
+    # BUSINESS_FORBIDDEN_ROOTS for its own offline/app-layer bans)
+    "trading_lab.business": BUSINESS_FORBIDDEN_ROOTS,
 }
 
 
