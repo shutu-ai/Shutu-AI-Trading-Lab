@@ -1,44 +1,56 @@
 # 真实信息源与 LLM 激活方案（待操作者确认后生效——本文件是方案模板，
 # 填写并确认前不产生任何网络调用或费用；providers.py 工厂在未激活时
-# 结构性拒绝一切外部调用）。
+# 结构性拒绝一切外部调用；真实客户端只在 apps/llm_gateway 按
+# authorization 块逐字段验证后构建）。
 #
-# ── 信息源建议（二选一起步）─────────────────────────────────────────
-# 选项 1（推荐起步）：FRED 宏观发布（Federal Reserve Economic Data）
-#   许可：FRED 公开数据免费使用，条款明确（research.stlouisfed.org/terms）
-#   接口：GET https://api.stlouisfed.org/fred/releases/... （免费 API key）
-#   事件类型：CPI/就业/FOMC 等宏观发布事实（类别 MACRO）
-#   费用：$0
-#   配置：操作者注册免费 key → 密钥走本机环境变量（值盲，不入库不入上下文）
-#         → 下载的发布事实落本地 JSONL（available_at 用 FRED 发布时间戳）
-# 选项 2：SEC EDGAR 公司披露（SPY/QQQ 成分相关重大公告）
-#   许可：EDGAR 公开数据，条款明确（sec.gov 用途政策）；频率限制 ~10 req/s
-#   事件类型：EARNINGS/ANNOUNCEMENT；费用 $0
+# ── 信息源核实结论（条款实测 2026-11-28；营销描述 ≠ 实测结论）───────
+# 已排除：FRED —— 其 API 条款明确限制缓存/归档及与 AI 软件开发相关
+#   使用（fred.stlouisfed.org/legal/terms/），且 release dates 不保证
+#   数据可得时间；未取得明确许可前不接入本地缓存或 AI 管线。
+# 选项 1（本机已验证可达，已激活）：Federal Reserve Board 货币政策发布
+#   许可：disclaimer.htm 明文 public domain，可复制分发（检索
+#   2026-11-28）；无 robots.txt（404）→ 自动访问按 UNVERIFIED 处理，
+#   保守低频（单次运行 1 次_feed GET + 少量发布页 GET）
+#   接口：https://www.federalreserve.gov/feeds/press_monetary.xml
+#   事件：FOMC/货币政策发布全文；费用 $0
+# 选项 2（许可最明确，本机出口被拦）：BLS（CPI/就业）
+#   许可：明文公共领域 + API ToS 明文"下载后无 end-use 控制"；
+#   v1 免费 25 次/天（免 key），v2 注册 500 次/天
+#   实测：api.bls.gov 自本机出口被 Akamai 403 —— 换出口后方可启用
+# 选项 3：BEA（GDP/PCE）—— API 100 次/分钟，注册免费 key；
+#   公共领域无站内明文声明（依 17 USC §105 法律地位），AI 传输
+#   条款未提及（UNVERIFIED），谨慎使用
+# SEC EDGAR 可后续增加，不必同时做。
 #
-# ── LLM 建议（先本地后云端）────────────────────────────────────────
-# 选项 A（推荐起步，$0）：本地 Ollama
-#   模型：qwen2.5:7b 或 llama3.1:8b（事件分类/结构化足够，中文英文均可）
-#   接口：OpenAI 兼容 http://localhost:11434/v1/chat/completions
-#   费用：$0；数据不出本机；需 8GB+ 内存
-# 选项 B（授权后升级）：DeepSeek deepseek-chat
-#   费用：约 $0.27/1M input + $1.10/1M output；预估用量每日 ≤20 次评估
-#   × ~2k tokens ≈ 每日 $0.05–0.15 ≈ 每月 $2–5（设硬预算上限 $5/月）
-#   选项 C 备选：OpenAI gpt-4o-mini（$0.15/M in + $0.60/M out）量级相近
+# ── LLM 建议（先审批后花钱）────────────────────────────────────────
+# 选项 A（本机已激活试验）：DeepSeek deepseek-chat
+#   费率（2026-11-28 文档价）：$0.27/1M input + $1.10/1M output
+#   试验预算：≤5 次调用、硬上限 $0.20（CostLedger 强制，超支即拒）
+#   持续使用（如 $5/月）须单独批准
+# 选项 B：GLM（智谱）—— 需操作者提供密钥与 model ID，同量级预算门
+# 选项 C：本地零费用模型（$0；区分零付费本地授权与外部收费预算）
 #
 # ── 激活所需配置（示例值；确认后由操作者逐字段填写）────────────────
 info_source:
   kind: NEWS
-  provider_id: fred-releases-local
-  endpoint: file://data/info/fred_releases.jsonl   # 本地 JSONL（许可信息源下载产物）
-  source_license: LICENSE_VERIFIED_PER_OPERATOR_ATTESTATION
-  license_note: "<操作者填写：已核对 FRED terms 允许此用途，日期>"
+  provider_id: fed-monetary-releases
+  endpoint: file://data/info/events.jsonl   # fetch_info_events.py 产物（loader schema）
+  source_license: LICENSE_VERIFIED          # 公共领域明文；许可依据随 fetch_report.json 留档
+  license_note: "Fed disclaimer public domain（检索 2026-11-28）；自动访问频率保守"
 llm:
   kind: LLM
-  provider_id: local-ollama-qwen25
-  endpoint: http://localhost:11434/v1
-  model: qwen2.5:7b
-  cost_budget_usd: "0.00"          # 本地模型 $0；云端方案改填如 "5.00"
-  allow_external: true             # 仅操作者确认后置 true（本地端点不出网）
+  provider_id: deepseek-real
+  endpoint: https://api.deepseek.com/v1
+  model: deepseek-chat
+  cost_budget_usd: "0.20"          # CostLedger 硬门；超支即拒
+  allow_external: true             # 仅操作者确认后置 true
   schema_version: v1
+  max_calls: 5
 budget_enforcement:
-  hard_monthly_cap_usd: "5.00"     # CostLedger 硬门；超支即拒
+  hard_monthly_cap_usd: "5.00"     # 持续使用须另行批准后生效
   per_call_estimate_usd: "0.01"
+authorization:
+  authorization_ref: "<填写：本批批准的引用号/日期标识>"
+  attested_by: "<填写：操作者身份标识>"
+  attested_at: "<填写：签署时刻 ISO-8601>"
+  scope: "<填写：仅限许可明确的公开信息文本；严禁账户凭证/余额/持仓；LLM 无下单权限，不修改风控>"
