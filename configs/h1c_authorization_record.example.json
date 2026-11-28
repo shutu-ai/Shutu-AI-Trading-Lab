@@ -1,0 +1,14 @@
+{
+  "authorization_ref": "<填写：本批批准的引用号/日期标识，例如 H1C-SIGNED-20261128>",
+  "attested_by": "<填写：操作者身份标识>",
+  "attested_at": "<填写：签署时刻 ISO-8601（须带时区），例如 2026-11-28T10:00:00Z>",
+  "calendar_license_note": "<填写：交易日历来源许可说明；若未核实则保留 LICENSE_UNVERIFIED——真实采集（工程验证）仍可进行，正式研究准入将持续受限>",
+  "scope": {
+    "start": "2017-01-01",
+    "end": "2025-12-31",
+    "symbols": ["SPY", "QQQ"],
+    "feed": "iex",
+    "timeframe": "1Day"
+  },
+  "restricted_research_permitted": false
+}
