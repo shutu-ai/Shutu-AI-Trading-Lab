@@ -170,6 +170,19 @@ class OmsEngine:
             )
             return SubmitOutcome(intent_id, "HALT_NEW_RISK", False, None, halted=True)
 
+        # Intent idempotency (V0.2 continuous-execution fix): a repeated
+        # intent_id/client_order_id is refused as a controlled REJECTED
+        # outcome with an audit record BEFORE any journal write. Without
+        # this guard a replayed intent surfaced as a raw sqlite
+        # IntegrityError instead of a deterministic refusal.
+        if self._journal.intent_exists(coid):
+            self._audit.append(
+                "OMS_SUBMIT_REFUSED_DUPLICATE",
+                {"intent_id": intent_id, "client_order_id": coid},
+            )
+            return SubmitOutcome(intent_id, "REJECTED", False, None,
+                                 halted=False)
+
         # R5: the intent must belong to THIS OMS's assembled environment and
         # account — mis-wired assemblies refuse instead of trusting callers.
         if intent.environment is not self._env:
