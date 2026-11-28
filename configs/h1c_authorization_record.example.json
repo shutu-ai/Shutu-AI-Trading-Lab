@@ -1,0 +1,35 @@
+{
+  "_usage": "操作者填写本文件后作为 --authorization-record 传入采集入口。字段值由操作者本人提供——平台不代签。填好后重命名为 h1c_authorization_record.json（勿提交 Git：它包含授权事实，属本地记录）。scope 字段必须与冻结窗口完全一致，否则入口按字段逐一拒绝。",
+  "license": {
+    "authorization_ref": "<填写：本批批准的引用号/日期标识，例如 H1C-SIGNED-20261128>",
+    "attested_by": "<填写：操作者身份标识>",
+    "attested_at": "<填写：签署时刻 ISO-8601，例如 2026-11-28T10:00:00Z>",
+    "scope": {
+      "start": "2017-01-01",
+      "end": "2025-12-31",
+      "symbols": ["SPY", "QQQ"],
+      "feed": "iex",
+      "timeframe": "1Day"
+    },
+    "calendar_license_note": "<填写：交易日历来源许可说明；若未核实则保留 LICENSE_UNVERIFIED——真实采集仍可进行（工程验证），正式研究准入将持续受限>",
+    "operator_confirmations": {
+      "account_active": "<true/false：Alpaca 账户有效>",
+      "plan_free_basic": "<true/false：Paper/Basic 免费档>",
+      "historical_personal_research_and_local_cache_permitted": "<true/false：已核对现行条款允许历史数据个人研究与本地缓存>",
+      "terms_checked_at": "<填写：核对条款的日期>"
+    }
+  },
+  "admission": {
+    "authorization_ref": "<同 license.authorization_ref>",
+    "attested_by": "<同上>",
+    "attested_at": "<同上>",
+    "scope": {
+      "start": "2017-01-01",
+      "end": "2025-12-31",
+      "symbols": ["SPY", "QQQ"],
+      "feed": "iex",
+      "timeframe": "1Day"
+    },
+    "restricted_research_permitted": false
+  }
+}
