@@ -1,0 +1,44 @@
+# 真实信息源与 LLM 激活方案（待操作者确认后生效——本文件是方案模板，
+# 填写并确认前不产生任何网络调用或费用；providers.py 工厂在未激活时
+# 结构性拒绝一切外部调用）。
+#
+# ── 信息源建议（二选一起步）─────────────────────────────────────────
+# 选项 1（推荐起步）：FRED 宏观发布（Federal Reserve Economic Data）
+#   许可：FRED 公开数据免费使用，条款明确（research.stlouisfed.org/terms）
+#   接口：GET https://api.stlouisfed.org/fred/releases/... （免费 API key）
+#   事件类型：CPI/就业/FOMC 等宏观发布事实（类别 MACRO）
+#   费用：$0
+#   配置：操作者注册免费 key → 密钥走本机环境变量（值盲，不入库不入上下文）
+#         → 下载的发布事实落本地 JSONL（available_at 用 FRED 发布时间戳）
+# 选项 2：SEC EDGAR 公司披露（SPY/QQQ 成分相关重大公告）
+#   许可：EDGAR 公开数据，条款明确（sec.gov 用途政策）；频率限制 ~10 req/s
+#   事件类型：EARNINGS/ANNOUNCEMENT；费用 $0
+#
+# ── LLM 建议（先本地后云端）────────────────────────────────────────
+# 选项 A（推荐起步，$0）：本地 Ollama
+#   模型：qwen2.5:7b 或 llama3.1:8b（事件分类/结构化足够，中文英文均可）
+#   接口：OpenAI 兼容 http://localhost:11434/v1/chat/completions
+#   费用：$0；数据不出本机；需 8GB+ 内存
+# 选项 B（授权后升级）：DeepSeek deepseek-chat
+#   费用：约 $0.27/1M input + $1.10/1M output；预估用量每日 ≤20 次评估
+#   × ~2k tokens ≈ 每日 $0.05–0.15 ≈ 每月 $2–5（设硬预算上限 $5/月）
+#   选项 C 备选：OpenAI gpt-4o-mini（$0.15/M in + $0.60/M out）量级相近
+#
+# ── 激活所需配置（示例值；确认后由操作者逐字段填写）────────────────
+info_source:
+  kind: NEWS
+  provider_id: fred-releases-local
+  endpoint: file://data/info/fred_releases.jsonl   # 本地 JSONL（许可信息源下载产物）
+  source_license: LICENSE_VERIFIED_PER_OPERATOR_ATTESTATION
+  license_note: "<操作者填写：已核对 FRED terms 允许此用途，日期>"
+llm:
+  kind: LLM
+  provider_id: local-ollama-qwen25
+  endpoint: http://localhost:11434/v1
+  model: qwen2.5:7b
+  cost_budget_usd: "0.00"          # 本地模型 $0；云端方案改填如 "5.00"
+  allow_external: true             # 仅操作者确认后置 true（本地端点不出网）
+  schema_version: v1
+budget_enforcement:
+  hard_monthly_cap_usd: "5.00"     # CostLedger 硬门；超支即拒
+  per_call_estimate_usd: "0.01"
